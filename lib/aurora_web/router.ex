@@ -2,6 +2,7 @@ defmodule AuroraWeb.Router do
   use AuroraWeb, :router
 
   import AuroraWeb.UserAuth
+  import AuroraWeb.CreatorAuth
 
   pipeline :browser do
     plug :accepts, ["html"]
@@ -11,6 +12,16 @@ defmodule AuroraWeb.Router do
     plug :protect_from_forgery
     plug :put_secure_browser_headers
     plug :fetch_current_user
+  end
+
+  pipeline :studio_browser do
+    plug :accepts, ["html"]
+    plug :fetch_session
+    plug :fetch_live_flash
+    # plug :put_root_layout, html: {AuroraWeb.Layouts, :root}
+    plug :protect_from_forgery
+    plug :put_secure_browser_headers
+    plug :fetch_current_creator
   end
 
   pipeline :api do
@@ -24,18 +35,89 @@ defmodule AuroraWeb.Router do
     get "/", PageController, :home
   end
 
-  # TODO need to configure NGINX during deployment to make sure studio.aurora.com and aurora.com have same IP address
+  # User authentication routes (aurora.com)
+  scope "/", AuroraWeb, host: "aurora.com" do
+    pipe_through [:browser, :redirect_if_user_is_authenticated]
+
+    live_session :redirect_if_user_is_authenticated,
+      on_mount: [{AuroraWeb.UserAuth, :redirect_if_user_is_authenticated}] do
+      live "/users/register", UserRegistrationLive, :new
+      live "/users/log_in", UserLoginLive, :new
+      live "/users/reset_password", UserForgotPasswordLive, :new
+      live "/users/reset_password/:token", UserResetPasswordLive, :edit
+    end
+
+    post "/users/log_in", UserSessionController, :create
+  end
+
+  scope "/", AuroraWeb, host: "aurora.com" do
+    pipe_through [:browser, :require_authenticated_user]
+
+    live_session :require_authenticated_user,
+      on_mount: [{AuroraWeb.UserAuth, :ensure_authenticated}] do
+      live "/", HomeLive, :show
+      live "/users/settings", UserSettingsLive, :edit
+      live "/users/settings/confirm_email/:token", UserSettingsLive, :confirm_email
+    end
+  end
+
+  scope "/", AuroraWeb, host: "aurora.com" do
+    pipe_through [:browser]
+
+    delete "/users/log_out", UserSessionController, :delete
+
+    live_session :current_user,
+      on_mount: [{AuroraWeb.UserAuth, :mount_current_user}] do
+      live "/users/confirm/:token", UserConfirmationLive, :edit
+      live "/users/confirm", UserConfirmationInstructionsLive, :new
+    end
+  end
+
   # Creators site (studio.aurora.com)
   scope "/", AuroraWeb, host: "studio.aurora.com" do
-    pipe_through :browser
+    pipe_through :studio_browser
 
     get "/", PageController, :home
   end
 
-  # Other scopes may use custom stacks.
-  # scope "/api", AuroraWeb do
-  #   pipe_through :api
-  # end
+  # Creator authentication routes (studio.aurora.com)
+  scope "/", AuroraWeb, host: "studio.aurora.com" do
+    pipe_through [:studio_browser, :redirect_if_creator_is_authenticated]
+
+    live_session :redirect_if_creator_is_authenticated,
+      on_mount: [{AuroraWeb.CreatorAuth, :redirect_if_creator_is_authenticated}] do
+      live "/creators/register", CreatorRegistrationLive, :new
+      live "/creators/log_in", CreatorLoginLive, :new
+      live "/creators/reset_password", CreatorForgotPasswordLive, :new
+      live "/creators/reset_password/:token", CreatorResetPasswordLive, :edit
+    end
+
+    post "/log_in", CreatorSessionController, :create
+  end
+
+  scope "/", AuroraWeb, host: "studio.aurora.com" do
+    pipe_through [:studio_browser, :require_authenticated_creator]
+
+    live_session :require_authenticated_creator,
+      on_mount: [{AuroraWeb.CreatorAuth, :ensure_authenticated}] do
+      live "/dashboard", CreatorDashboardLive, :show
+      live "/settings", CreatorSettingsLive, :edit
+      live "/settings/confirm_email/:token", CreatorSettingsLive, :confirm_email
+      delete "/creators/log_out", CreatorSessionController, :delete
+    end
+  end
+
+  scope "/", AuroraWeb, host: "studio.aurora.com" do
+    pipe_through [:studio_browser]
+
+    delete "/log_out", CreatorSessionController, :delete
+
+    live_session :current_creator,
+      on_mount: [{AuroraWeb.CreatorAuth, :mount_current_creator}] do
+      live "/confirm/:token", CreatorConfirmationLive, :edit
+      live "/confirm", CreatorConfirmationInstructionsLive, :new
+    end
+  end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development
   if Application.compile_env(:aurora, :dev_routes) do
@@ -51,44 +133,6 @@ defmodule AuroraWeb.Router do
 
       live_dashboard "/dashboard", metrics: AuroraWeb.Telemetry
       forward "/mailbox", Plug.Swoosh.MailboxPreview
-    end
-  end
-
-  ## Authentication routes
-
-  scope "/", AuroraWeb do
-    pipe_through [:browser, :redirect_if_user_is_authenticated]
-
-    live_session :redirect_if_user_is_authenticated,
-      on_mount: [{AuroraWeb.UserAuth, :redirect_if_user_is_authenticated}] do
-      live "/users/register", UserRegistrationLive, :new
-      live "/users/log_in", UserLoginLive, :new
-      live "/users/reset_password", UserForgotPasswordLive, :new
-      live "/users/reset_password/:token", UserResetPasswordLive, :edit
-    end
-
-    post "/users/log_in", UserSessionController, :create
-  end
-
-  scope "/", AuroraWeb do
-    pipe_through [:browser, :require_authenticated_user]
-
-    live_session :require_authenticated_user,
-      on_mount: [{AuroraWeb.UserAuth, :ensure_authenticated}] do
-      live "/users/settings", UserSettingsLive, :edit
-      live "/users/settings/confirm_email/:token", UserSettingsLive, :confirm_email
-    end
-  end
-
-  scope "/", AuroraWeb do
-    pipe_through [:browser]
-
-    delete "/users/log_out", UserSessionController, :delete
-
-    live_session :current_user,
-      on_mount: [{AuroraWeb.UserAuth, :mount_current_user}] do
-      live "/users/confirm/:token", UserConfirmationLive, :edit
-      live "/users/confirm", UserConfirmationInstructionsLive, :new
     end
   end
 end
