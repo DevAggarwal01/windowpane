@@ -17,7 +17,8 @@ defmodule AuroraWeb.HomeLive do
       user: user,
       is_creator: is_creator,
       stats: stats
-    )}
+    ),
+    layout: {AuroraWeb.Layouts, :app}}
   end
 
   @impl true

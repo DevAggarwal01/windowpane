@@ -10,6 +10,7 @@ module.exports = {
     "./js/**/*.js",
     "../lib/aurora_web.ex",
     "../lib/aurora_web/**/*.*ex"
+    
   ],
   theme: {
     extend: {
