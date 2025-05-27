@@ -37,7 +37,7 @@ defmodule AuroraWeb.CreatorSettingsLive do
         <.simple_form
           for={@password_form}
           id="password_form"
-          action={~p"/log_in?_action=password_updated"}
+          action={~p"/creators/log_in?_action=password_updated"}
           method="post"
           phx-change="validate_password"
           phx-submit="update_password"
@@ -45,7 +45,8 @@ defmodule AuroraWeb.CreatorSettingsLive do
         >
           <.input
             field={@password_form[:email]}
-            type="hidden"
+            type="text"
+            style="display: none;"
             id="hidden_creator_email"
             value={@current_email}
           />

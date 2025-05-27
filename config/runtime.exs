@@ -20,6 +20,7 @@ if System.get_env("PHX_SERVER") do
   config :aurora, AuroraWeb.Endpoint, server: true
 end
 
+
 if config_env() == :prod do
   database_url =
     System.get_env("DATABASE_URL") ||
@@ -64,6 +65,8 @@ if config_env() == :prod do
       port: port
     ],
     secret_key_base: secret_key_base
+
+
 
   # ## SSL Support
   #

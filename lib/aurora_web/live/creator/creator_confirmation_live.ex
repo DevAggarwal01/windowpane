@@ -20,7 +20,7 @@ defmodule AuroraWeb.CreatorConfirmationLive do
       </.simple_form>
 
       <p class="text-center mt-4">
-        <.link href={~p"/log_in"}>Log in</.link>
+        <.link href={~p"/creators/log_in"}>Log in</.link>
       </p>
     </div>
     """
@@ -39,7 +39,7 @@ defmodule AuroraWeb.CreatorConfirmationLive do
       </.simple_form>
 
       <p class="text-center mt-4">
-        <.link href={~p"/log_in"}>Log in</.link>
+        <.link href={~p"/creators/log_in"}>Log in</.link>
       </p>
     </div>
     """
@@ -61,7 +61,7 @@ defmodule AuroraWeb.CreatorConfirmationLive do
         {:noreply,
          socket
          |> put_flash(:info, "Creator confirmed successfully.")
-         |> redirect(to: ~p"/log_in")}
+         |> redirect(to: ~p"/creators/log_in")}
 
       :error ->
         {:noreply,

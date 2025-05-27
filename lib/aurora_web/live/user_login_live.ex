@@ -1,12 +1,14 @@
 defmodule AuroraWeb.UserLoginLive do
   use AuroraWeb, :live_view
 
+  @impl true
   def mount(_params, _session, socket) do
-    email = live_flash(socket.assigns, :email)
+    email = Phoenix.Flash.get(socket.assigns, :email)
     form = to_form(%{"email" => email}, as: "user")
     {:ok, assign(socket, form: form, trigger_submit: false), layout: {AuroraWeb.Layouts, :minimal}}
   end
 
+  @impl true
   def render(assigns) do
     ~H"""
     <div class="min-h-screen bg-[#0073b1]">

@@ -33,7 +33,7 @@ defmodule AuroraWeb.CreatorResetPasswordLive do
       </.simple_form>
 
       <p class="text-center text-sm mt-4">
-        <.link href={~p"/log_in"}>Log in</.link>
+        <.link href={~p"/creators/log_in"}>Log in</.link>
       </p>
     </div>
     """
@@ -62,7 +62,7 @@ defmodule AuroraWeb.CreatorResetPasswordLive do
         {:noreply,
          socket
          |> put_flash(:info, "Password reset successfully.")
-         |> redirect(to: ~p"/log_in")}
+         |> redirect(to: ~p"/creators/log_in")}
 
       {:error, changeset} ->
         {:noreply, assign_form(socket, Map.put(changeset, :action, :insert))}

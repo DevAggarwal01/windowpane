@@ -20,7 +20,7 @@ defmodule AuroraWeb.CreatorForgotPasswordLive do
         </:actions>
       </.simple_form>
       <p class="text-center text-sm mt-4">
-        <.link href={~p"/log_in"}>Log in</.link>
+        <.link href={~p"/creators/log_in"}>Log in</.link>
       </p>
     </div>
     """
@@ -34,7 +34,7 @@ defmodule AuroraWeb.CreatorForgotPasswordLive do
     if creator = Creators.get_creator_by_email(email) do
       Creators.deliver_creator_reset_password_instructions(
         creator,
-        &url(~p"/reset_password/#{&1}")
+        &url(~p"/creators/reset_password/#{&1}")
       )
     end
 

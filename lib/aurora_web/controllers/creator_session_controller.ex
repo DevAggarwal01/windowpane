@@ -30,7 +30,7 @@ defmodule AuroraWeb.CreatorSessionController do
       conn
       |> put_flash(:error, "Invalid email or password")
       |> put_flash(:email, String.slice(email, 0, 160))
-      |> redirect(to: ~p"/log_in")
+      |> redirect(to: ~p"/creators/log_in")
     end
   end
 

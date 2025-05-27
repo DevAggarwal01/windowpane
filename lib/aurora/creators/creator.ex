@@ -9,7 +9,7 @@ defmodule Aurora.Creators.Creator do
     field :current_password, :string, virtual: true, redact: true
     field :confirmed_at, :utc_datetime
     field :name, :string
-    field :plan, :string, default: "basic"
+    field :plan, :string, default: "free"
     field :creator_code, :string, virtual: true # Only used for validation
 
     timestamps(type: :utc_datetime)

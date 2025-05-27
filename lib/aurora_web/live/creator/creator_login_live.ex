@@ -8,6 +8,7 @@ defmodule AuroraWeb.CreatorLoginLive do
     {:ok, assign(socket, form: form, trigger_submit: false), layout: {AuroraWeb.Layouts, :minimal}}
   end
 
+  @impl true
   def render(assigns) do
     ~H"""
     <div class="min-h-screen bg-[#0073b1]">

@@ -4,6 +4,7 @@ defmodule Aurora.Creators do
   """
 
   import Ecto.Query, warn: false
+  require Logger
   alias Aurora.Repo
 
   alias Aurora.Creators.{Creator, CreatorToken, CreatorNotifier, CreatorCode}
@@ -368,6 +369,42 @@ defmodule Aurora.Creators do
     case Repo.get_by(CreatorCode, code: code) do
       nil -> false
       _code -> true
+    end
+  end
+
+  @doc """
+  Fetches all Stripe products that start with "Creator's Plan" and their associated prices.
+  Returns a list of maps containing product and price information.
+  """
+  def fetch_creator_plans do
+    Logger.info("fetch_creator_plans called")
+    case Application.get_env(:stripity_stripe, :api_key) do
+      nil ->
+        Logger.warning("No Stripe API key configured")
+        []
+      _ ->
+        try do
+          {:ok, products} = Stripe.Product.list(%{active: true})
+          Logger.info("Stripe product successfully fetched: #{inspect(products.data)}")
+          products.data
+          |> Enum.filter(&String.starts_with?(&1.name, "Creator's Plan"))
+          |> Enum.map(fn product ->
+            {:ok, prices} = Stripe.Price.list(%{product: product.id, active: true})
+            price = List.first(prices.data)
+            %{
+              id: product.id,
+              name: product.name,
+              description: product.description,
+              price: price.unit_amount / 100, # Convert cents to dollars
+              price_id: price.id
+            }
+          end)
+        rescue
+          e ->
+            # Log the error and return empty list if Stripe API call fails
+            Logger.error("Error fetching creator plans: #{inspect(e)}")
+            []
+        end
     end
   end
 end

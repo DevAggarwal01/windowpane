@@ -55,7 +55,9 @@ defmodule AuroraWeb.Router do
 
     live_session :require_authenticated_user,
       on_mount: [{AuroraWeb.UserAuth, :ensure_authenticated}] do
-      live "/", HomeLive, :show
+      live "/dashboard", HomeLive, :show
+      live "/library", LibraryLive, :index
+      live "/social", SocialLive, :index
       live "/users/settings", UserSettingsLive, :edit
       live "/users/settings/confirm_email/:token", UserSettingsLive, :confirm_email
     end
@@ -65,6 +67,7 @@ defmodule AuroraWeb.Router do
     pipe_through [:browser]
 
     delete "/users/log_out", UserSessionController, :delete
+    get "/users/log_out", UserSessionController, :delete
 
     live_session :current_user,
       on_mount: [{AuroraWeb.UserAuth, :mount_current_user}] do
@@ -88,11 +91,16 @@ defmodule AuroraWeb.Router do
       on_mount: [{AuroraWeb.CreatorAuth, :redirect_if_creator_is_authenticated}] do
       live "/creators/register", CreatorRegistrationLive, :new
       live "/creators/log_in", CreatorLoginLive, :new
+      live "/log_in", CreatorLoginLive, :new
       live "/creators/reset_password", CreatorForgotPasswordLive, :new
+      live "/reset_password/:token", CreatorResetPasswordLive, :edit
       live "/creators/reset_password/:token", CreatorResetPasswordLive, :edit
     end
 
+    post "/creators/log_in", CreatorSessionController, :create
     post "/log_in", CreatorSessionController, :create
+    post "/creators/log_in?_action=password_updated", CreatorSessionController, :create
+    post "/log_in?_action=password_updated", CreatorSessionController, :create
   end
 
   scope "/", AuroraWeb, host: "studio.aurora.com" do
@@ -100,17 +108,23 @@ defmodule AuroraWeb.Router do
 
     live_session :require_authenticated_creator,
       on_mount: [{AuroraWeb.CreatorAuth, :ensure_authenticated}] do
-      live "/dashboard", CreatorDashboardLive, :show
+      live "/dashboard", HomeLive, :show
+      live "/library", LibraryLive, :index
+      live "/social", SocialLive, :index
+      live "/projects", ProjectLive.Index, :index
+      live "/projects/new", ProjectLive.New, :new
       live "/settings", CreatorSettingsLive, :edit
       live "/settings/confirm_email/:token", CreatorSettingsLive, :confirm_email
-      delete "/creators/log_out", CreatorSessionController, :delete
     end
   end
 
   scope "/", AuroraWeb, host: "studio.aurora.com" do
     pipe_through [:studio_browser]
 
+    delete "/creators/log_out", CreatorSessionController, :delete
+    get "/creators/log_out", CreatorSessionController, :delete
     delete "/log_out", CreatorSessionController, :delete
+    get "/log_out", CreatorSessionController, :delete
 
     live_session :current_creator,
       on_mount: [{AuroraWeb.CreatorAuth, :mount_current_creator}] do
