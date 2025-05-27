@@ -3,8 +3,3 @@
 @tailwind utilities;
 
 /* This file is for your main application CSS */
-
-
-body {
-    @apply bg-red-500 text-white;
-}
