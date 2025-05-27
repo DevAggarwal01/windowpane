@@ -1,6 +1,8 @@
 defmodule AuroraWeb.HomeLive do
   use AuroraWeb, :live_view
 
+  import AuroraWeb.NavComponents
+
   @impl true
   def mount(_params, _session, socket) do
     user = socket.assigns[:current_user] || socket.assigns[:current_creator]
@@ -16,39 +18,16 @@ defmodule AuroraWeb.HomeLive do
     {:ok, assign(socket,
       user: user,
       is_creator: is_creator,
-      stats: stats
-    ),
-    # layout: {AuroraWeb.Layouts, :}
-  }
+      stats: stats,
+      current_path: socket.assigns.live_action
+    )}
   end
 
   @impl true
   def render(assigns) do
     ~H"""
     <div class="min-h-screen bg-gray-50">
-      <!-- Top Navigation -->
-      <header class="bg-gray-800 text-white">
-        <div class="container mx-auto px-4">
-          <div class="flex items-center justify-between h-16">
-            <div class="text-xl font-semibold">Dashboard</div>
-            <div class="flex items-center space-x-8">
-              <nav class="flex space-x-8">
-                <.link navigate={~p"/"} class="text-gray-300 hover:text-white">Browse</.link>
-                <.link navigate={~p"/library"} class="text-gray-300 hover:text-white">My Library</.link>
-                <.link navigate={~p"/social"} class="text-gray-300 hover:text-white">Social</.link>
-                <.link navigate={~p"/settings"} class="text-gray-300 hover:text-white">Account Settings</.link>
-              </nav>
-              <.link
-                href={if @is_creator, do: ~p"/creators/log_out", else: ~p"/users/log_out"}
-                method="delete"
-                class="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
-              >
-                Log out
-              </.link>
-            </div>
-          </div>
-        </div>
-      </header>
+      <.main_header current_path={@current_path} is_creator={@is_creator} />
 
       <!-- Main Content -->
       <main class="container mx-auto px-4 py-8">
@@ -72,32 +51,41 @@ defmodule AuroraWeb.HomeLive do
           </div>
         </div>
 
-        <!-- Action Buttons -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          <.link
-            navigate={~p"/projects/new"}
-            class="inline-flex items-center justify-center px-6 py-4 bg-gray-800 text-white text-lg font-medium rounded-lg hover:bg-gray-700"
-          >
-            Create New Project
-          </.link>
+        <!-- Projects Section -->
+        <div class="mb-8">
+          <h2 class="text-2xl font-bold mb-4">My Projects</h2>
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            <!-- Create New Project Card -->
+            <.link
+              navigate={~p"/projects/new"}
+              class="flex flex-col items-center justify-center p-6 bg-white rounded-lg shadow-sm border-2 border-dashed border-gray-300 hover:border-gray-400 hover:bg-gray-50 transition-all duration-200"
+            >
+              <div class="w-16 h-16 flex items-center justify-center rounded-full bg-gray-100 mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+              </div>
+              <h3 class="text-lg font-medium text-gray-900">Create New Project</h3>
+              <p class="mt-1 text-sm text-gray-500">Start a new creative project</p>
+            </.link>
 
-          <.link
-            navigate={~p"/projects"}
-            class="inline-flex items-center justify-center px-6 py-4 bg-white text-gray-800 text-lg font-medium rounded-lg border-2 border-gray-200 hover:bg-gray-50"
-          >
-            View/Manage Past Projects
-          </.link>
-        </div>
+            <!-- Sample Project Cards - Replace with real data -->
+            <div class="bg-white rounded-lg shadow-sm p-6">
+              <div class="aspect-w-16 aspect-h-9 bg-gray-200 rounded-lg mb-4"></div>
+              <h3 class="text-lg font-medium text-gray-900">Project Title</h3>
+              <p class="text-sm text-gray-500">Last updated: 2 days ago</p>
+            </div>
 
-        <!-- Bottom Section -->
-        <div class="bg-white rounded-lg shadow p-6">
-          <div class="flex items-center justify-between">
-            <div class="text-xl font-semibold">Actions</div>
-            <div class="flex space-x-6">
-              <.link navigate={~p"/"} class="text-gray-600 hover:text-gray-900">Browse</.link>
-              <.link navigate={~p"/social"} class="text-gray-600 hover:text-gray-900">Mocial</.link>
-              <.link navigate={~p"/settings"} class="text-gray-600 hover:text-gray-900">Account Settings</.link>
-              <span class="text-gray-300">→</span>
+            <div class="bg-white rounded-lg shadow-sm p-6">
+              <div class="aspect-w-16 aspect-h-9 bg-gray-200 rounded-lg mb-4"></div>
+              <h3 class="text-lg font-medium text-gray-900">Project Title</h3>
+              <p class="text-sm text-gray-500">Last updated: 5 days ago</p>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-sm p-6">
+              <div class="aspect-w-16 aspect-h-9 bg-gray-200 rounded-lg mb-4"></div>
+              <h3 class="text-lg font-medium text-gray-900">Project Title</h3>
+              <p class="text-sm text-gray-500">Last updated: 1 week ago</p>
             </div>
           </div>
         </div>

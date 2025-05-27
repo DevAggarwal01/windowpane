@@ -14,6 +14,12 @@ defmodule AuroraWeb.UserSessionController do
     |> create(params, "Password updated successfully!")
   end
 
+  def create(conn, %{"redirect_to" => redirect_to} = params) do
+    conn
+    |> put_session(:user_return_to, redirect_to)
+    |> create(params, "Welcome back!")
+  end
+
   def create(conn, params) do
     create(conn, params, "Welcome back!")
   end

@@ -19,7 +19,7 @@ defmodule AuroraWeb.UserLoginLive do
         <h2 class="text-2xl text-white font-light mb-8">Welcome back</h2>
 
         <div class="bg-white rounded-lg p-6 shadow-lg w-full max-w-md">
-      <.simple_form for={@form} id="login_form" action={~p"/users/log_in"} phx-update="ignore">
+      <.simple_form for={@form} id="login_form" action={~p"/users/log_in?_action=logged_in&redirect_to=/browse"} phx-update="ignore">
             <.input
               field={@form[:email]}
               type="email"

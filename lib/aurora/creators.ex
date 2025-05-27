@@ -374,19 +374,27 @@ defmodule Aurora.Creators do
 
   @doc """
   Fetches all Stripe products that start with "Creator's Plan" and their associated prices.
-  Returns a list of maps containing product and price information.
+  Returns a list of maps containing product and price information, sorted by price.
   """
   def fetch_creator_plans do
     Logger.info("fetch_creator_plans called")
+    free_plan = %{
+      id: "free",
+      name: "Free",
+      description: "You can look around, but nothing else!",
+      price: 0,
+      price_id: "free"
+    }
+
     case Application.get_env(:stripity_stripe, :api_key) do
       nil ->
         Logger.warning("No Stripe API key configured")
-        []
+        [free_plan]
       _ ->
         try do
           {:ok, products} = Stripe.Product.list(%{active: true})
           Logger.info("Stripe product successfully fetched: #{inspect(products.data)}")
-          products.data
+          stripe_plans = products.data
           |> Enum.filter(&String.starts_with?(&1.name, "Creator's Plan"))
           |> Enum.map(fn product ->
             {:ok, prices} = Stripe.Price.list(%{product: product.id, active: true})
@@ -399,6 +407,10 @@ defmodule Aurora.Creators do
               price_id: price.id
             }
           end)
+
+          # Combine free plan with stripe plans and sort by price
+          ([free_plan | stripe_plans]
+          |> Enum.sort_by(& &1.price))
         rescue
           e ->
             # Log the error and return empty list if Stripe API call fails

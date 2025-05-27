@@ -1,5 +1,8 @@
 # Aurora
 
+After deploying, the webhook endpoint needs to be configured to a different url
+
+
 To start your Phoenix server:
 
   * Run `mix setup` to install and setup dependencies

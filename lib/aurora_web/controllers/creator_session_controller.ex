@@ -10,7 +10,7 @@ defmodule AuroraWeb.CreatorSessionController do
 
   def create(conn, %{"_action" => "password_updated"} = params) do
     conn
-    |> put_session(:creator_return_to, ~p"/settings")
+    |> put_session(:creator_return_to, ~p"/creators/settings")
     |> create(params, "Password updated successfully!")
   end
 

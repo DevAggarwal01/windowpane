@@ -56,6 +56,7 @@ defmodule AuroraWeb.Router do
     live_session :require_authenticated_user,
       on_mount: [{AuroraWeb.UserAuth, :ensure_authenticated}] do
       live "/dashboard", HomeLive, :show
+      live "/browse", BrowseLive, :index
       live "/library", LibraryLive, :index
       live "/social", SocialLive, :index
       live "/users/settings", UserSettingsLive, :edit
@@ -109,12 +110,13 @@ defmodule AuroraWeb.Router do
     live_session :require_authenticated_creator,
       on_mount: [{AuroraWeb.CreatorAuth, :ensure_authenticated}] do
       live "/dashboard", HomeLive, :show
+      live "/browse", BrowseLive, :index
       live "/library", LibraryLive, :index
       live "/social", SocialLive, :index
       live "/projects", ProjectLive.Index, :index
       live "/projects/new", ProjectLive.New, :new
-      live "/settings", CreatorSettingsLive, :edit
-      live "/settings/confirm_email/:token", CreatorSettingsLive, :confirm_email
+      live "/creators/settings", CreatorSettingsLive, :edit
+      live "/creators/settings/confirm_email/:token", CreatorSettingsLive, :confirm_email
     end
   end
 
@@ -131,6 +133,10 @@ defmodule AuroraWeb.Router do
       live "/confirm/:token", CreatorConfirmationLive, :edit
       live "/confirm", CreatorConfirmationInstructionsLive, :new
     end
+  end
+
+  scope "/webhooks", AuroraWeb do
+    post "/stripe", StripeWebhookController, :handle
   end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development
