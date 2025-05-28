@@ -135,10 +135,6 @@ defmodule AuroraWeb.Router do
     end
   end
 
-  scope "/webhooks", AuroraWeb do
-    post "/stripe", StripeWebhookController, :handle
-  end
-
   # Enable LiveDashboard and Swoosh mailbox preview in development
   if Application.compile_env(:aurora, :dev_routes) do
     # If you want to use the LiveDashboard in production, you should put

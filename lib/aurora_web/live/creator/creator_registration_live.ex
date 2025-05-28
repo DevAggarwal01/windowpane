@@ -135,18 +135,45 @@ defmodule AuroraWeb.CreatorRegistrationLive do
       # Validate creator code before proceeding
       case Creators.valid_creator_code?(creator_params["creator_code"]) do
         true ->
-          # Register the creator immediately
-          case Creators.register_creator(creator_params) do
-            {:ok, creator} ->
-              {:ok, _} =
-                Creators.deliver_creator_confirmation_instructions(
-                  creator,
-                  &url(~p"/confirm/#{&1}")
-                )
+          case Stripe.Account.create(%{
+            type: "express",
+            country: "US",
+            email: creator_params["email"],
+            capabilities: %{transfers: %{requested: true}}
+          }) do
+            {:ok, acct} ->
+              IO.inspect(acct, label: "Created Stripe account")
+              # Add stripe_account_id to the creator_params
+              creator_params = Map.put(creator_params, "stripe_account_id", acct.id)
 
-              {:noreply, socket |> assign(trigger_submit: true)}
+              # Register the creator immediately
+              case Creators.register_creator(creator_params) do
+                {:ok, creator} ->
+                  {:ok, _} =
+                    Creators.deliver_creator_confirmation_instructions(
+                      creator,
+                      &url(~p"/confirm/#{&1}")
+                    )
 
-            {:error, %Ecto.Changeset{} = changeset} ->
+                  {:noreply, socket |> assign(trigger_submit: true)}
+
+                {:error, %Ecto.Changeset{} = changeset} ->
+                  # If creator registration fails, we should clean up the Stripe account
+                  _ = Stripe.Account.delete(acct.id)
+                  {:noreply, socket |> assign(check_errors: true) |> assign_form(changeset)}
+              end
+
+            {:error, %Stripe.Error{message: message}} ->
+              changeset =
+                changeset
+                |> Ecto.Changeset.add_error(:base, "Failed to create Stripe account: #{message}")
+              {:noreply, socket |> assign(check_errors: true) |> assign_form(changeset)}
+
+            {:error, error} ->
+              IO.inspect(error, label: "Unknown error creating Stripe account")
+              changeset =
+                changeset
+                |> Ecto.Changeset.add_error(:base, "Failed to create Stripe account. Please try again later.")
               {:noreply, socket |> assign(check_errors: true) |> assign_form(changeset)}
           end
 

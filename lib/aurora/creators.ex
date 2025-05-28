@@ -419,4 +419,22 @@ defmodule Aurora.Creators do
         end
     end
   end
+
+  @doc """
+  Updates a creator with the given attributes.
+
+  ## Examples
+
+      iex> update_creator(creator, %{field: new_value})
+      {:ok, %Creator{}}
+
+      iex> update_creator(creator, %{field: bad_value})
+      {:error, %Ecto.Changeset{}}
+
+  """
+  def update_creator(%Creator{} = creator, attrs) do
+    creator
+    |> Creator.update_changeset(attrs)
+    |> Repo.update()
+  end
 end

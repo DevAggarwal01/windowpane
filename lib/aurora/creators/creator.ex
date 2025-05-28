@@ -11,6 +11,8 @@ defmodule Aurora.Creators.Creator do
     field :name, :string
     field :plan, :string, default: "free"
     field :creator_code, :string, virtual: true # Only used for validation
+    field :stripe_account_id, :string
+    field :onboarded, :boolean, default: false
 
     timestamps(type: :utc_datetime)
   end
@@ -40,7 +42,7 @@ defmodule Aurora.Creators.Creator do
   """
   def registration_changeset(creator, attrs, opts \\ []) do
     creator
-    |> cast(attrs, [:email, :password, :name, :creator_code])
+    |> cast(attrs, [:email, :password, :name, :creator_code, :stripe_account_id])
     |> validate_required([:name, :email, :password, :creator_code])
     |> validate_email(opts)
     |> validate_password(opts)
@@ -155,5 +157,14 @@ defmodule Aurora.Creators.Creator do
     else
       add_error(changeset, :current_password, "is not valid")
     end
+  end
+
+  @doc """
+  A changeset for updating a creator.
+  """
+  def update_changeset(creator, attrs) do
+    creator
+    |> cast(attrs, [:onboarded, :plan])
+    |> validate_required([])
   end
 end

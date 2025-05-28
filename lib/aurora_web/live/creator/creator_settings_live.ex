@@ -45,6 +45,14 @@ defmodule AuroraWeb.CreatorSettingsLive do
           <!-- Creator Plans Section -->
           <div class="pt-8">
             <h2 class="text-2xl font-semibold mb-6">Billing</h2>
+            <button
+              phx-click="setup_billing"
+              class="w-full sm:w-auto bg-[#0073b1] hover:bg-[#006097] text-white font-medium py-2 px-4 rounded transition-colors"
+            >
+              Setup Billing
+            </button>
+
+            <%!-- Commented out plans section
             <%= if @selected_plan do %>
               <div class="mb-6 bg-blue-50 p-4 rounded-lg border border-blue-200">
                 <div class="flex items-center justify-between">
@@ -74,6 +82,7 @@ defmodule AuroraWeb.CreatorSettingsLive do
                 </div>
               </div>
             <% end %>
+
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <%= for plan <- @creator_plans do %>
                 <div class={[
@@ -119,6 +128,7 @@ defmodule AuroraWeb.CreatorSettingsLive do
                 </div>
               <% end %>
             </div>
+            --%>
           </div>
           <div>
             <h2 class="text-2xl font-semibold mb-6">Authentication Settings</h2>
@@ -180,7 +190,6 @@ defmodule AuroraWeb.CreatorSettingsLive do
               </:actions>
             </.simple_form>
           </div>
-
         </div>
       </div>
     </div>
@@ -273,38 +282,111 @@ defmodule AuroraWeb.CreatorSettingsLive do
   end
 
   @impl true
-  def handle_event("setup_billing", %{"price-id" => price_id}, socket) do
+  def handle_event("setup_billing", _params, socket) do
     creator = socket.assigns.current_creator
-    selected_plan = socket.assigns.selected_plan
 
-    IO.inspect("Starting setup_billing with price_id: #{price_id}")
-    IO.inspect(creator, label: "Creator")
-    IO.inspect(selected_plan, label: "Selected Plan")
+    if is_nil(creator.stripe_account_id) do
+      {:noreply, socket |> put_flash(:error, "No Stripe account found. Please contact support.")}
+    else
+      refresh_url = URI.to_string(%{
+        URI.parse(url(~p"/creators/settings?status=failure")) |
+        host: "studio.aurora.com",
+        port: 4000
+      })
 
-    case Session.create(%{
-      mode: "subscription",
-      success_url: url(~p"/creators/settings") <> "?session_id={CHECKOUT_SESSION_ID}",
-      cancel_url: url(~p"/creators/settings"),
-      customer_email: creator.email,
-      line_items: [
-        %{
-          price: price_id,
-          quantity: 1
-        }
-      ],
-      metadata: %{
-        creator_id: creator.id,
-        plan_id: selected_plan.id
-      }
-    }) do
-      {:ok, session} ->
-        IO.inspect(session, label: "Stripe Session Created")
-        {:noreply, redirect(socket, external: session.url)}
+      return_url = URI.to_string(%{
+        URI.parse(url(~p"/creators/settings?status=success")) |
+        host: "studio.aurora.com",
+        port: 4000
+      })
 
-      {:error, error} ->
-        IO.inspect(error, label: "Stripe error")
-        {:noreply, socket |> put_flash(:error, "Unable to create Stripe checkout session")}
+      case Stripe.AccountLink.create(%{
+        account: creator.stripe_account_id,
+        refresh_url: refresh_url, # TODO need to change url during production
+        return_url: return_url, # TODO need to change url during production
+        type: "account_onboarding"
+      }) do
+        {:ok, link} ->
+          IO.inspect(link, label: "Created Stripe account link")
+          {:noreply, redirect(socket, external: link.url)}
+
+        {:error, %Stripe.Error{} = error} ->
+          IO.inspect(error, label: "Stripe error during account link creation")
+          {:noreply, socket |> put_flash(:error, "Stripe error: #{error.message}")}
+
+        {:error, error} ->
+          IO.inspect(error, label: "Unknown error during account link creation")
+          {:noreply, socket |> put_flash(:error, "Failed to setup billing. Please try again later.")}
+      end
     end
+  end
+
+  def handle_params(%{"status" => "success"}, _uri, socket) do
+    creator = socket.assigns.current_creator
+    IO.inspect(creator, label: "Current creator before Stripe check")
+
+    case get_connected_account(creator.stripe_account_id) do
+      {:ok, response} when is_map(response) ->
+        IO.inspect(response, label: "Raw Stripe response")
+        case response do
+          %{"details_submitted" => true} ->
+            IO.inspect("Details submitted is true, attempting to update creator")
+            case Creators.update_creator(creator, %{onboarded: true}) do
+              {:ok, updated_creator} ->
+                IO.inspect(updated_creator, label: "Successfully updated creator")
+                {:noreply,
+                 socket
+                 |> assign(:current_creator, updated_creator)
+                 |> put_flash(:info, "Stripe onboarding complete!")}
+
+              {:error, changeset} ->
+                IO.inspect(changeset, label: "Failed to update creator")
+                {:noreply, put_flash(socket, :error, "Failed to update onboarding status. Please try again.")}
+            end
+
+          %{"details_submitted" => false} ->
+            IO.puts("Details submitted is false")
+            {:noreply, put_flash(socket, :error, "Onboarding incomplete. Please try again.")}
+
+          _ ->
+            IO.inspect(response, label: "Unexpected Stripe response format")
+            {:noreply, put_flash(socket, :error, "Could not determine onboarding status. Please try again.")}
+        end
+
+      {:error, %Stripe.Error{} = error} ->
+        IO.inspect(error, label: "Stripe API error")
+        {:noreply, put_flash(socket, :error, "Stripe error: #{error.message}")}
+
+      unexpected ->
+        IO.inspect(unexpected, label: "Unexpected response structure from Stripe")
+        {:noreply, put_flash(socket, :error, "Failed to verify onboarding status. Please try again.")}
+    end
+  end
+
+  def get_connected_account(account_id) do
+    secret_key = System.get_env("STRIPE_SECRET")
+
+    case Req.get("https://api.stripe.com/v1/accounts/#{account_id}",
+      auth: {secret_key, ""},
+      headers: [{"Content-Type", "application/x-www-form-urlencoded"}]
+    ) do
+      {:ok, %{status: 200, body: body}} -> {:ok, body}
+      {:ok, %{status: status, body: body}} ->
+        IO.inspect({status, body}, label: "Stripe API error response")
+        {:error, "Stripe API error: #{status}"}
+      {:error, error} ->
+        IO.inspect(error, label: "Request failed")
+        {:error, "Failed to connect to Stripe"}
+    end
+  end
+
+  def handle_params(%{"status" => "failure"}, _uri, socket) do
+    {:noreply, put_flash(socket, :error, "Onboarding was canceled or failed.")}
+  end
+
+  # Default clause for when there are no parameters
+  def handle_params(_params, _uri, socket) do
+    {:noreply, socket}
   end
 
   @impl true
