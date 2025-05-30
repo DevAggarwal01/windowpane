@@ -17,6 +17,12 @@ defmodule AuroraWeb.HomeLive do
 
     show_billing_popup = is_creator && socket.assigns[:current_creator] && !socket.assigns[:current_creator].onboarded
 
+    projects = if is_creator do
+      Aurora.Projects.list_projects(socket.assigns.current_creator.id)
+    else
+      []
+    end
+
     {:ok, assign(socket,
       user: user,
       is_creator: is_creator,
@@ -28,6 +34,7 @@ defmodule AuroraWeb.HomeLive do
       film_form_step: 1,
       project_type: nil,
       error_message: nil,
+      projects: projects,
       film_details: %{
         "title" => "",
         "description" => ""
@@ -59,12 +66,32 @@ defmodule AuroraWeb.HomeLive do
   def handle_event("create_project", %{"type" => type}, socket) do
     case type do
       "film" ->
-        {:noreply, assign(socket,
-          show_project_dropdown: false,
-          show_film_modal: true,
-          project_type: type,
-          error_message: nil
-        )}
+        project_params = %{
+          "title" => "New Film Project",
+          "description" => "A new film project",
+          "type" => type,
+          "creator_id" => socket.assigns.current_creator.id,
+          "status" => "draft",
+          "premiere_date" => DateTime.utc_now() |> DateTime.add(30, :day),
+          "rental_price" => Decimal.new("2.99"),
+          "rental_window_hours" => 48,
+          "purchase_price" => Decimal.new("9.99")
+        }
+
+        case Aurora.Projects.create_project(project_params) do
+          {:ok, project} ->
+            {:noreply,
+             socket
+             |> put_flash(:info, "Project created successfully!")
+             |> redirect(to: ~p"/projects/#{project.id}")}
+
+          {:error, _changeset} ->
+            {:noreply,
+             socket
+             |> put_flash(:error, "Error creating project. Please try again.")
+             |> assign(show_project_dropdown: false)}
+        end
+
       _ ->
         {:noreply, assign(socket,
           show_project_dropdown: false,
@@ -132,8 +159,6 @@ defmodule AuroraWeb.HomeLive do
   def render(assigns) do
     ~H"""
     <div class="min-h-screen bg-gray-50">
-      <.main_header current_path={@current_path} is_creator={@is_creator} />
-
       <%= if @error_message do %>
         <div class="fixed top-4 right-4 bg-red-50 text-red-700 px-4 py-3 rounded-lg shadow-lg flex items-center z-50">
           <svg class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -500,24 +525,46 @@ defmodule AuroraWeb.HomeLive do
               <% end %>
             </div>
 
-            <!-- Sample Project Cards - Replace with real data -->
-            <div class="bg-white rounded-lg shadow-sm p-6">
-              <div class="aspect-w-16 aspect-h-9 bg-gray-200 rounded-lg mb-4"></div>
-              <h3 class="text-lg font-medium text-gray-900">Project Title</h3>
-              <p class="text-sm text-gray-500">Last updated: 2 days ago</p>
-            </div>
-
-            <div class="bg-white rounded-lg shadow-sm p-6">
-              <div class="aspect-w-16 aspect-h-9 bg-gray-200 rounded-lg mb-4"></div>
-              <h3 class="text-lg font-medium text-gray-900">Project Title</h3>
-              <p class="text-sm text-gray-500">Last updated: 5 days ago</p>
-            </div>
-
-            <div class="bg-white rounded-lg shadow-sm p-6">
-              <div class="aspect-w-16 aspect-h-9 bg-gray-200 rounded-lg mb-4"></div>
-              <h3 class="text-lg font-medium text-gray-900">Project Title</h3>
-              <p class="text-sm text-gray-500">Last updated: 1 week ago</p>
-            </div>
+            <!-- Project Cards -->
+            <%= for project <- @projects do %>
+              <.link navigate={~p"/projects/#{project.id}"} class="block">
+                <div class="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow">
+                  <div class="aspect-w-16 aspect-h-9 bg-gray-200 rounded-lg mb-4">
+                    <%= case project.type do %>
+                      <% "film" -> %>
+                        <div class="flex items-center justify-center">
+                          <span class="text-4xl">🎞️</span>
+                        </div>
+                      <% "tv_show" -> %>
+                        <div class="flex items-center justify-center">
+                          <span class="text-4xl">🎬</span>
+                        </div>
+                      <% "live_event" -> %>
+                        <div class="flex items-center justify-center">
+                          <span class="text-4xl">🎤</span>
+                        </div>
+                      <% "book" -> %>
+                        <div class="flex items-center justify-center">
+                          <span class="text-4xl">📚</span>
+                        </div>
+                      <% "music" -> %>
+                        <div class="flex items-center justify-center">
+                          <span class="text-4xl">🎶</span>
+                        </div>
+                    <% end %>
+                  </div>
+                  <h3 class="text-lg font-medium text-gray-900"><%= project.title %></h3>
+                  <div class="mt-2 flex items-center text-sm text-gray-500">
+                    <span class="capitalize"><%= project.type %></span>
+                    <span class="mx-2">•</span>
+                    <span class="capitalize"><%= project.status %></span>
+                  </div>
+                  <p class="text-sm text-gray-500">
+                    Last updated: <%= Calendar.strftime(project.updated_at, "%B %d, %Y") %>
+                  </p>
+                </div>
+              </.link>
+            <% end %>
           </div>
         </div>
       </main>

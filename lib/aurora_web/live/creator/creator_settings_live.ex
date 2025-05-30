@@ -34,8 +34,6 @@ defmodule AuroraWeb.CreatorSettingsLive do
   def render(assigns) do
     ~H"""
     <div class="min-h-screen bg-gray-50">
-      <.main_header current_path={@live_action} is_creator={true} />
-
       <div class="container mx-auto px-4 py-8">
         <.header class="text-center">
           <h1 class="text-4xl font-bold tracking-tight text-gray-900">Account Settings</h1>

@@ -10,5 +10,7 @@ defmodule AuroraWeb.Layouts do
   """
   use AuroraWeb, :html
 
+  import AuroraWeb.NavComponents
+
   embed_templates "layouts/*"
 end

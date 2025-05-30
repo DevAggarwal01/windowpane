@@ -14,28 +14,72 @@ defmodule AuroraWeb.NavComponents do
     <header class={["bg-gray-800 text-white", @class]}>
       <div class="container mx-auto px-4">
         <div class="flex items-center justify-between h-16">
-          <div class="text-xl font-semibold">Aurora</div>
-          <div class="flex items-center space-x-8">
-            <nav class="flex space-x-8">
-              <%= if @is_creator do %>
-                <.link navigate={~p"/dashboard"} class="text-gray-300 hover:text-white">Dashboard</.link>
-              <% end %>
-              <.link navigate={~p"/browse"} class="text-gray-300 hover:text-white">Browse</.link>
-              <.link navigate={~p"/library"} class="text-gray-300 hover:text-white">My Library</.link>
-              <.link navigate={~p"/social"} class="text-gray-300 hover:text-white">Social</.link>
-              <.link navigate={if(@is_creator, do: ~p"/creators/settings", else: ~p"/users/settings")} class="text-gray-300 hover:text-white">Account Settings</.link>
+          <div class="flex items-center">
+            <div class="text-xl font-semibold">Aurora</div>
+            <nav class="ml-10 flex space-x-8">
+              <.nav_link navigate={~p"/dashboard"} active={@current_path == :show}>
+                Dashboard
+              </.nav_link>
+              <.nav_link navigate={~p"/browse"} active={@current_path == :browse}>
+                Browse
+              </.nav_link>
+              <.nav_link navigate={~p"/library"} active={@current_path == :library}>
+                Library
+              </.nav_link>
+              <.nav_link navigate={~p"/social"} active={@current_path == :social}>
+                Social
+              </.nav_link>
             </nav>
-            <.link
-              href={if @is_creator, do: ~p"/creators/log_out", else: ~p"/users/log_out"}
-              method="delete"
-              class="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
-            >
-              Log out
-            </.link>
+          </div>
+          <div class="flex items-center space-x-4">
+            <%= if @is_creator do %>
+              <.link
+                navigate={~p"/creators/settings"}
+                class="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+              >
+                Settings
+              </.link>
+              <.link
+                href={~p"/creators/log_out"}
+                method="delete"
+                class="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+              >
+                Log out
+              </.link>
+            <% else %>
+              <.link
+                navigate={~p"/users/settings"}
+                class="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+              >
+                Settings
+              </.link>
+              <.link
+                href={~p"/users/log_out"}
+                method="delete"
+                class="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+              >
+                Log out
+              </.link>
+            <% end %>
           </div>
         </div>
       </div>
     </header>
+    """
+  end
+
+  def nav_link(assigns) do
+    ~H"""
+    <.link
+      navigate={@navigate}
+      class={[
+        "px-3 py-2 rounded-md text-sm font-medium",
+        @active && "bg-gray-900 text-white",
+        !@active && "text-gray-300 hover:bg-gray-700 hover:text-white"
+      ]}
+    >
+      <%= render_slot(@inner_block) %>
+    </.link>
     """
   end
 end

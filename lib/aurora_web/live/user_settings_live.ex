@@ -7,13 +7,11 @@ defmodule AuroraWeb.UserSettingsLive do
   def render(assigns) do
     ~H"""
     <div class="min-h-screen bg-gray-50">
-      <.main_header current_path={@live_action} is_creator={false} />
-
       <div class="container mx-auto px-4 py-8">
-    <.header class="text-center">
-      Account Settings
-      <:subtitle>Manage your account email address and password settings</:subtitle>
-    </.header>
+        <.header class="text-center">
+          Account Settings
+          <:subtitle>Manage your account email address and password settings</:subtitle>
+        </.header>
 
         <div class="space-y-12 divide-y max-w-2xl mx-auto">
       <div>
