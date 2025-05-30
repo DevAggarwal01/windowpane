@@ -87,3 +87,7 @@ config :swoosh, :api_client, false
 
 # Configure Stripe
 config :stripity_stripe, api_key: System.get_env("STRIPE_SECRET")
+
+config :mux,
+  access_token_id: System.get_env("MUX_TOKEN_ID"),
+  access_token_secret: System.get_env("MUX_SECRET_KEY")

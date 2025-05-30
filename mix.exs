@@ -60,7 +60,8 @@ defmodule Aurora.MixProject do
       {:dns_cluster, "~> 0.1.1"},
       {:bandit, "~> 1.5"},
       {:stripity_stripe, "~> 3.0"},
-      {:req, "~> 0.4"}
+      {:req, "~> 0.4"},
+      {:mux, "~> 3.2.1"}
     ]
   end
 
