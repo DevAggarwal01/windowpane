@@ -19,6 +19,8 @@ defmodule AuroraWeb.LibraryLive do
   def render(assigns) do
     ~H"""
     <div class="min-h-screen bg-gray-50">
+      <.main_header current_path={@current_path} is_creator={@is_creator} />
+
       <div class="container mx-auto px-4 py-8">
         <h1 class="text-3xl font-bold mb-8">My Library</h1>
         <div class="bg-white rounded-lg shadow p-6">

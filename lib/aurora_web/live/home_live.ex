@@ -159,6 +159,8 @@ defmodule AuroraWeb.HomeLive do
   def render(assigns) do
     ~H"""
     <div class="min-h-screen bg-gray-50">
+      <.main_header current_path={@current_path} is_creator={@is_creator} />
+
       <%= if @error_message do %>
         <div class="fixed top-4 right-4 bg-red-50 text-red-700 px-4 py-3 rounded-lg shadow-lg flex items-center z-50">
           <svg class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
