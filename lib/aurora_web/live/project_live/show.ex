@@ -15,6 +15,10 @@ defmodule AuroraWeb.ProjectLive.Show do
      |> assign(:page_title, "Project Details")
      |> assign(:project, project)
      |> assign(:editing, false)
+     |> assign(:trailer_upload_url, nil)
+     |> assign(:trailer_upload_id, nil)
+     |> assign(:film_upload_url, nil)
+     |> assign(:film_upload_id, nil)
      |> assign(:changeset, Projects.change_project(project))}
   end
 
@@ -54,6 +58,106 @@ defmodule AuroraWeb.ProjectLive.Show do
      socket
      |> assign(:editing, false)
      |> assign(:changeset, Projects.change_project(socket.assigns.project))}
+  end
+
+  @impl true
+  def handle_event("init_trailer_upload", _, socket) do
+    Logger.warning("INIT_TRAILER_UPLOAD: Project ID: #{socket.assigns.project.id}")
+    client = Mux.client()
+    params = %{
+      "new_asset_settings" => %{
+        "playback_policies" => ["signed"]
+      },
+      "cors_origin" => "http://studio.aurora.com:4000",
+      "passthrough" => "type:trailer;project_id:#{socket.assigns.project.id}"
+    }
+
+    # if trailer upload url is already set, then delete the existing upload before creating a new one
+    # if socket.assigns.project.trailer_upload_id do
+    #   case Mux.Video.Assets.delete(client, socket.assigns.project.trailer_asset_id) do
+    #     {:ok, _} ->
+    #       Logger.warning("Previous trailer upload deleted successfully")
+    #     {:error, error} ->
+    #       Logger.error("Failed to delete trailer upload: #{inspect(error)}")
+    #       {:noreply, put_flash(socket, :error, "Failed to delete previous trailer upload")}
+    #   end
+    # end
+
+    case Mux.Video.Uploads.create(client, params) do
+      {:ok, %{"url" => url, "id" => id}, _env} ->
+        IO.puts("Mux Upload URL: #{url}")
+        IO.puts("Upload ID: #{id}")
+
+        # Update the project with the upload URL and ID
+        case Projects.update_project(socket.assigns.project, %{
+          "trailer_upload_id" => id
+        }) do
+          {:ok, updated_project} ->
+            {:noreply,
+             socket
+             |> assign(:project, updated_project)
+             |> assign(:trailer_upload_url, url)
+             |> assign(:trailer_upload_id, id)
+             |> put_flash(:info, "Upload URL generated")}
+
+          {:error, _changeset} ->
+            {:noreply, put_flash(socket, :error, "Failed to save upload URL")}
+        end
+
+      error ->
+        IO.inspect(error, label: "Upload creation failed")
+        {:noreply, put_flash(socket, :error, "Failed to generate upload URL")}
+    end
+  end
+
+  @impl true
+  def handle_event("init_film_upload", _, socket) do
+    Logger.warning("INIT_FILM_UPLOAD: Project ID: #{socket.assigns.project.id}")
+    client = Mux.client()
+    params = %{
+      "new_asset_settings" => %{
+        "playback_policies" => ["signed"]
+      },
+      "cors_origin" => "http://studio.aurora.com:4000",
+      "passthrough" => "type:film;project_id:#{socket.assigns.project.id}"
+    }
+
+    # if film upload url is already set, then delete the existing upload before creating a new one
+    # if socket.assigns.project.film_upload_id do
+    #   case Mux.Video.Assets.delete(client, socket.assigns.project.film_asset_id) do
+    #     {:ok, _} ->
+    #       Logger.warning("Previous film upload deleted successfully")
+    #     {:error, error} ->
+    #       Logger.error("Failed to delete film upload: #{inspect(error)}")
+    #       {:noreply, put_flash(socket, :error, "Failed to delete previous film upload")}
+    #   end
+    # end
+
+    case Mux.Video.Uploads.create(client, params) do
+      {:ok, %{"url" => url, "id" => id}, _env} ->
+        IO.puts("Mux Upload URL: #{url}")
+        IO.puts("Upload ID: #{id}")
+
+        # Update the project with the upload URL and ID
+        case Projects.update_project(socket.assigns.project, %{
+          "film_upload_id" => id
+        }) do
+          {:ok, updated_project} ->
+        {:noreply,
+          socket
+             |> assign(:project, updated_project)
+             |> assign(:film_upload_url, url)
+             |> assign(:film_upload_id, id)
+          |> put_flash(:info, "Upload URL generated")}
+
+          {:error, _changeset} ->
+            {:noreply, put_flash(socket, :error, "Failed to save upload URL")}
+        end
+
+        error ->
+          IO.inspect(error, label: "Upload creation failed")
+          {:noreply, put_flash(socket, :error, "Failed to generate upload URL")}
+    end
   end
 
   defp format_price(nil), do: "-"
@@ -240,35 +344,133 @@ defmodule AuroraWeb.ProjectLive.Show do
           <% end %>
 
           <div class="bg-white rounded-lg shadow-sm p-6">
-            <h2 class="text-xl font-semibold mb-4">Trailer</h2>
-            <div class="aspect-w-16 aspect-h-9 bg-gray-100 rounded-lg">
-              <div class="flex items-center justify-center">
-                <p class="text-gray-500">Trailer will appear here</p>
-              </div>
-            </div>
+            <h2 class="text-xl font-semibold mb-4 flex items-center">
+              Trailer
+              <%= if @project.trailer_upload_id && @project.trailer_upload_id != "" do %>
+                <svg class="ml-2 h-5 w-5 text-green-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" />
+                </svg>
+              <% end %>
+            </h2>
             <div class="mt-4">
-              <button class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                <script src="https://cdn.jsdelivr.net/npm/@mux/mux-uploader"></script>
+              <%= if @trailer_upload_url do %>
+                <div id="mux-trailer-upload-container" phx-update="ignore">
+                  <style>
+                    .btn {
+                      padding: 6px 8px;
+                      border: 1px solid #0d9488;
+                      border-radius: 5px;
+                      font-size: 16px;
+                      color: white;
+                      background: black;
+                      cursor: pointer;
+                    }
+                  </style>
+                  <mux-uploader endpoint={@trailer_upload_url}>
+                    <button type="button" class="btn" slot="file-select">Pick a file</button>
+                  </mux-uploader>
+                </div>
+              <% end %>
+
+              <%= if @project.trailer_upload_id && @project.trailer_upload_id != "" do %>
+                <div class="mb-4 rounded-md bg-yellow-50 p-4">
+                  <div class="flex">
+                    <div class="flex-shrink-0">
+                      <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M8.485 3.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 3.495zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+                      </svg>
+                    </div>
+                    <div class="ml-3">
+                      <h3 class="text-sm font-medium text-yellow-800">Existing Trailer</h3>
+                      <div class="mt-2 text-sm text-yellow-700">
+                        <p>Uploading a new trailer will replace the existing one.</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              <% end %>
+
+              <!-- Always show button to generate upload URL -->
+              <button
+                type="button"
+                phx-click="init_trailer_upload"
+                class="inline-flex items-center mt-4 px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
                 <svg class="mr-2 -ml-1 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                 </svg>
+                <%= if @project.trailer_upload_id && @project.trailer_upload_id != "" do %>
+                  Replace Trailer
+                <% else %>
                 Upload Trailer
+                <% end %>
               </button>
             </div>
           </div>
 
           <div class="bg-white rounded-lg shadow-sm p-6">
-            <h2 class="text-xl font-semibold mb-4">Film</h2>
-            <div class="aspect-w-16 aspect-h-9 bg-gray-100 rounded-lg">
-              <div class="flex items-center justify-center">
-                <p class="text-gray-500">Film will appear here</p>
-              </div>
-            </div>
+            <h2 class="text-xl font-semibold mb-4 flex items-center">
+              Film
+              <%= if @project.film_upload_id && @project.film_upload_id != "" do %>
+                <svg class="ml-2 h-5 w-5 text-green-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" />
+                </svg>
+              <% end %>
+            </h2>
             <div class="mt-4">
-              <button class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+              <script src="https://cdn.jsdelivr.net/npm/@mux/mux-uploader"></script>
+              <%= if @film_upload_url do %>
+                <div id="mux-film-upload-container" phx-update="ignore">
+                  <style>
+                    .btn {
+                      padding: 6px 8px;
+                      border: 1px solid #0d9488;
+                      border-radius: 5px;
+                      font-size: 16px;
+                      color: white;
+                      background: black;
+                      cursor: pointer;
+                    }
+                  </style>
+                  <mux-uploader endpoint={@film_upload_url}>
+                    <button type="button" class="btn" slot="file-select">Pick a file</button>
+                  </mux-uploader>
+                </div>
+              <% end %>
+
+              <%= if @project.film_upload_id && @project.film_upload_id != "" do %>
+                <div class="mb-4 rounded-md bg-yellow-50 p-4">
+                  <div class="flex">
+                    <div class="flex-shrink-0">
+                      <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M8.485 3.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 3.495zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+                      </svg>
+                    </div>
+                    <div class="ml-3">
+                      <h3 class="text-sm font-medium text-yellow-800">Existing Film</h3>
+                      <div class="mt-2 text-sm text-yellow-700">
+                        <p>Uploading a new film will replace the existing one.</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              <% end %>
+
+              <!-- Always show button to generate upload URL -->
+              <button
+                type="button"
+                phx-click="init_film_upload"
+                class="inline-flex items-center mt-4 px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
                 <svg class="mr-2 -ml-1 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                 </svg>
+                <%= if @project.film_upload_id && @project.film_upload_id != "" do %>
+                  Replace Film
+                <% else %>
                 Upload Film
+                <% end %>
               </button>
             </div>
           </div>

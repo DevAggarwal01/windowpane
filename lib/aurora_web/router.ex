@@ -82,6 +82,8 @@ defmodule AuroraWeb.Router do
     pipe_through :studio_browser
 
     get "/", PageController, :home
+    # TODO after getting a domain, need to change the webhook url in mux settings
+    post "/mux/webhook", MuxWebhookController, :create
   end
 
   # Creator authentication routes (studio.aurora.com)

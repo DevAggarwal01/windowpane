@@ -1,7 +1,7 @@
 # Aurora
-
-After deploying, the webhook endpoint needs to be configured to a different url
-
+# TODO list after getting domain
+1. After deploying, the webhook url registered in Mux settings needs to be changed
+2. 
 
 To start your Phoenix server:
 

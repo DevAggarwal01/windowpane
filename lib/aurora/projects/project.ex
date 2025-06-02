@@ -15,6 +15,12 @@ defmodule Aurora.Projects.Project do
     field :purchase_price, :decimal
     field :status, :string, default: "draft"
     field :creator_id, :id
+    field :trailer_upload_id, :string
+    field :trailer_asset_id, :string
+    field :trailer_playback_id, :string
+    field :film_upload_id, :string
+    field :film_asset_id, :string
+    field :film_playback_id, :string
 
     # Relations
     belongs_to :creator, Aurora.Accounts.Creator, define_field: false
@@ -35,7 +41,13 @@ defmodule Aurora.Projects.Project do
       :rental_window_hours,
       :purchase_price,
       :status,
-      :creator_id
+      :creator_id,
+      :trailer_upload_id,
+      :trailer_asset_id,
+      :trailer_playback_id,
+      :film_upload_id,
+      :film_asset_id,
+      :film_playback_id
     ])
     |> validate_required([
       :title,
