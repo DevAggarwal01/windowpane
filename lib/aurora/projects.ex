@@ -6,6 +6,7 @@ defmodule Aurora.Projects do
   import Ecto.Query, warn: false
   alias Aurora.Repo
   alias Aurora.Projects.Project
+  alias Aurora.Projects.ProjectApprovalQueue
 
   @doc """
   Returns the list of projects for a creator.
@@ -116,5 +117,43 @@ defmodule Aurora.Projects do
   """
   def change_project(%Project{} = project, attrs \\ %{}) do
     Project.changeset(project, attrs)
+  end
+
+  @doc """
+  Adds a project to the approval queue.
+  Returns {:ok, queue_entry} if successful, {:error, changeset} if there's an error.
+  """
+  def add_to_approval_queue(project) do
+    %ProjectApprovalQueue{}
+    |> ProjectApprovalQueue.changeset(%{project_id: project.id})
+    |> Repo.insert()
+  end
+
+  @doc """
+  Checks if a project is already in the approval queue.
+  Returns true if the project is in the queue, false otherwise.
+  """
+  def in_approval_queue?(project) do
+    Repo.exists?(from q in ProjectApprovalQueue, where: q.project_id == ^project.id)
+  end
+
+  @doc """
+  Returns a list of project IDs that are waiting for approval.
+
+  ## Parameters
+    - limit: The maximum number of project IDs to return
+
+  ## Examples
+
+      iex> list_pending_approvals(5)
+      [1, 2, 3]
+
+  """
+  def list_pending_approvals(limit) when is_integer(limit) and limit > 0 do
+    ProjectApprovalQueue
+    |> order_by([q], [asc: q.inserted_at])
+    |> limit(^limit)
+    |> select([q], q.project_id)
+    |> Repo.all()
   end
 end

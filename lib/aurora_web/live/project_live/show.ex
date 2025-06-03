@@ -160,6 +160,24 @@ defmodule AuroraWeb.ProjectLive.Show do
     end
   end
 
+  @impl true
+  def handle_event("deploy", _, socket) do
+    project = socket.assigns.project
+
+    case Projects.add_to_approval_queue(project) do
+      {:ok, _queue_entry} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "Project submitted for approval")
+         |> assign(:project, project)}
+
+      {:error, _changeset} ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "Project is already in the approval queue")}
+    end
+  end
+
   defp format_price(nil), do: "-"
   defp format_price(price) when is_struct(price, Decimal), do: "$#{Decimal.to_string(price)}"
 
@@ -484,11 +502,16 @@ defmodule AuroraWeb.ProjectLive.Show do
                 <button
                   phx-click="deploy"
                   class="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                  disabled={Projects.in_approval_queue?(@project)}
                 >
                   <svg class="mr-2 -ml-1 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                   </svg>
-                  Deploy Project
+                  <%= if Projects.in_approval_queue?(@project) do %>
+                    Pending Approval
+                  <% else %>
+                    Deploy Project
+                  <% end %>
                 </button>
               <% end %>
             </div>

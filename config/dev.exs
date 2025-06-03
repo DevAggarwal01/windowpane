@@ -21,7 +21,7 @@ config :aurora, AuroraWeb.Endpoint,
   # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
   http: [ip: {127, 0, 0, 1}, port: 4000],
   url: [host: nil, port: 4000],
-  check_origin: ["//aurora.com:4000", "//studio.aurora.com:4000"],
+  check_origin: ["//aurora.com:4000", "//studio.aurora.com:4000", "//admin.aurora.com:4000"],
   code_reloader: true,
   debug_errors: true,
   secret_key_base: "skK6GOb8X7Gini9Z9+faiwJnrUENuDUPpGJpmLPZbfG+qUflJxlIFLMKeQl3I59m",

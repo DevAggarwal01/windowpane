@@ -1,6 +1,8 @@
 defmodule AuroraWeb.Router do
   use AuroraWeb, :router
 
+  import AuroraWeb.AdminAuth
+
   import AuroraWeb.UserAuth
   import AuroraWeb.CreatorAuth
 
@@ -22,6 +24,16 @@ defmodule AuroraWeb.Router do
     plug :protect_from_forgery
     plug :put_secure_browser_headers
     plug :fetch_current_creator
+  end
+
+  pipeline :admin_browser do
+    plug :accepts, ["html"]
+    plug :fetch_session
+    plug :fetch_live_flash
+    plug :put_root_layout, html: {AuroraWeb.Layouts, :minimal}
+    plug :protect_from_forgery
+    plug :put_secure_browser_headers
+    plug :fetch_current_admin
   end
 
   pipeline :api do
@@ -143,5 +155,39 @@ defmodule AuroraWeb.Router do
       live_dashboard "/dashboard", metrics: AuroraWeb.Telemetry
       forward "/mailbox", Plug.Swoosh.MailboxPreview
     end
+  end
+
+  # Admin site (admin.aurora.com)
+  scope "/", AuroraWeb, host: "admin.aurora.com" do
+    pipe_through [:admin_browser, :redirect_if_admin_is_authenticated]
+
+    get "/register", AdminRegistrationController, :new
+    post "/register", AdminRegistrationController, :create
+    get "/log_in", AdminSessionController, :new
+    post "/log_in", AdminSessionController, :create
+    get "/reset_password", AdminResetPasswordController, :new
+    post "/reset_password", AdminResetPasswordController, :create
+    get "/reset_password/:token", AdminResetPasswordController, :edit
+    put "/reset_password/:token", AdminResetPasswordController, :update
+  end
+
+  scope "/", AuroraWeb, host: "admin.aurora.com" do
+    pipe_through [:admin_browser, :require_authenticated_admin]
+
+    get "/", AdminDashboardController, :index
+    get "/settings", AdminSettingsController, :edit
+    put "/settings", AdminSettingsController, :update
+    get "/settings/confirm_email/:token", AdminSettingsController, :confirm_email
+  end
+
+  scope "/", AuroraWeb, host: "admin.aurora.com" do
+    pipe_through [:admin_browser]
+
+    delete "/log_out", AdminSessionController, :delete
+    get "/log_out", AdminSessionController, :delete
+    get "/confirm", AdminConfirmationController, :new
+    post "/confirm", AdminConfirmationController, :create
+    get "/confirm/:token", AdminConfirmationController, :edit
+    post "/confirm/:token", AdminConfirmationController, :update
   end
 end
