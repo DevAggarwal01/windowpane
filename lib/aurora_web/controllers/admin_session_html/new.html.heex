@@ -1,14 +1,4 @@
 <div class="mx-auto max-w-sm">
-  <.header class="text-center">
-    Sign in to admin
-    <:subtitle>
-      Don't have an account?
-      <.link navigate={~p"/register"} class="font-semibold text-brand hover:underline">
-        Sign up
-      </.link>
-    </:subtitle>
-  </.header>
-
   <.simple_form :let={f} for={@conn.params["admin"]} as={:admin} action={~p"/log_in"}>
     <.error :if={@error_message}><%= @error_message %></.error>
 

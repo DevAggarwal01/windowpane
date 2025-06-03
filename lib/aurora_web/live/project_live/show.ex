@@ -510,7 +510,7 @@ defmodule AuroraWeb.ProjectLive.Show do
                   <%= if Projects.in_approval_queue?(@project) do %>
                     Pending Approval
                   <% else %>
-                    Deploy Project
+                  Deploy Project
                   <% end %>
                 </button>
               <% end %>

@@ -161,8 +161,6 @@ defmodule AuroraWeb.Router do
   scope "/", AuroraWeb, host: "admin.aurora.com" do
     pipe_through [:admin_browser, :redirect_if_admin_is_authenticated]
 
-    get "/register", AdminRegistrationController, :new
-    post "/register", AdminRegistrationController, :create
     get "/log_in", AdminSessionController, :new
     post "/log_in", AdminSessionController, :create
     get "/reset_password", AdminResetPasswordController, :new
@@ -174,7 +172,13 @@ defmodule AuroraWeb.Router do
   scope "/", AuroraWeb, host: "admin.aurora.com" do
     pipe_through [:admin_browser, :require_authenticated_admin]
 
-    get "/", AdminDashboardController, :index
+    live_session :require_authenticated_admin,
+      on_mount: [{AuroraWeb.AdminAuth, :require_authenticated_admin}] do
+      live "/", Admin.AdminDashboardLive, :index
+      live "/settings", Admin.AdminSettingsLive, :edit
+      live "/settings/confirm_email/:token", Admin.AdminSettingsLive, :confirm_email
+    end
+
     get "/settings", AdminSettingsController, :edit
     put "/settings", AdminSettingsController, :update
     get "/settings/confirm_email/:token", AdminSettingsController, :confirm_email
