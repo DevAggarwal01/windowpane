@@ -6,17 +6,24 @@ defmodule AuroraWeb.Admin.AdminDashboardLive do
   @impl true
   def mount(_params, _session, socket) do
     if socket.assigns[:current_admin] do
+      accounts = Administration.list_accounts()
+      IO.puts("Current admin role: #{socket.assigns.current_admin.role}")
+      admins = if socket.assigns.current_admin.role == "superadmin", do: Administration.list_admins(), else: []
+
       {:ok,
        assign(socket,
          page_title: "Admin Dashboard",
          stats: %{
-           total_users: 0,
-           total_creators: 0,
+           total_users: Enum.count(accounts, & &1.type == "user"),
+           total_creators: Enum.count(accounts, & &1.type == "creator"),
            total_content: 0,
            total_revenue: "$0.00"
          },
          selected_tab: "overview",
-         admin_role: socket.assigns.current_admin.role
+         admin_role: socket.assigns.current_admin.role,
+         account_filter: "all",
+         filtered_accounts: accounts,
+         admins: admins
        )}
     else
       {:ok,
@@ -48,17 +55,10 @@ defmodule AuroraWeb.Admin.AdminDashboardLive do
                 </button>
                 <button
                   phx-click="select-tab"
-                  phx-value-tab="users"
-                  class={"#{if @selected_tab == "users", do: "border-brand text-gray-900", else: "border-transparent text-gray-500"} inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium"}
+                  phx-value-tab="accounts"
+                  class={"#{if @selected_tab == "accounts", do: "border-brand text-gray-900", else: "border-transparent text-gray-500"} inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium"}
                 >
-                  Users
-                </button>
-                <button
-                  phx-click="select-tab"
-                  phx-value-tab="creators"
-                  class={"#{if @selected_tab == "creators", do: "border-brand text-gray-900", else: "border-transparent text-gray-500"} inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium"}
-                >
-                  Creators
+                  Accounts
                 </button>
                 <button
                   phx-click="select-tab"
@@ -171,21 +171,139 @@ defmodule AuroraWeb.Admin.AdminDashboardLive do
                 </div>
               </div>
 
-            <% "users" -> %>
+            <% "accounts" -> %>
               <div class="bg-white shadow rounded-lg">
                 <div class="p-6">
-                  <h2 class="text-lg font-medium text-gray-900">User Management</h2>
-                  <p class="mt-1 text-sm text-gray-500">Manage user accounts and permissions.</p>
-                  <!-- Add user management UI here -->
-                </div>
-              </div>
-
-            <% "creators" -> %>
-              <div class="bg-white shadow rounded-lg">
-                <div class="p-6">
-                  <h2 class="text-lg font-medium text-gray-900">Creator Management</h2>
-                  <p class="mt-1 text-sm text-gray-500">Manage creator accounts and content.</p>
-                  <!-- Add creator management UI here -->
+                  <div class="sm:flex sm:items-center">
+                    <div class="sm:flex-auto">
+                      <h2 class="text-lg font-medium text-gray-900">Account Management</h2>
+                      <p class="mt-1 text-sm text-gray-500">Manage all accounts in the system.</p>
+                    </div>
+                    <div class="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
+                      <div class="flex space-x-2">
+                        <button
+                          type="button"
+                          phx-click="filter-accounts"
+                          phx-value-type="all"
+                          class={"#{if @account_filter == "all", do: "bg-brand text-white", else: "bg-white text-gray-900 ring-1 ring-inset ring-gray-300"} rounded-md px-3 py-2 text-sm font-semibold shadow-sm hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"}
+                        >
+                          All
+                        </button>
+                        <button
+                          type="button"
+                          phx-click="filter-accounts"
+                          phx-value-type="users"
+                          class={"#{if @account_filter == "users", do: "bg-brand text-white", else: "bg-white text-gray-900 ring-1 ring-inset ring-gray-300"} rounded-md px-3 py-2 text-sm font-semibold shadow-sm hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"}
+                        >
+                          Users
+                        </button>
+                        <button
+                          type="button"
+                          phx-click="filter-accounts"
+                          phx-value-type="creators"
+                          class={"#{if @account_filter == "creators", do: "bg-brand text-white", else: "bg-white text-gray-900 ring-1 ring-inset ring-gray-300"} rounded-md px-3 py-2 text-sm font-semibold shadow-sm hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"}
+                        >
+                          Creators
+                        </button>
+                        <%= if @admin_role == "superadmin" do %>
+                          <button
+                            type="button"
+                            phx-click="filter-accounts"
+                            phx-value-type="admins"
+                            class={"#{if @account_filter == "admins", do: "bg-brand text-white", else: "bg-white text-gray-900 ring-1 ring-inset ring-gray-300"} rounded-md px-3 py-2 text-sm font-semibold shadow-sm hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"}
+                          >
+                            Admins
+                          </button>
+                          <%= if @account_filter == "admins" do %>
+                            <button
+                              type="button"
+                              phx-click="new-admin"
+                              class="rounded-md bg-brand px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                            >
+                              Add Admin
+                            </button>
+                          <% end %>
+                        <% end %>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="mt-8 flow-root">
+                    <div class="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+                      <div class="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
+                        <table class="min-w-full divide-y divide-gray-300">
+                          <thead>
+                            <tr>
+                              <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-0">Email</th>
+                              <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Type</th>
+                              <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Status</th>
+                              <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Joined</th>
+                              <th scope="col" class="relative py-3.5 pl-3 pr-4 sm:pr-0">
+                                <span class="sr-only">Actions</span>
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody class="divide-y divide-gray-200">
+                            <%= case @account_filter do %>
+                              <% "admins" -> %>
+                                <%= for admin <- @admins do %>
+                                  <tr>
+                                    <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-0"><%= admin.email %></td>
+                                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                                      <span class={"inline-flex items-center rounded-md px-2 py-1 text-xs font-medium #{if admin.role == "superadmin", do: "bg-purple-50 text-purple-700", else: "bg-blue-50 text-blue-700"}"}>
+                                        <%= String.capitalize(admin.role) %>
+                                      </span>
+                                    </td>
+                                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                                      <span class={"inline-flex items-center rounded-md px-2 py-1 text-xs font-medium #{if admin.confirmed_at, do: "bg-green-50 text-green-700", else: "bg-yellow-50 text-yellow-700"}"}>
+                                        <%= if admin.confirmed_at, do: "Active", else: "Pending" %>
+                                      </span>
+                                    </td>
+                                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500"><%= Calendar.strftime(admin.inserted_at, "%Y-%m-%d") %></td>
+                                    <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-0">
+                                      <.link
+                                        href="#"
+                                        class="text-brand hover:text-accent"
+                                        phx-click="edit-admin"
+                                        phx-value-id={admin.id}
+                                      >
+                                        Edit<span class="sr-only">, <%= admin.email %></span>
+                                      </.link>
+                                    </td>
+                                  </tr>
+                                <% end %>
+                              <% _ -> %>
+                                <%= for account <- @filtered_accounts do %>
+                                  <tr>
+                                    <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-0"><%= account.email %></td>
+                                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                                      <span class={"inline-flex items-center rounded-md px-2 py-1 text-xs font-medium #{if account.type == "creator", do: "bg-indigo-50 text-indigo-700", else: "bg-gray-50 text-gray-700"}"}>
+                                        <%= String.capitalize(account.type) %>
+                                      </span>
+                                    </td>
+                                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                                      <span class={"inline-flex items-center rounded-md px-2 py-1 text-xs font-medium #{if account.confirmed_at, do: "bg-green-50 text-green-700", else: "bg-yellow-50 text-yellow-700"}"}>
+                                        <%= if account.confirmed_at, do: "Active", else: "Pending" %>
+                                      </span>
+                                    </td>
+                                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500"><%= Calendar.strftime(account.inserted_at, "%Y-%m-%d") %></td>
+                                    <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-0">
+                                      <.link
+                                        href="#"
+                                        class="text-brand hover:text-accent"
+                                        phx-click="view-account"
+                                        phx-value-id={account.id}
+                                      >
+                                        View<span class="sr-only">, <%= account.email %></span>
+                                      </.link>
+                                    </td>
+                                  </tr>
+                                <% end %>
+                            <% end %>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -207,5 +325,29 @@ defmodule AuroraWeb.Admin.AdminDashboardLive do
   @impl true
   def handle_event("select-tab", %{"tab" => tab}, socket) do
     {:noreply, assign(socket, selected_tab: tab)}
+  end
+
+  @impl true
+  def handle_event("filter-accounts", %{"type" => filter_type}, socket) do
+    accounts = Administration.list_accounts(filter_type)
+    {:noreply, assign(socket, account_filter: filter_type, filtered_accounts: accounts)}
+  end
+
+  @impl true
+  def handle_event("view-account", %{"id" => account_id}, socket) do
+    # TODO: Implement account viewing functionality
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("new-admin", _params, socket) do
+    # TODO: Implement new admin form
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("edit-admin", %{"id" => admin_id}, socket) do
+    # TODO: Implement admin editing
+    {:noreply, socket}
   end
 end

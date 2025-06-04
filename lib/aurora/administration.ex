@@ -7,6 +7,8 @@ defmodule Aurora.Administration do
   alias Aurora.Repo
 
   alias Aurora.Administration.{Admin, AdminToken, AdminNotifier}
+  alias Aurora.Accounts.User
+  alias Aurora.Creators.Creator
 
   ## Database getters
 
@@ -349,5 +351,61 @@ defmodule Aurora.Administration do
       {:ok, %{admin: admin}} -> {:ok, admin}
       {:error, :admin, changeset, _} -> {:error, changeset}
     end
+  end
+
+  @doc """
+  Returns a list of accounts based on the filter type.
+  Filter type can be "all", "users", or "creators".
+  """
+  def list_accounts(filter_type \\ "all") do
+    users =
+      case filter_type do
+        type when type in ["all", "users"] ->
+          Repo.all(
+            from u in User,
+              select: %{
+                id: u.id,
+                email: u.email,
+                type: "user",
+                confirmed_at: u.confirmed_at,
+                inserted_at: u.inserted_at
+              }
+          )
+        _ -> []
+      end
+
+    creators =
+      case filter_type do
+        type when type in ["all", "creators"] ->
+          Repo.all(
+            from c in Creator,
+              select: %{
+                id: c.id,
+                email: c.email,
+                type: "creator",
+                confirmed_at: c.confirmed_at,
+                inserted_at: c.inserted_at
+              }
+          )
+        _ -> []
+      end
+
+    users ++ creators
+  end
+
+  @doc """
+  Returns a list of admin accounts.
+  """
+  def list_admins do
+    Repo.all(
+      from a in Admin,
+        select: %{
+          id: a.id,
+          email: a.email,
+          role: a.role,
+          confirmed_at: a.confirmed_at,
+          inserted_at: a.inserted_at
+        }
+    )
   end
 end
