@@ -367,4 +367,31 @@ defmodule Aurora.Accounts do
   end
 
   def search_users(_), do: list_users()
+
+  @doc """
+  Deletes a user account.
+
+  ## Examples
+
+      iex> delete_user(user)
+      {:ok, %User{}}
+
+      iex> delete_user(user)
+      {:error, %Ecto.Changeset{}}
+
+  """
+  def delete_user(%{type: "user"} = user_data) do
+    user = Repo.get_by(User, uid: user_data.uid)
+    if user do
+      Repo.delete(user)
+    else
+      {:error, :not_found}
+    end
+  end
+
+  def delete_user(%User{} = user) do
+    Repo.delete(user)
+  end
+
+  def delete_user(_), do: {:error, :invalid_user}
 end

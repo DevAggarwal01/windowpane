@@ -454,4 +454,33 @@ defmodule Aurora.Creators do
   end
 
   def search_creators(_), do: list_creators()
+
+  @doc """
+  Deletes a creator account.
+
+  ## Examples
+
+      iex> delete_creator(creator)
+      {:ok, %Creator{}}
+
+      iex> delete_creator(creator)
+      {:error, %Ecto.Changeset{}}
+
+  """
+  def delete_creator(%{type: "creator"} = creator_data) do
+    creator = Repo.get_by(Creator, uid: creator_data.uid)
+    if creator do
+      # TODO: Add any cleanup needed (e.g., Stripe account deletion)
+      Repo.delete(creator)
+    else
+      {:error, :not_found}
+    end
+  end
+
+  def delete_creator(%Creator{} = creator) do
+    # TODO: Add any cleanup needed (e.g., Stripe account deletion)
+    Repo.delete(creator)
+  end
+
+  def delete_creator(_), do: {:error, :invalid_creator}
 end

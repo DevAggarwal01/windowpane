@@ -42,8 +42,11 @@ defmodule AuroraWeb.Admin.AdminDashboardLive do
            "email" => "",
            "password" => "",
            "creator_code" => "",
-           "name" => ""
-         }
+           "name" => "",
+           "role" => ""
+         },
+         show_delete_confirmation_modal: false,
+         account_to_delete: nil
        )}
     else
       {:ok,
@@ -263,6 +266,15 @@ defmodule AuroraWeb.Admin.AdminDashboardLive do
                           >
                             Admins
                           </button>
+                          <%= if @account_filter == "admins" do %>
+                            <button
+                              type="button"
+                              phx-click="new-admin"
+                              class="rounded-md bg-brand px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                            >
+                              Add Admin
+                            </button>
+                          <% end %>
                         <% end %>
                         <%= if @account_filter in ["users", "creators"] do %>
                           <button
@@ -309,14 +321,30 @@ defmodule AuroraWeb.Admin.AdminDashboardLive do
                                     </td>
                                     <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500"><%= Calendar.strftime(admin.inserted_at, "%Y-%m-%d") %></td>
                                     <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-0">
-                                      <.link
-                                        href="#"
-                                        class="text-brand hover:text-accent"
-                                        phx-click="edit-admin"
-                                        phx-value-id={admin.id}
-                                      >
-                                        Edit<span class="sr-only">, <%= admin.email %></span>
-                                      </.link>
+                                      <div class="flex justify-end space-x-3">
+                                        <.link
+                                          href="#"
+                                          class="text-brand hover:text-accent"
+                                          phx-click="edit-admin"
+                                          phx-value-id={admin.id}
+                                        >
+                                          Edit<span class="sr-only">, <%= admin.email %></span>
+                                        </.link>
+                                        <%= if @admin_role == "superadmin" and admin.email != @current_admin.email do %>
+                                          <button
+                                            type="button"
+                                            phx-click="confirm-delete-account"
+                                            phx-value-uid={admin.id}
+                                            phx-value-account-type="admin"
+                                            class="text-red-600 hover:text-red-900"
+                                          >
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                                              <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m6.5 0a48.667 48.667 0 00-7.5 0" />
+                                            </svg>
+                                            <span class="sr-only">Delete <%= admin.email %></span>
+                                          </button>
+                                        <% end %>
+                                      </div>
                                     </td>
                                   </tr>
                                 <% end %>
@@ -345,9 +373,9 @@ defmodule AuroraWeb.Admin.AdminDashboardLive do
                                           View<span class="sr-only">, <%= account.email %></span>
                                         </button>
                                         <button
-                                          phx-click="delete-account"
+                                          type="button"
+                                          phx-click="confirm-delete-account"
                                           phx-value-uid={account.uid}
-                                          data-confirm="Are you sure you want to delete this account? This action cannot be undone."
                                           class="text-red-600 hover:text-red-900"
                                         >
                                           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
@@ -553,6 +581,24 @@ defmodule AuroraWeb.Admin.AdminDashboardLive do
                     </div>
                   <% end %>
 
+                  <%= if @registration_type == "admin" do %>
+                    <div>
+                      <.label for="role">Role</.label>
+                      <select
+                        name="role"
+                        id="role"
+                        value={@registration_form["role"]}
+                        required
+                        phx-change="update_registration_form"
+                        class="mt-2 block w-full rounded-md border-0 py-1.5 pl-3 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-brand sm:text-sm sm:leading-6"
+                      >
+                        <option value="">Select a role</option>
+                        <option value="admin">Admin</option>
+                        <option value="superadmin">Superadmin</option>
+                      </select>
+                    </div>
+                  <% end %>
+
                   <div class="flex justify-end space-x-3 mt-6">
                     <.button
                       type="button"
@@ -569,6 +615,53 @@ defmodule AuroraWeb.Admin.AdminDashboardLive do
                     </.button>
                   </div>
                 </.form>
+              </.modal>
+
+              <.modal
+                :if={@show_delete_confirmation_modal}
+                id="delete-confirmation-modal"
+                show
+                on_cancel={JS.push("cancel-delete")}
+              >
+                <:title>Confirm Account Deletion</:title>
+
+                <div class="mt-6">
+                  <p class="text-sm text-gray-500">
+                    Are you sure you want to delete this account? This action cannot be undone.
+                  </p>
+
+                  <%= if @account_to_delete do %>
+                    <div class="mt-4 bg-gray-50 p-4 rounded-md">
+                      <dl class="divide-y divide-gray-200">
+                        <div class="py-2">
+                          <dt class="text-sm font-medium text-gray-500">Email</dt>
+                          <dd class="mt-1 text-sm text-gray-900"><%= @account_to_delete.email %></dd>
+                        </div>
+                        <div class="py-2">
+                          <dt class="text-sm font-medium text-gray-500">Account Type</dt>
+                          <dd class="mt-1 text-sm text-gray-900"><%= String.capitalize(@account_to_delete.type) %></dd>
+                        </div>
+                      </dl>
+                    </div>
+                  <% end %>
+
+                  <div class="mt-6 flex justify-end space-x-3">
+                    <.button
+                      type="button"
+                      phx-click="cancel-delete"
+                      class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50"
+                    >
+                      Cancel
+                    </.button>
+                    <.button
+                      type="button"
+                      phx-click="proceed-with-delete"
+                      class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md shadow-sm hover:bg-red-700"
+                    >
+                      Delete Account
+                    </.button>
+                  </div>
+                </div>
               </.modal>
 
             <% "content" -> %>
@@ -629,7 +722,8 @@ defmodule AuroraWeb.Admin.AdminDashboardLive do
         "email" => "",
         "password" => "",
         "creator_code" => "",
-        "name" => ""
+        "name" => "",
+        "role" => ""
       }
     )}
   end
@@ -643,7 +737,8 @@ defmodule AuroraWeb.Admin.AdminDashboardLive do
         "email" => "",
         "password" => "",
         "creator_code" => "",
-        "name" => ""
+        "name" => "",
+        "role" => ""
       }
     )}
   end
@@ -657,7 +752,8 @@ defmodule AuroraWeb.Admin.AdminDashboardLive do
         "email" => "",
         "password" => "",
         "creator_code" => "",
-        "name" => ""
+        "name" => "",
+        "role" => ""
       }
     )}
   end
@@ -677,7 +773,8 @@ defmodule AuroraWeb.Admin.AdminDashboardLive do
         "email" => "",
         "password" => "",
         "creator_code" => "",
-        "name" => ""
+        "name" => "",
+        "role" => ""
       }
     )}
   end
@@ -718,7 +815,8 @@ defmodule AuroraWeb.Admin.AdminDashboardLive do
                  "email" => "",
                  "password" => "",
                  "creator_code" => "",
-                 "name" => ""
+                 "name" => "",
+                 "role" => ""
                }
              )}
 
@@ -747,7 +845,8 @@ defmodule AuroraWeb.Admin.AdminDashboardLive do
                  "email" => "",
                  "password" => "",
                  "creator_code" => "",
-                 "name" => ""
+                 "name" => "",
+                 "role" => ""
                }
              )}
 
@@ -771,7 +870,8 @@ defmodule AuroraWeb.Admin.AdminDashboardLive do
                  "email" => "",
                  "password" => "",
                  "creator_code" => "",
-                 "name" => ""
+                 "name" => "",
+                 "role" => ""
                }
              )}
 
@@ -784,35 +884,130 @@ defmodule AuroraWeb.Admin.AdminDashboardLive do
   end
 
   @impl true
-  def handle_event("delete-account", %{"uid" => uid}, socket) do
-    account = Enum.find(socket.assigns.filtered_accounts, &(&1.uid == uid))
+  def handle_event("confirm-delete-account", params, socket) do
+    account = case params do
+      %{"uid" => uid, "account-type" => "admin"} ->
+        admin = Enum.find(socket.assigns.admins, &(to_string(&1.id) == uid))
+        if admin, do: Map.put(admin, :type, "admin"), else: nil
+      %{"uid" => uid} ->
+        Enum.find(socket.assigns.filtered_accounts, &(&1.uid == uid))
+    end
 
-    case account.type do
-      "creator" ->
-        case Creators.delete_creator(account) do
-          {:ok, _} ->
-            {:noreply,
-             socket
-             |> put_flash(:info, "Creator account deleted successfully")
-             |> assign(filtered_accounts: Administration.list_accounts(socket.assigns.account_filter))}
-          {:error, _} ->
-            {:noreply,
-             socket
-             |> put_flash(:error, "Failed to delete creator account")}
-        end
+    {:noreply, assign(socket, show_delete_confirmation_modal: true, account_to_delete: account)}
+  end
 
-      "user" ->
-        case Accounts.delete_user(account) do
-          {:ok, _} ->
-            {:noreply,
-             socket
-             |> put_flash(:info, "User account deleted successfully")
-             |> assign(filtered_accounts: Administration.list_accounts(socket.assigns.account_filter))}
-          {:error, _} ->
-            {:noreply,
-             socket
-             |> put_flash(:error, "Failed to delete user account")}
+  @impl true
+  def handle_event("cancel-delete", _params, socket) do
+    {:noreply, assign(socket, show_delete_confirmation_modal: false, account_to_delete: nil)}
+  end
+
+  @impl true
+  def handle_event("proceed-with-delete", _params, socket) do
+    account = socket.assigns.account_to_delete
+
+    result = case account do
+      %{type: "creator"} -> handle_creator_deletion(account, socket)
+      %{type: "user"} -> handle_user_deletion(account, socket)
+      %{type: "admin"} -> handle_admin_deletion(account, socket)
+      _ -> {:error, socket |> put_flash(:error, "Invalid account type")}
+    end
+
+    case result do
+      {:ok, socket} ->
+        {:noreply, assign(socket, show_delete_confirmation_modal: false, account_to_delete: nil)}
+      {:error, socket} ->
+        {:noreply, assign(socket, show_delete_confirmation_modal: false, account_to_delete: nil)}
+    end
+  end
+
+  defp handle_creator_deletion(account, socket) do
+    case Creators.delete_creator(account) do
+      {:ok, _} ->
+        accounts_data = Administration.list_accounts(socket.assigns.account_filter)
+        new_page = if accounts_data.total_pages < socket.assigns.current_page and socket.assigns.current_page > 1 do
+          socket.assigns.current_page - 1
+        else
+          socket.assigns.current_page
         end
+        updated_data = Administration.list_accounts(socket.assigns.account_filter, new_page)
+
+        {:ok,
+         socket
+         |> put_flash(:info, "Creator account deleted successfully")
+         |> assign(
+           filtered_accounts: updated_data.accounts,
+           total_pages: updated_data.total_pages,
+           total_accounts: updated_data.total_count,
+           current_page: new_page
+         )}
+
+      {:error, :not_found} ->
+        {:error,
+         socket
+         |> put_flash(:error, "Creator account not found")}
+
+      {:error, _} ->
+        {:error,
+         socket
+         |> put_flash(:error, "Failed to delete creator account")}
+    end
+  end
+
+  defp handle_user_deletion(account, socket) do
+    case Accounts.delete_user(account) do
+      {:ok, _} ->
+        accounts_data = Administration.list_accounts(socket.assigns.account_filter)
+        new_page = if accounts_data.total_pages < socket.assigns.current_page and socket.assigns.current_page > 1 do
+          socket.assigns.current_page - 1
+        else
+          socket.assigns.current_page
+        end
+        updated_data = Administration.list_accounts(socket.assigns.account_filter, new_page)
+
+        {:ok,
+         socket
+         |> put_flash(:info, "User account deleted successfully")
+         |> assign(
+           filtered_accounts: updated_data.accounts,
+           total_pages: updated_data.total_pages,
+           total_accounts: updated_data.total_count,
+           current_page: new_page
+         )}
+
+      {:error, :not_found} ->
+        {:error,
+         socket
+         |> put_flash(:error, "User account not found")}
+
+      {:error, _} ->
+        {:error,
+         socket
+         |> put_flash(:error, "Failed to delete user account")}
+    end
+  end
+
+  defp handle_admin_deletion(account, socket) do
+    case Administration.delete_admin(account) do
+      {:ok, _} ->
+        {:ok,
+         socket
+         |> put_flash(:info, "Admin account deleted successfully")
+         |> assign(admins: Administration.list_admins())}
+
+      {:error, :last_superadmin} ->
+        {:error,
+         socket
+         |> put_flash(:error, "Cannot delete the last superadmin account")}
+
+      {:error, :not_found} ->
+        {:error,
+         socket
+         |> put_flash(:error, "Admin account not found")}
+
+      {:error, _} ->
+        {:error,
+         socket
+         |> put_flash(:error, "Failed to delete admin account")}
     end
   end
 

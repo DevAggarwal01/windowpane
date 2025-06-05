@@ -490,4 +490,41 @@ defmodule Aurora.Administration do
   end
 
   def search_admins(_), do: list_admins()
+
+  @doc """
+  Deletes an admin account.
+
+  ## Examples
+
+      iex> delete_admin(admin)
+      {:ok, %Admin{}}
+
+      iex> delete_admin(admin)
+      {:error, %Ecto.Changeset{}}
+
+  """
+  def delete_admin(%Admin{} = admin) do
+    # Don't allow deletion of the last superadmin
+    if admin.role == "superadmin" do
+      superadmin_count = Repo.aggregate(from(a in Admin, where: a.role == "superadmin"), :count)
+      if superadmin_count <= 1 do
+        {:error, :last_superadmin}
+      else
+        Repo.delete(admin)
+      end
+    else
+      Repo.delete(admin)
+    end
+  end
+
+  def delete_admin(%{role: role} = admin_data) do
+    admin = Repo.get(Admin, admin_data.id)
+    if admin do
+      delete_admin(admin)
+    else
+      {:error, :not_found}
+    end
+  end
+
+  def delete_admin(_), do: {:error, :invalid_admin}
 end
