@@ -170,7 +170,7 @@ defmodule AuroraWeb.HomeLive do
         </div>
       <% end %>
 
-      <%= if @show_film_modal do %>
+      <%= if @show_film_modal && @is_creator do %>
         <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity z-50">
           <div class="fixed inset-0 z-50 overflow-y-auto">
             <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
@@ -390,7 +390,7 @@ defmodule AuroraWeb.HomeLive do
         </div>
       <% end %>
 
-      <%= if @show_billing_popup do %>
+      <%= if @show_billing_popup && @is_creator do %>
         <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity z-50">
           <div class="fixed inset-0 z-50 overflow-y-auto">
             <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
@@ -437,138 +437,196 @@ defmodule AuroraWeb.HomeLive do
 
       <!-- Main Content -->
       <main class="container mx-auto px-4 py-8">
-        <h1 class="text-3xl font-bold mb-8">Studio Homepage</h1>
+        <%= if @is_creator do %>
+          <h1 class="text-3xl font-bold mb-8">Studio Homepage</h1>
 
-        <!-- Stats Grid -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div class="bg-white rounded-lg shadow p-6">
-            <h3 class="text-lg font-medium text-gray-900 mb-2">Total Revenue</h3>
-            <p class="text-4xl font-bold"><%= @stats.total_revenue %></p>
-          </div>
-
-          <div class="bg-white rounded-lg shadow p-6">
-            <h3 class="text-lg font-medium text-gray-900 mb-2">Content Performance</h3>
-            <p class="text-4xl font-bold"><%= @stats.content_performance %></p>
-          </div>
-
-          <div class="bg-white rounded-lg shadow p-6">
-            <h3 class="text-lg font-medium text-gray-900 mb-2">Viewer Feedback</h3>
-            <p class="text-4xl font-bold"><%= @stats.viewer_feedback %></p>
-          </div>
-        </div>
-
-        <!-- Projects Section -->
-        <div class="mb-8">
-          <h2 class="text-2xl font-bold mb-4">My Projects</h2>
-          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            <!-- Create New Project Card -->
-            <div class="relative" phx-click-away="close_dropdown">
-              <button
-                phx-click="toggle_project_dropdown"
-                class="w-full flex flex-col items-center justify-center p-6 bg-white rounded-lg shadow-sm border-2 border-dashed border-gray-300 hover:border-gray-400 hover:bg-gray-50 transition-all duration-200"
-              >
-                <div class="w-16 h-16 flex items-center justify-center rounded-full bg-gray-100 mb-4">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                  </svg>
-                </div>
-                <h3 class="text-lg font-medium text-gray-900">Create New Project</h3>
-                <p class="mt-1 text-sm text-gray-500">Start a new creative project</p>
-              </button>
-
-              <%= if @show_project_dropdown do %>
-                <div class="absolute left-full ml-2 top-0 z-10 w-64 bg-white rounded-lg shadow-xl border border-gray-200 transform transition-all duration-200 ease-out">
-                  <div class="p-2 space-y-1">
-                    <div class="px-3 py-2 text-sm font-medium text-gray-500 border-b border-gray-100">
-                      Select Project Type
-                    </div>
-                    <button
-                      phx-click="create_project"
-                      phx-value-type="film"
-                      class="w-full text-left px-3 py-2 text-sm rounded-md text-gray-700 hover:bg-blue-50 hover:text-blue-700 flex items-center space-x-3 transition-colors duration-150"
-                    >
-                      <span class="text-xl">🎞️</span>
-                      <span>Film</span>
-                    </button>
-                    <button
-                      phx-click="create_project"
-                      phx-value-type="tv_show"
-                      class="w-full text-left px-3 py-2 text-sm rounded-md text-gray-700 hover:bg-blue-50 hover:text-blue-700 flex items-center space-x-3 transition-colors duration-150"
-                    >
-                      <span class="text-xl">🎬</span>
-                      <span>TV Show</span>
-                    </button>
-                    <button
-                      phx-click="create_project"
-                      phx-value-type="live_event"
-                      class="w-full text-left px-3 py-2 text-sm rounded-md text-gray-700 hover:bg-blue-50 hover:text-blue-700 flex items-center space-x-3 transition-colors duration-150"
-                    >
-                      <span class="text-xl">🎤</span>
-                      <span>Live Event / Concert</span>
-                    </button>
-                    <button
-                      phx-click="create_project"
-                      phx-value-type="book"
-                      class="w-full text-left px-3 py-2 text-sm rounded-md text-gray-700 hover:bg-blue-50 hover:text-blue-700 flex items-center space-x-3 transition-colors duration-150"
-                    >
-                      <span class="text-xl">📚</span>
-                      <span>Book / Webcomic</span>
-                    </button>
-                    <button
-                      phx-click="create_project"
-                      phx-value-type="music"
-                      class="w-full text-left px-3 py-2 text-sm rounded-md text-gray-700 hover:bg-blue-50 hover:text-blue-700 flex items-center space-x-3 transition-colors duration-150"
-                    >
-                      <span class="text-xl">🎶</span>
-                      <span>Music Album / Single</span>
-                    </button>
-                  </div>
-                </div>
-              <% end %>
+          <!-- Stats Grid -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="bg-white rounded-lg shadow p-6">
+              <h3 class="text-lg font-medium text-gray-900 mb-2">Total Revenue</h3>
+              <p class="text-4xl font-bold"><%= @stats.total_revenue %></p>
             </div>
 
-            <!-- Project Cards -->
-            <%= for project <- @projects do %>
-              <.link navigate={~p"/projects/#{project.id}"} class="block">
-                <div class="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow">
-                  <div class="aspect-w-16 aspect-h-9 bg-gray-200 rounded-lg mb-4">
-                    <%= case project.type do %>
-                      <% "film" -> %>
-                        <div class="flex items-center justify-center">
-                          <span class="text-4xl">🎞️</span>
-                        </div>
-                      <% "tv_show" -> %>
-                        <div class="flex items-center justify-center">
-                          <span class="text-4xl">🎬</span>
-                        </div>
-                      <% "live_event" -> %>
-                        <div class="flex items-center justify-center">
-                          <span class="text-4xl">🎤</span>
-                        </div>
-                      <% "book" -> %>
-                        <div class="flex items-center justify-center">
-                          <span class="text-4xl">📚</span>
-                        </div>
-                      <% "music" -> %>
-                        <div class="flex items-center justify-center">
-                          <span class="text-4xl">🎶</span>
-                        </div>
-                    <% end %>
-                  </div>
-                  <h3 class="text-lg font-medium text-gray-900"><%= project.title %></h3>
-                  <div class="mt-2 flex items-center text-sm text-gray-500">
-                    <span class="capitalize"><%= project.type %></span>
-                    <span class="mx-2">•</span>
-                    <span class="capitalize"><%= project.status %></span>
-                  </div>
-                  <p class="text-sm text-gray-500">
-                    Last updated: <%= Calendar.strftime(project.updated_at, "%B %d, %Y") %>
-                  </p>
-                </div>
-              </.link>
-            <% end %>
+            <div class="bg-white rounded-lg shadow p-6">
+              <h3 class="text-lg font-medium text-gray-900 mb-2">Content Performance</h3>
+              <p class="text-4xl font-bold"><%= @stats.content_performance %></p>
+            </div>
+
+            <div class="bg-white rounded-lg shadow p-6">
+              <h3 class="text-lg font-medium text-gray-900 mb-2">Viewer Feedback</h3>
+              <p class="text-4xl font-bold"><%= @stats.viewer_feedback %></p>
+            </div>
           </div>
-        </div>
+
+          <!-- Projects Section -->
+          <div class="mb-8">
+            <h2 class="text-2xl font-bold mb-4">My Projects</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              <!-- Create New Project Card -->
+              <div class="relative" phx-click-away="close_dropdown">
+                <button
+                  phx-click="toggle_project_dropdown"
+                  class="w-full flex flex-col items-center justify-center p-6 bg-white rounded-lg shadow-sm border-2 border-dashed border-gray-300 hover:border-gray-400 hover:bg-gray-50 transition-all duration-200"
+                >
+                  <div class="w-16 h-16 flex items-center justify-center rounded-full bg-gray-100 mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                  </div>
+                  <h3 class="text-lg font-medium text-gray-900">Create New Project</h3>
+                  <p class="mt-1 text-sm text-gray-500">Start a new creative project</p>
+                </button>
+
+                <%= if @show_project_dropdown do %>
+                  <div class="absolute left-full ml-2 top-0 z-10 w-64 bg-white rounded-lg shadow-xl border border-gray-200 transform transition-all duration-200 ease-out">
+                    <div class="p-2 space-y-1">
+                      <div class="px-3 py-2 text-sm font-medium text-gray-500 border-b border-gray-100">
+                        Select Project Type
+                      </div>
+                      <button
+                        phx-click="create_project"
+                        phx-value-type="film"
+                        class="w-full text-left px-3 py-2 text-sm rounded-md text-gray-700 hover:bg-blue-50 hover:text-blue-700 flex items-center space-x-3 transition-colors duration-150"
+                      >
+                        <span class="text-xl">🎞️</span>
+                        <span>Film</span>
+                      </button>
+                      <button
+                        phx-click="create_project"
+                        phx-value-type="tv_show"
+                        class="w-full text-left px-3 py-2 text-sm rounded-md text-gray-700 hover:bg-blue-50 hover:text-blue-700 flex items-center space-x-3 transition-colors duration-150"
+                      >
+                        <span class="text-xl">🎬</span>
+                        <span>TV Show</span>
+                      </button>
+                      <button
+                        phx-click="create_project"
+                        phx-value-type="live_event"
+                        class="w-full text-left px-3 py-2 text-sm rounded-md text-gray-700 hover:bg-blue-50 hover:text-blue-700 flex items-center space-x-3 transition-colors duration-150"
+                      >
+                        <span class="text-xl">🎤</span>
+                        <span>Live Event / Concert</span>
+                      </button>
+                      <button
+                        phx-click="create_project"
+                        phx-value-type="book"
+                        class="w-full text-left px-3 py-2 text-sm rounded-md text-gray-700 hover:bg-blue-50 hover:text-blue-700 flex items-center space-x-3 transition-colors duration-150"
+                      >
+                        <span class="text-xl">📚</span>
+                        <span>Book / Webcomic</span>
+                      </button>
+                      <button
+                        phx-click="create_project"
+                        phx-value-type="music"
+                        class="w-full text-left px-3 py-2 text-sm rounded-md text-gray-700 hover:bg-blue-50 hover:text-blue-700 flex items-center space-x-3 transition-colors duration-150"
+                      >
+                        <span class="text-xl">🎶</span>
+                        <span>Music Album / Single</span>
+                      </button>
+                    </div>
+                  </div>
+                <% end %>
+              </div>
+
+              <!-- Project Cards -->
+              <%= for project <- @projects do %>
+                <.link navigate={~p"/projects/#{project.id}"} class="block">
+                  <div class="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow">
+                    <div class="aspect-w-16 aspect-h-9 bg-gray-200 rounded-lg mb-4">
+                      <%= case project.type do %>
+                        <% "film" -> %>
+                          <div class="flex items-center justify-center">
+                            <span class="text-4xl">🎞️</span>
+                          </div>
+                        <% "tv_show" -> %>
+                          <div class="flex items-center justify-center">
+                            <span class="text-4xl">🎬</span>
+                          </div>
+                        <% "live_event" -> %>
+                          <div class="flex items-center justify-center">
+                            <span class="text-4xl">🎤</span>
+                          </div>
+                        <% "book" -> %>
+                          <div class="flex items-center justify-center">
+                            <span class="text-4xl">📚</span>
+                          </div>
+                        <% "music" -> %>
+                          <div class="flex items-center justify-center">
+                            <span class="text-4xl">🎶</span>
+                          </div>
+                      <% end %>
+                    </div>
+                    <h3 class="text-lg font-medium text-gray-900"><%= project.title %></h3>
+                    <div class="mt-2 flex items-center text-sm text-gray-500">
+                      <span class="capitalize"><%= project.type %></span>
+                      <span class="mx-2">•</span>
+                      <span class="capitalize"><%= project.status %></span>
+                    </div>
+                    <p class="text-sm text-gray-500">
+                      Last updated: <%= Calendar.strftime(project.updated_at, "%B %d, %Y") %>
+                    </p>
+                  </div>
+                </.link>
+              <% end %>
+            </div>
+          </div>
+        <% else %>
+          <!-- User Dashboard -->
+          <div class="max-w-7xl mx-auto">
+            <h1 class="text-3xl font-bold mb-8">Welcome Back!</h1>
+
+            <!-- Continue Watching Section -->
+            <section class="mb-12">
+              <h2 class="text-2xl font-semibold mb-6">Continue Watching</h2>
+              <div class="bg-white rounded-lg shadow-sm p-6">
+                <p class="text-gray-500">You haven't started watching anything yet.</p>
+                <.link
+                  navigate={~p"/browse"}
+                  class="mt-4 inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-500"
+                >
+                  Browse content
+                  <svg class="ml-1 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                  </svg>
+                </.link>
+              </div>
+            </section>
+
+            <!-- My Library Section -->
+            <section class="mb-12">
+              <h2 class="text-2xl font-semibold mb-6">My Library</h2>
+              <div class="bg-white rounded-lg shadow-sm p-6">
+                <p class="text-gray-500">Your library is empty.</p>
+                <.link
+                  navigate={~p"/browse"}
+                  class="mt-4 inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-500"
+                >
+                  Discover content
+                  <svg class="ml-1 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                  </svg>
+                </.link>
+              </div>
+            </section>
+
+            <!-- Recommended Section -->
+            <section>
+              <h2 class="text-2xl font-semibold mb-6">Recommended for You</h2>
+              <div class="bg-white rounded-lg shadow-sm p-6">
+                <p class="text-gray-500">We're preparing your personalized recommendations.</p>
+                <.link
+                  navigate={~p"/browse"}
+                  class="mt-4 inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-500"
+                >
+                  Browse trending content
+                  <svg class="ml-1 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                  </svg>
+                </.link>
+              </div>
+            </section>
+          </div>
+        <% end %>
       </main>
     </div>
     """

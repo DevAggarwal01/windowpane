@@ -8,9 +8,9 @@ defmodule Aurora.Accounts.User do
     field :hashed_password, :string, redact: true
     field :current_password, :string, virtual: true, redact: true
     field :confirmed_at, :utc_datetime
-    field :role, Ecto.Enum, values: [:viewer, :creator], default: :viewer
     field :plan, :string, default: "free"
     field :name, :string
+    field :uid, Ecto.UUID
 
     timestamps(type: :utc_datetime)
   end
@@ -39,8 +39,9 @@ defmodule Aurora.Accounts.User do
       Defaults to `true`.
   """
   def registration_changeset(user, attrs, opts \\ []) do
+    uid = Aurora.Accounts.GlobalUID.generate_unique_uid()
     user
-    |> cast(attrs, [:email, :password])
+    |> cast(Map.put(attrs, "uid", uid), [:email, :password, :uid])
     |> validate_email(opts)
     |> validate_password(opts)
   end

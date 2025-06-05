@@ -350,4 +350,21 @@ defmodule Aurora.Accounts do
       {:error, :user, changeset, _} -> {:error, changeset}
     end
   end
+
+  @doc """
+  Returns a list of all user accounts.
+  """
+  def list_users do
+    Repo.all(User)
+  end
+
+  def search_users(search_term) when is_binary(search_term) and search_term != "" do
+    search_pattern = "%#{search_term}%"
+
+    User
+    |> where([u], like(u.email, ^search_pattern))
+    |> Repo.all()
+  end
+
+  def search_users(_), do: list_users()
 end

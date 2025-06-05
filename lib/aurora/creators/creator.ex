@@ -10,9 +10,10 @@ defmodule Aurora.Creators.Creator do
     field :confirmed_at, :utc_datetime
     field :name, :string
     field :plan, :string, default: "free"
-    field :creator_code, :string, virtual: true # Only used for validation
+    field :creator_code, :string, virtual: true # Only used for validation at runtime, not stored in the database
     field :stripe_account_id, :string
     field :onboarded, :boolean, default: false
+    field :uid, Ecto.UUID
 
     timestamps(type: :utc_datetime)
   end
@@ -41,8 +42,9 @@ defmodule Aurora.Creators.Creator do
       Defaults to `true`.
   """
   def registration_changeset(creator, attrs, opts \\ []) do
+    uid = Aurora.Accounts.GlobalUID.generate_unique_uid()
     creator
-    |> cast(attrs, [:email, :password, :name, :creator_code, :stripe_account_id])
+    |> cast(Map.put(attrs, "uid", uid), [:email, :password, :name, :creator_code, :stripe_account_id, :uid])
     |> validate_required([:name, :email, :password, :creator_code])
     |> validate_email(opts)
     |> validate_password(opts)

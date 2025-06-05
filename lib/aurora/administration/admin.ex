@@ -9,6 +9,7 @@ defmodule Aurora.Administration.Admin do
     field :current_password, :string, virtual: true, redact: true
     field :confirmed_at, :utc_datetime
     field :role, :string, default: "admin"
+    field :uid, Ecto.UUID
 
     timestamps(type: :utc_datetime)
   end
@@ -37,10 +38,17 @@ defmodule Aurora.Administration.Admin do
       Defaults to `true`.
   """
   def registration_changeset(admin, attrs, opts \\ []) do
+    uid = Aurora.Accounts.GlobalUID.generate_unique_uid()
     admin
-    |> cast(attrs, [:email, :password])
+    |> cast(Map.put(attrs, "uid", uid), [:email, :password, :role, :uid])
     |> validate_email(opts)
     |> validate_password(opts)
+    |> validate_role()
+  end
+
+  defp validate_role(changeset) do
+    changeset
+    |> validate_inclusion(:role, ["admin", "superadmin"])
   end
 
   defp validate_email(changeset, opts) do

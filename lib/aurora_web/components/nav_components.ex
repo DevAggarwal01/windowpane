@@ -15,11 +15,19 @@ defmodule AuroraWeb.NavComponents do
       <div class="container mx-auto px-4">
         <div class="flex items-center justify-between h-16">
           <div class="flex items-center">
-            <div class="text-xl font-semibold">Aurora</div>
+            <div class="text-xl font-semibold">
+              <%= if @is_creator do %>
+                Aurora Studio
+              <% else %>
+                Aurora
+              <% end %>
+            </div>
             <nav class="ml-10 flex space-x-8">
-              <.nav_link navigate={~p"/dashboard"} active={@current_path == :show}>
-                Dashboard
-              </.nav_link>
+              <%= if @is_creator do %>
+                <.nav_link navigate={~p"/dashboard"} active={@current_path == :show}>
+                  Dashboard
+                </.nav_link>
+              <% end %>
               <.nav_link navigate={~p"/browse"} active={@current_path == :browse}>
                 Browse
               </.nav_link>

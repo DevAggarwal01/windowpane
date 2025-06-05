@@ -42,7 +42,7 @@ defmodule AuroraWeb.Router do
 
   # Consumer site (aurora.com)
   scope "/", AuroraWeb, host: "aurora.com" do
-    pipe_through :browser
+    pipe_through [:browser, :redirect_if_user_is_authenticated]
 
     get "/", PageController, :home
   end
@@ -67,7 +67,6 @@ defmodule AuroraWeb.Router do
 
     live_session :require_authenticated_user,
       on_mount: [{AuroraWeb.UserAuth, :ensure_authenticated}] do
-      live "/dashboard", HomeLive, :show
       live "/browse", BrowseLive, :index
       live "/library", LibraryLive, :index
       live "/social", SocialLive, :index
@@ -91,7 +90,7 @@ defmodule AuroraWeb.Router do
 
   # Creators site (studio.aurora.com)
   scope "/", AuroraWeb, host: "studio.aurora.com" do
-    pipe_through :studio_browser
+    pipe_through [:studio_browser, :redirect_if_creator_is_authenticated]
 
     get "/", PageController, :home
     # TODO after getting a domain, need to change the webhook url in mux settings

@@ -437,4 +437,21 @@ defmodule Aurora.Creators do
     |> Creator.update_changeset(attrs)
     |> Repo.update()
   end
+
+  @doc """
+  Returns a list of all creator accounts.
+  """
+  def list_creators do
+    Repo.all(Creator)
+  end
+
+  def search_creators(search_term) when is_binary(search_term) and search_term != "" do
+    search_pattern = "%#{search_term}%"
+
+    Creator
+    |> where([c], like(c.email, ^search_pattern))
+    |> Repo.all()
+  end
+
+  def search_creators(_), do: list_creators()
 end

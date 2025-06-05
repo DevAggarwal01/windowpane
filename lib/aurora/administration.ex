@@ -354,43 +354,115 @@ defmodule Aurora.Administration do
   end
 
   @doc """
-  Returns a list of accounts based on the filter type.
-  Filter type can be "all", "users", or "creators".
+  Returns a paginated list of accounts based on the filter type.
+  Filter type can be "users" or "creators".
   """
-  def list_accounts(filter_type \\ "all") do
-    users =
-      case filter_type do
-        type when type in ["all", "users"] ->
-          Repo.all(
-            from u in User,
-              select: %{
-                id: u.id,
-                email: u.email,
-                type: "user",
-                confirmed_at: u.confirmed_at,
-                inserted_at: u.inserted_at
-              }
-          )
-        _ -> []
-      end
+  def list_accounts(filter_type, page \\ 1, per_page \\ 10) do
+    offset = (page - 1) * per_page
 
-    creators =
-      case filter_type do
-        type when type in ["all", "creators"] ->
-          Repo.all(
-            from c in Creator,
-              select: %{
-                id: c.id,
-                email: c.email,
-                type: "creator",
-                confirmed_at: c.confirmed_at,
-                inserted_at: c.inserted_at
-              }
-          )
-        _ -> []
-      end
+    {query, total_count} = case filter_type do
+      "users" ->
+        query = from u in User,
+          select: %{
+            id: u.id,
+            email: u.email,
+            name: u.name,
+            type: "user",
+            plan: u.plan,
+            confirmed_at: u.confirmed_at,
+            inserted_at: u.inserted_at,
+            onboarded: nil,
+            uid: u.uid
+          },
+          order_by: [asc: u.id]
+        {query, Repo.aggregate(User, :count, :id)}
 
-    users ++ creators
+      "creators" ->
+        query = from c in Creator,
+          select: %{
+            id: c.id,
+            email: c.email,
+            name: c.name,
+            type: "creator",
+            plan: c.plan,
+            confirmed_at: c.confirmed_at,
+            inserted_at: c.inserted_at,
+            onboarded: c.onboarded,
+            stripe_account_id: c.stripe_account_id,
+            uid: c.uid
+          },
+          order_by: [asc: c.id]
+        {query, Repo.aggregate(Creator, :count, :id)}
+
+      _ -> {nil, 0}
+    end
+
+    accounts = if query, do: Repo.all(from q in query, limit: ^per_page, offset: ^offset), else: []
+
+    %{
+      accounts: accounts,
+      total_count: total_count,
+      page: page,
+      per_page: per_page,
+      total_pages: ceil(total_count / per_page)
+    }
+  end
+
+  @doc """
+  Searches accounts based on filter type and search term.
+  """
+  def search_accounts(filter_type, search_term, page \\ 1, per_page \\ 10) when is_binary(search_term) and search_term != "" do
+    search_pattern = "%#{search_term}%"
+    offset = (page - 1) * per_page
+
+    {query, total_count} = case filter_type do
+      "users" ->
+        query = from u in User,
+          where: like(u.email, ^search_pattern),
+          select: %{
+            id: u.id,
+            email: u.email,
+            name: u.name,
+            type: "user",
+            plan: u.plan,
+            confirmed_at: u.confirmed_at,
+            inserted_at: u.inserted_at,
+            onboarded: nil,
+            uid: u.uid
+          },
+          order_by: [asc: u.id]
+        {query, Repo.aggregate(query, :count, :id)}
+
+      "creators" ->
+        query = from c in Creator,
+          where: like(c.email, ^search_pattern),
+          select: %{
+            id: c.id,
+            email: c.email,
+            name: c.name,
+            type: "creator",
+            plan: c.plan,
+            confirmed_at: c.confirmed_at,
+            inserted_at: c.inserted_at,
+            onboarded: c.onboarded,
+            stripe_account_id: c.stripe_account_id,
+            uid: c.uid
+          },
+          order_by: [asc: c.id]
+        {query, Repo.aggregate(query, :count, :id)}
+
+      _ -> {nil, 0}
+    end
+
+    accounts = if query, do: Repo.all(from q in query, limit: ^per_page, offset: ^offset), else: []
+
+    %{
+      accounts: accounts,
+      total_count: total_count,
+      page: page,
+      per_page: per_page,
+      total_pages: ceil(total_count / per_page)
+    }
   end
 
   @doc """
@@ -408,4 +480,14 @@ defmodule Aurora.Administration do
         }
     )
   end
+
+  def search_admins(search_term) when is_binary(search_term) and search_term != "" do
+    search_pattern = "%#{search_term}%"
+
+    Admin
+    |> where([a], like(a.email, ^search_pattern))
+    |> Repo.all()
+  end
+
+  def search_admins(_), do: list_admins()
 end
