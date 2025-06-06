@@ -22,8 +22,9 @@ defmodule AuroraWeb.MuxWebhookController do
   defp handle_event("video.upload.asset_created", %{"data" => %{"id" => asset_id, "passthrough" => passthrough}}) do
     with {:ok, %{"type" => type, "project_id" => project_id}} <- parse_passthrough(passthrough),
          project when not is_nil(project) <- Projects.get_project!(project_id),
+         film <- Projects.get_or_create_film(project),
          update <- get_asset_update(type, asset_id),
-         {:ok, _project} <- Projects.update_project(project, update) do
+         {:ok, _film} <- Projects.update_film(film, update) do
       :ok
     else
       {:error, reason} ->
@@ -41,8 +42,9 @@ defmodule AuroraWeb.MuxWebhookController do
   defp handle_event("video.asset.ready", %{"data" => %{"id" => asset_id, "playback_ids" => [%{"id" => playback_id} | _]}}) do
     try do
       with project when not is_nil(project) <- find_project_by_asset_id(asset_id),
-           update when update != %{} <- get_playback_update(project, asset_id, playback_id),
-           {:ok, _project} <- Projects.update_project(project, update) do
+           film <- project.film || Projects.get_or_create_film(project),
+           update when update != %{} <- get_playback_update(film, asset_id, playback_id),
+           {:ok, _film} <- Projects.update_film(film, update) do
         :ok
       else
         nil ->
@@ -52,7 +54,7 @@ defmodule AuroraWeb.MuxWebhookController do
           Logger.error("Asset ID #{asset_id} doesn't match project's assets")
           {:error, :asset_mismatch}
         {:error, reason} ->
-          Logger.error("Failed to update project with playback ID: #{inspect(reason)}")
+          Logger.error("Failed to update film with playback ID: #{inspect(reason)}")
           {:error, reason}
       end
     rescue
@@ -111,10 +113,10 @@ defmodule AuroraWeb.MuxWebhookController do
       nil
   end
 
-  defp get_playback_update(project, asset_id, playback_id) do
+  defp get_playback_update(film, asset_id, playback_id) do
     cond do
-      project.trailer_asset_id == asset_id -> %{trailer_playback_id: playback_id}
-      project.film_asset_id == asset_id -> %{film_playback_id: playback_id}
+      film.trailer_asset_id == asset_id -> %{trailer_playback_id: playback_id}
+      film.film_asset_id == asset_id -> %{film_playback_id: playback_id}
       true -> %{}
     end
   end

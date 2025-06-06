@@ -6,6 +6,7 @@ defmodule Aurora.Projects do
   import Ecto.Query, warn: false
   alias Aurora.Repo
   alias Aurora.Projects.Project
+  alias Aurora.Projects.Film
   alias Aurora.Projects.ProjectApprovalQueue
 
   @doc """
@@ -53,6 +54,64 @@ defmodule Aurora.Projects do
 
   """
   def get_project!(id), do: Repo.get!(Project, id)
+
+  @doc """
+  Gets a single project with film preloaded.
+
+  Raises `Ecto.NoResultsError` if the Project does not exist.
+
+  ## Examples
+
+      iex> get_project_with_film!(123)
+      %Project{}
+
+  """
+  def get_project_with_film!(id) do
+    Project
+    |> Repo.get!(id)
+    |> Repo.preload(:film)
+  end
+
+  @doc """
+  Gets a project by specific field criteria.
+
+  Returns nil if no project is found.
+
+  ## Examples
+
+      iex> get_project_by!(trailer_asset_id: "asset_123")
+      %Project{}
+
+      iex> get_project_by!(film_asset_id: "asset_456")
+      %Project{}
+
+  """
+  def get_project_by!(clauses) do
+    # Handle film-specific fields by joining with films table
+    case clauses do
+      [trailer_asset_id: asset_id] ->
+        from(p in Project,
+          join: f in Film,
+          on: p.id == f.project_id,
+          where: f.trailer_asset_id == ^asset_id,
+          preload: [:film]
+        )
+        |> Repo.one()
+
+      [film_asset_id: asset_id] ->
+        from(p in Project,
+          join: f in Film,
+          on: p.id == f.project_id,
+          where: f.film_asset_id == ^asset_id,
+          preload: [:film]
+        )
+        |> Repo.one()
+
+      _ ->
+        # For other fields, query the project table directly
+        Repo.get_by(Project, clauses)
+    end
+  end
 
   @doc """
   Creates a project.
@@ -117,6 +176,63 @@ defmodule Aurora.Projects do
   """
   def change_project(%Project{} = project, attrs \\ %{}) do
     Project.changeset(project, attrs)
+  end
+
+  # Film-related functions
+
+  @doc """
+  Creates a film for a project.
+
+  ## Examples
+
+      iex> create_film(%{project_id: 1})
+      {:ok, %Film{}}
+
+      iex> create_film(%{project_id: bad_value})
+      {:error, %Ecto.Changeset{}}
+
+  """
+  def create_film(attrs \\ %{}) do
+    %Film{}
+    |> Film.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  @doc """
+  Updates a film.
+
+  ## Examples
+
+      iex> update_film(film, %{field: new_value})
+      {:ok, %Film{}}
+
+      iex> update_film(film, %{field: bad_value})
+      {:error, %Ecto.Changeset{}}
+
+  """
+  def update_film(%Film{} = film, attrs) do
+    film
+    |> Film.changeset(attrs)
+    |> Repo.update()
+  end
+
+  @doc """
+  Gets or creates a film for a project.
+
+  ## Examples
+
+      iex> get_or_create_film(project)
+      %Film{}
+
+  """
+  def get_or_create_film(%Project{} = project) do
+    case Repo.preload(project, :film).film do
+      nil ->
+        {:ok, film} = create_film(%{project_id: project.id})
+        film
+      film ->
+        film
+    end
   end
 
   @doc """

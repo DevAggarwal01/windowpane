@@ -15,6 +15,9 @@ defmodule Aurora.Creators.Creator do
     field :onboarded, :boolean, default: false
     field :uid, Ecto.UUID
 
+    has_many :projects, Aurora.Projects.Project
+
+
     timestamps(type: :utc_datetime)
   end
 

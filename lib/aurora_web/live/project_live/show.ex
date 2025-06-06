@@ -6,7 +6,7 @@ defmodule AuroraWeb.ProjectLive.Show do
 
   @impl true
   def mount(%{"id" => id}, _session, socket) do
-    project = Projects.get_project!(id)
+    project = Projects.get_project_with_film!(id)
     Logger.warning("MOUNT: Setting initial editing state to false")
     Logger.warning("MOUNT: Project ID: #{id}")
 
@@ -24,7 +24,7 @@ defmodule AuroraWeb.ProjectLive.Show do
 
   @impl true
   def handle_params(%{"id" => id} = params, _, socket) do
-    project = Projects.get_project!(id)
+    project = Projects.get_project_with_film!(id)
     editing = Map.get(params, "edit", "false") == "true"
 
     Logger.warning("HANDLE_PARAMS: Params: #{inspect(params)}")
@@ -41,10 +41,11 @@ defmodule AuroraWeb.ProjectLive.Show do
   def handle_event("save", %{"project" => project_params}, socket) do
     case Projects.update_project(socket.assigns.project, project_params) do
       {:ok, project} ->
+        updated_project = Projects.get_project_with_film!(project.id)
         {:noreply,
          socket
          |> put_flash(:info, "Project updated successfully")
-         |> assign(:project, project)
+         |> assign(:project, updated_project)
          |> assign(:editing, false)}
 
       {:error, %Ecto.Changeset{} = changeset} ->
@@ -72,27 +73,18 @@ defmodule AuroraWeb.ProjectLive.Show do
       "passthrough" => "type:trailer;project_id:#{socket.assigns.project.id}"
     }
 
-    # if trailer upload url is already set, then delete the existing upload before creating a new one
-    # if socket.assigns.project.trailer_upload_id do
-    #   case Mux.Video.Assets.delete(client, socket.assigns.project.trailer_asset_id) do
-    #     {:ok, _} ->
-    #       Logger.warning("Previous trailer upload deleted successfully")
-    #     {:error, error} ->
-    #       Logger.error("Failed to delete trailer upload: #{inspect(error)}")
-    #       {:noreply, put_flash(socket, :error, "Failed to delete previous trailer upload")}
-    #   end
-    # end
-
     case Mux.Video.Uploads.create(client, params) do
       {:ok, %{"url" => url, "id" => id}, _env} ->
         IO.puts("Mux Upload URL: #{url}")
         IO.puts("Upload ID: #{id}")
 
-        # Update the project with the upload URL and ID
-        case Projects.update_project(socket.assigns.project, %{
+        # Get or create film for this project and update it with trailer upload ID
+        film = Projects.get_or_create_film(socket.assigns.project)
+        case Projects.update_film(film, %{
           "trailer_upload_id" => id
         }) do
-          {:ok, updated_project} ->
+          {:ok, _updated_film} ->
+            updated_project = Projects.get_project_with_film!(socket.assigns.project.id)
             {:noreply,
              socket
              |> assign(:project, updated_project)
@@ -122,41 +114,32 @@ defmodule AuroraWeb.ProjectLive.Show do
       "passthrough" => "type:film;project_id:#{socket.assigns.project.id}"
     }
 
-    # if film upload url is already set, then delete the existing upload before creating a new one
-    # if socket.assigns.project.film_upload_id do
-    #   case Mux.Video.Assets.delete(client, socket.assigns.project.film_asset_id) do
-    #     {:ok, _} ->
-    #       Logger.warning("Previous film upload deleted successfully")
-    #     {:error, error} ->
-    #       Logger.error("Failed to delete film upload: #{inspect(error)}")
-    #       {:noreply, put_flash(socket, :error, "Failed to delete previous film upload")}
-    #   end
-    # end
-
     case Mux.Video.Uploads.create(client, params) do
       {:ok, %{"url" => url, "id" => id}, _env} ->
         IO.puts("Mux Upload URL: #{url}")
         IO.puts("Upload ID: #{id}")
 
-        # Update the project with the upload URL and ID
-        case Projects.update_project(socket.assigns.project, %{
+        # Get or create film for this project and update it with film upload ID
+        film = Projects.get_or_create_film(socket.assigns.project)
+        case Projects.update_film(film, %{
           "film_upload_id" => id
         }) do
-          {:ok, updated_project} ->
-        {:noreply,
-          socket
+          {:ok, _updated_film} ->
+            updated_project = Projects.get_project_with_film!(socket.assigns.project.id)
+            {:noreply,
+             socket
              |> assign(:project, updated_project)
              |> assign(:film_upload_url, url)
              |> assign(:film_upload_id, id)
-          |> put_flash(:info, "Upload URL generated")}
+             |> put_flash(:info, "Upload URL generated")}
 
           {:error, _changeset} ->
             {:noreply, put_flash(socket, :error, "Failed to save upload URL")}
         end
 
-        error ->
-          IO.inspect(error, label: "Upload creation failed")
-          {:noreply, put_flash(socket, :error, "Failed to generate upload URL")}
+      error ->
+        IO.inspect(error, label: "Upload creation failed")
+        {:noreply, put_flash(socket, :error, "Failed to generate upload URL")}
     end
   end
 
@@ -198,145 +181,105 @@ defmodule AuroraWeb.ProjectLive.Show do
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div class="lg:col-span-2 space-y-6">
           <%= if @editing do %>
-            <.form :let={f} for={@changeset} phx-submit="save">
-              <div class="bg-white rounded-lg shadow-sm p-6">
-                <div class="flex justify-between items-center mb-4">
-                  <h2 class="text-xl font-semibold">Project Details</h2>
-                  <.link
-                    patch={~p"/projects/#{@project.id}"}
-                    class="inline-flex items-center px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                  >
+            <div class="bg-white rounded-lg shadow-sm p-6">
+              <h2 class="text-xl font-semibold mb-4">Edit Project</h2>
+              <.form
+                :let={f}
+                for={@changeset}
+                phx-submit="save"
+                class="space-y-4"
+              >
+                <div>
+                  <.input field={f[:title]} type="text" label="Title" />
+                </div>
+
+                <div>
+                  <.input field={f[:description]} type="textarea" label="Description" />
+                </div>
+
+                <div>
+                  <.input
+                    field={f[:type]}
+                    type="select"
+                    label="Type"
+                    options={[
+                      {"Film", "film"},
+                      {"TV Show", "tv_show"},
+                      {"Live Event", "live_event"},
+                      {"Book", "book"},
+                      {"Music", "music"}
+                    ]}
+                  />
+                </div>
+
+                <div>
+                  <.input field={f[:premiere_date]} type="datetime-local" label="Premiere Date" />
+                </div>
+
+                <div>
+                  <.input field={f[:premiere_price]} type="number" label="Premiere Price" step="0.01" />
+                </div>
+
+                <div>
+                  <.input field={f[:rental_price]} type="number" label="Rental Price" step="0.01" />
+                </div>
+
+                <div>
+                  <.input field={f[:rental_window_hours]} type="number" label="Rental Window (hours)" />
+                </div>
+
+                <div>
+                  <.input field={f[:purchase_price]} type="number" label="Purchase Price" step="0.01" />
+                </div>
+
+                <div class="flex gap-4">
+                  <.button type="submit">Save Changes</.button>
+                  <.button type="button" phx-click="cancel_edit" class="bg-gray-500 hover:bg-gray-600">
                     Cancel
-                  </.link>
+                  </.button>
                 </div>
-
-                <div class="space-y-4">
-                  <div>
-                    <.input field={f[:title]} type="text" label="Title" required />
-                  </div>
-                  <div>
-                    <.input field={f[:description]} type="textarea" label="Description" required />
-                  </div>
-                </div>
-              </div>
-
-              <div class="bg-white rounded-lg shadow-sm p-6">
-                <h2 class="text-xl font-semibold mb-4">Pricing & Schedule</h2>
-                <div class="grid grid-cols-2 gap-6">
-                  <div>
-                    <.input
-                      field={f[:premiere_date]}
-                      type="datetime-local"
-                      label="Premiere Date"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <.input
-                      field={f[:premiere_price]}
-                      type="number"
-                      label="Premiere Ticket Price"
-                      step="0.01"
-                      min="0"
-                    />
-                  </div>
-                  <div>
-                    <.input
-                      field={f[:rental_price]}
-                      type="number"
-                      label="Rental Price"
-                      step="0.01"
-                      min="0"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <.input
-                      field={f[:rental_window_hours]}
-                      type="number"
-                      label="Rental Window (hours)"
-                      min="1"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <.input
-                      field={f[:purchase_price]}
-                      type="number"
-                      label="Purchase Price"
-                      step="0.01"
-                      min="0"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div class="flex justify-end mt-6">
-                  <button
-                    type="submit"
-                    class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                  >
-                    Save Changes
-                  </button>
-                </div>
-              </div>
-            </.form>
+              </.form>
+            </div>
           <% else %>
             <div class="bg-white rounded-lg shadow-sm p-6">
               <div class="flex justify-between items-center mb-4">
                 <h2 class="text-xl font-semibold">Project Details</h2>
                 <.link
-                  patch={~p"/projects/#{@project.id}?edit=true"}
-                  class="inline-flex items-center px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  patch={~p"/projects/#{@project}?edit=true"}
+                  class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                 >
+                  <svg class="mr-2 -ml-0.5 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
                   Edit
                 </.link>
               </div>
 
-              <div class="space-y-4">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label class="block text-sm font-medium text-gray-500">Description</label>
                   <p class="mt-1 text-gray-900"><%= @project.description %></p>
                 </div>
-                <div class="grid grid-cols-2 gap-4">
-                  <div>
-                    <label class="block text-sm font-medium text-gray-500">Type</label>
-                    <p class="mt-1 text-gray-900 capitalize"><%= @project.type %></p>
-                  </div>
-                  <div>
-                    <label class="block text-sm font-medium text-gray-500">Status</label>
-                    <p class="mt-1">
-                      <%= case @project.status do %>
-                        <% "draft" -> %>
-                          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                            Draft
-                          </span>
-                        <% "published" -> %>
-                          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                            Published
-                          </span>
-                        <% "archived" -> %>
-                          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                            Archived
-                          </span>
-                      <% end %>
-                    </p>
-                  </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-500">Type</label>
+                  <p class="mt-1 text-gray-900 capitalize"><%= String.replace(@project.type, "_", " ") %></p>
                 </div>
-              </div>
-            </div>
-
-            <div class="bg-white rounded-lg shadow-sm p-6">
-              <h2 class="text-xl font-semibold mb-4">Pricing & Schedule</h2>
-              <div class="grid grid-cols-2 gap-6">
+                <div>
+                  <label class="block text-sm font-medium text-gray-500">Status</label>
+                  <p class="mt-1 text-gray-900 capitalize"><%= @project.status %></p>
+                </div>
                 <div>
                   <label class="block text-sm font-medium text-gray-500">Premiere Date</label>
                   <p class="mt-1 text-gray-900">
-                    <%= Calendar.strftime(@project.premiere_date, "%B %d, %Y at %I:%M %p") %>
+                    <%= if @project.premiere_date do %>
+                      <%= Calendar.strftime(@project.premiere_date, "%B %d, %Y at %I:%M %p") %>
+                    <% else %>
+                      Not set
+                    <% end %>
                   </p>
                 </div>
                 <div>
-                  <label class="block text-sm font-medium text-gray-500">Premiere Ticket Price</label>
+                  <label class="block text-sm font-medium text-gray-500">Premiere Price</label>
                   <p class="mt-1 text-gray-900">
                     <%= format_price(@project.premiere_price) %>
                   </p>
@@ -364,7 +307,7 @@ defmodule AuroraWeb.ProjectLive.Show do
           <div class="bg-white rounded-lg shadow-sm p-6">
             <h2 class="text-xl font-semibold mb-4 flex items-center">
               Trailer
-              <%= if @project.trailer_upload_id && @project.trailer_upload_id != "" do %>
+              <%= if @project.film && @project.film.trailer_upload_id && @project.film.trailer_upload_id != "" do %>
                 <svg class="ml-2 h-5 w-5 text-green-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                   <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" />
                 </svg>
@@ -391,7 +334,7 @@ defmodule AuroraWeb.ProjectLive.Show do
                 </div>
               <% end %>
 
-              <%= if @project.trailer_upload_id && @project.trailer_upload_id != "" do %>
+              <%= if @project.film && @project.film.trailer_upload_id && @project.film.trailer_upload_id != "" do %>
                 <div class="mb-4 rounded-md bg-yellow-50 p-4">
                   <div class="flex">
                     <div class="flex-shrink-0">
@@ -418,7 +361,7 @@ defmodule AuroraWeb.ProjectLive.Show do
                 <svg class="mr-2 -ml-1 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                 </svg>
-                <%= if @project.trailer_upload_id && @project.trailer_upload_id != "" do %>
+                <%= if @project.film && @project.film.trailer_upload_id && @project.film.trailer_upload_id != "" do %>
                   Replace Trailer
                 <% else %>
                 Upload Trailer
@@ -430,7 +373,7 @@ defmodule AuroraWeb.ProjectLive.Show do
           <div class="bg-white rounded-lg shadow-sm p-6">
             <h2 class="text-xl font-semibold mb-4 flex items-center">
               Film
-              <%= if @project.film_upload_id && @project.film_upload_id != "" do %>
+              <%= if @project.film && @project.film.film_upload_id && @project.film.film_upload_id != "" do %>
                 <svg class="ml-2 h-5 w-5 text-green-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                   <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" />
                 </svg>
@@ -457,7 +400,7 @@ defmodule AuroraWeb.ProjectLive.Show do
                 </div>
               <% end %>
 
-              <%= if @project.film_upload_id && @project.film_upload_id != "" do %>
+              <%= if @project.film && @project.film.film_upload_id && @project.film.film_upload_id != "" do %>
                 <div class="mb-4 rounded-md bg-yellow-50 p-4">
                   <div class="flex">
                     <div class="flex-shrink-0">
@@ -484,7 +427,7 @@ defmodule AuroraWeb.ProjectLive.Show do
                 <svg class="mr-2 -ml-1 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                 </svg>
-                <%= if @project.film_upload_id && @project.film_upload_id != "" do %>
+                <%= if @project.film && @project.film.film_upload_id && @project.film.film_upload_id != "" do %>
                   Replace Film
                 <% else %>
                 Upload Film
