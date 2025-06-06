@@ -3,6 +3,7 @@ defmodule AuroraWeb.ProjectLive.Show do
   require Logger
 
   alias Aurora.Projects
+  alias Aurora.Uploaders.CoverUploader
 
   @impl true
   def mount(%{"id" => id}, _session, socket) do
@@ -19,7 +20,8 @@ defmodule AuroraWeb.ProjectLive.Show do
      |> assign(:trailer_upload_id, nil)
      |> assign(:film_upload_url, nil)
      |> assign(:film_upload_id, nil)
-     |> assign(:changeset, Projects.change_project(project))}
+     |> assign(:changeset, Projects.change_project(project))
+     |> allow_upload(:cover, accept: ~w(.jpg .jpeg .png .webp), max_entries: 1)}
   end
 
   @impl true
@@ -159,6 +161,66 @@ defmodule AuroraWeb.ProjectLive.Show do
          socket
          |> put_flash(:error, "Project is already in the approval queue")}
     end
+  end
+
+  @impl true
+  def handle_event("trigger_file_input", _, socket) do
+    Logger.warning("TRIGGER_FILE_INPUT: File input clicked")
+    Logger.warning("TRIGGER_FILE_INPUT: Sending push_event to client")
+
+    socket = push_event(socket, "trigger-file-input", %{input_id: "cover-upload"})
+    Logger.warning("TRIGGER_FILE_INPUT: push_event sent")
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("upload_cover", _params, socket) do
+    Logger.warning("UPLOAD_COVER: Project ID: #{socket.assigns.project.id}")
+
+    uploaded_files =
+      consume_uploaded_entries(socket, :cover, fn %{path: path}, entry ->
+        # Upload to Wasabi using our CoverUploader - just pass the path
+        case CoverUploader.store({path, socket.assigns.project}) do
+          {:ok, _filename} ->
+            Logger.info("Successfully uploaded cover for project #{socket.assigns.project.id}")
+            {:ok, :uploaded}
+
+          {:error, reason} ->
+            Logger.error("Failed to upload cover for project #{socket.assigns.project.id}: #{inspect(reason)}")
+            {:error, reason}
+        end
+      end)
+
+    case uploaded_files do
+      [] ->
+        {:noreply, put_flash(socket, :error, "No files were uploaded")}
+
+      files when length(files) > 0 ->
+        # Check if all uploads were successful
+        if Enum.all?(files, fn file -> file == :uploaded end) do
+          {:noreply,
+           socket
+           |> put_flash(:info, "Cover image uploaded successfully!")
+           |> assign(:uploaded_files, files)}
+        else
+          failed_uploads = Enum.filter(files, fn file -> file != :uploaded end)
+          Logger.error("Some uploads failed: #{inspect(failed_uploads)}")
+          {:noreply, put_flash(socket, :error, "Failed to upload some files")}
+        end
+    end
+  end
+
+  @impl true
+  def handle_event("validate_cover", _params, socket) do
+    Logger.warning("VALIDATE_COVER: Project ID: #{socket.assigns.project.id}")
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("cancel_upload", %{"ref" => ref}, socket) do
+    Logger.warning("CANCEL_UPLOAD: Project ID: #{socket.assigns.project.id}")
+    {:noreply, cancel_upload(socket, :cover, ref)}
   end
 
   defp format_price(nil), do: "-"
@@ -435,6 +497,111 @@ defmodule AuroraWeb.ProjectLive.Show do
               </button>
             </div>
           </div>
+
+          <div class="bg-white rounded-lg shadow-sm p-6">
+            <h2 class="text-xl font-semibold mb-4 flex items-center">
+              Film Cover
+              <%= if CoverUploader.cover_exists?(@project) do %>
+                <svg class="ml-2 h-5 w-5 text-green-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" />
+                </svg>
+              <% end %>
+            </h2>
+
+            <div class="mt-4">
+              <script>
+                function handleCoverUpload() {
+                  console.log("Cover upload area clicked");
+                  const fileInput = document.getElementById('cover-file-input');
+                  if (fileInput) {
+                    fileInput.click();
+                  }
+                }
+
+                function viewCoverImage() {
+                  window.open('<%= CoverUploader.cover_url(@project) %>', '_blank');
+                }
+
+                function handleFileSelection(event) {
+                  const file = event.target.files[0];
+                  if (file) {
+                    console.log("File selected:", file.name);
+
+                    // Create FormData for upload
+                    const formData = new FormData();
+                    formData.append('cover', file);
+                    formData.append('project_id', '<%= @project.id %>');
+
+                    // Show uploading state on button
+                    const uploadButton = document.querySelector('button[onclick="handleCoverUpload()"]');
+                    const originalText = uploadButton.innerHTML;
+                    uploadButton.innerHTML = '<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Uploading...';
+                    uploadButton.disabled = true;
+
+                    // Upload via fetch
+                    fetch('/api/projects/<%= @project.id %>/cover', {
+                      method: 'POST',
+                      body: formData,
+                      headers: {
+                        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content
+                      }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                      if (data.success) {
+                        // Reload the page to show the new cover
+                        window.location.reload();
+                      } else {
+                        uploadButton.innerHTML = originalText;
+                        uploadButton.disabled = false;
+                        alert('Upload failed: ' + data.error);
+                      }
+                    })
+                    .catch(error => {
+                      uploadButton.innerHTML = originalText;
+                      uploadButton.disabled = false;
+                      alert('Upload failed: ' + error.message);
+                    });
+                  }
+                }
+              </script>
+
+              <div class="flex gap-2">
+                <button
+                  type="button"
+                  onclick="handleCoverUpload()"
+                  class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  <svg class="mr-2 -ml-1 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                      </svg>
+                  Upload Image
+                    </button>
+
+                <%= if CoverUploader.cover_url(@project) do %>
+                  <button
+                    type="button"
+                    onclick="viewCoverImage()"
+                    class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  >
+                    <svg class="mr-2 -ml-1 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                    View Image
+                  </button>
+                <% end %>
+              </div>
+
+              <input
+                type="file"
+                id="cover-file-input"
+                accept=".jpg,.jpeg,.png,.webp"
+                style="display: none;"
+                onchange="handleFileSelection(event)"
+              />
+            </div>
+          </div>
         </div>
 
         <div class="space-y-6">
@@ -444,16 +611,19 @@ defmodule AuroraWeb.ProjectLive.Show do
               <%= if @project.status == "draft" do %>
                 <button
                   phx-click="deploy"
-                  class="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                  disabled={Projects.in_approval_queue?(@project)}
+                  class="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  disabled={Projects.in_approval_queue?(@project) or not Projects.ready_for_deployment?(@project)}
                 >
                   <svg class="mr-2 -ml-1 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                   </svg>
-                  <%= if Projects.in_approval_queue?(@project) do %>
-                    Pending Approval
-                  <% else %>
-                  Deploy Project
+                  <%= cond do %>
+                    <% Projects.in_approval_queue?(@project) -> %>
+                      Pending Approval
+                    <% not Projects.ready_for_deployment?(@project) -> %>
+                      Complete All Fields & Uploads
+                    <% true -> %>
+                      Deploy Project
                   <% end %>
                 </button>
               <% end %>

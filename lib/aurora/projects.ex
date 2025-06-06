@@ -272,4 +272,67 @@ defmodule Aurora.Projects do
     |> select([q], q.project_id)
     |> Repo.all()
   end
+
+  @doc """
+  Validates if a project is ready for deployment.
+
+  Checks that all required fields are filled and all uploads (film, trailer, cover) exist.
+
+  ## Examples
+
+      iex> ready_for_deployment?(project)
+      true
+
+      iex> ready_for_deployment?(incomplete_project)
+      false
+  """
+  def ready_for_deployment?(project) do
+    # Check required fields are not nil or empty
+    required_fields_valid = [
+      field_valid?(project.title),
+      field_valid?(project.description),
+      field_valid?(project.type),
+      field_valid?(project.premiere_date),
+      field_valid?(project.premiere_price),
+      field_valid?(project.rental_price),
+      field_valid?(project.rental_window_hours),
+      field_valid?(project.purchase_price)
+    ]
+
+    # Check uploads exist
+    uploads_valid = [
+      film_uploaded?(project),
+      trailer_uploaded?(project),
+      cover_uploaded?(project)
+    ]
+
+    # All validations must pass
+    Enum.all?(required_fields_valid ++ uploads_valid)
+  end
+
+  # Helper function to check if a field is valid (not nil or empty)
+  defp field_valid?(nil), do: false
+  defp field_valid?(""), do: false
+  defp field_valid?(_), do: true
+
+  # Helper function to check if film is uploaded
+  defp film_uploaded?(project) do
+    case project.film do
+      nil -> false
+      film -> field_valid?(film.film_upload_id)
+    end
+  end
+
+  # Helper function to check if trailer is uploaded
+  defp trailer_uploaded?(project) do
+    case project.film do
+      nil -> false
+      film -> field_valid?(film.trailer_upload_id)
+    end
+  end
+
+  # Helper function to check if cover is uploaded
+  defp cover_uploaded?(project) do
+    Aurora.Uploaders.CoverUploader.cover_exists?(project)
+  end
 end

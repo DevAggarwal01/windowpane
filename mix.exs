@@ -61,7 +61,13 @@ defmodule Aurora.MixProject do
       {:bandit, "~> 1.5"},
       {:stripity_stripe, "~> 3.0"},
       {:req, "~> 0.4"},
-      {:mux, "~> 3.2.1"}
+      {:mux, "~> 3.2.1"},
+      {:waffle, "~> 1.1"},
+      {:waffle_ecto, "~> 0.0.12"},
+      {:ex_aws, "~> 2.1.2"},
+      {:ex_aws_s3, "~> 2.0"},
+      {:hackney, "~> 1.9"},
+      {:sweet_xml, "~> 0.6"}
     ]
   end
 

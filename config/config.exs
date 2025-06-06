@@ -63,6 +63,20 @@ config :phoenix, :json_library, Jason
 
 config :stripity_stripe, api_key: System.get_env("STRIPE_SECRET")
 
+config :ex_aws,
+  access_key_id: System.get_env("WASABI_ACCESS_KEY"),
+  secret_access_key: System.get_env("WASABI_SECRET_KEY"),
+  region: "us-east-1",
+  s3: [
+    scheme: "https://",
+    host: "s3.wasabisys.com",
+    region: "us-east-1"
+  ]
+
+config :waffle,
+  storage: Waffle.Storage.S3,
+  asset_host: "https://s3.wasabisys.com",
+  bucket: System.get_env("WASABI_BUCKET")
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
