@@ -1,11 +1,11 @@
 import Config
 
 # Configure your database
-config :aurora, Aurora.Repo,
+config :windowpane, Windowpane.Repo,
   username: "deva",
   password: "devapass",
   hostname: "localhost",
-  database: "aurora_dev",
+  database: "windowpane_db",
   stacktrace: true,
   show_sensitive_data_on_connection_error: true,
   pool_size: 10
@@ -16,18 +16,18 @@ config :aurora, Aurora.Repo,
 # The watchers configuration can be used to run external
 # watchers to your application. For example, we can use it
 # to bundle .js and .css sources.
-config :aurora, AuroraWeb.Endpoint,
+config :windowpane, WindowpaneWeb.Endpoint,
   # Binding to loopback ipv4 address prevents access from other machines.
   # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
   http: [ip: {127, 0, 0, 1}, port: 4000],
   url: [host: nil, port: 4000],
-  check_origin: ["//aurora.com:4000", "//studio.aurora.com:4000", "//admin.aurora.com:4000"],
+  check_origin: ["//windowpane.com:4000", "//studio.windowpane.com:4000", "//admin.windowpane.com:4000"],
   code_reloader: true,
   debug_errors: true,
   secret_key_base: "skK6GOb8X7Gini9Z9+faiwJnrUENuDUPpGJpmLPZbfG+qUflJxlIFLMKeQl3I59m",
   watchers: [
-    esbuild: {Esbuild, :install_and_run, [:aurora, ~w(--sourcemap=inline --watch)]},
-    tailwind: {Tailwind, :install_and_run, [:aurora, ~w(--watch)]}
+    esbuild: {Esbuild, :install_and_run, [:windowpane, ~w(--sourcemap=inline --watch)]},
+    tailwind: {Tailwind, :install_and_run, [:windowpane, ~w(--watch)]}
   ]
 
 # ## SSL Support
@@ -54,17 +54,17 @@ config :aurora, AuroraWeb.Endpoint,
 # different ports.
 
 # Watch static and templates for browser reloading.
-config :aurora, AuroraWeb.Endpoint,
+config :windowpane, WindowpaneWeb.Endpoint,
   live_reload: [
     patterns: [
       ~r"priv/static/(?!uploads/).*(js|css|png|jpeg|jpg|gif|svg)$",
       ~r"priv/gettext/.*(po)$",
-      ~r"lib/aurora_web/(controllers|live|components)/.*(ex|heex)$"
+      ~r"lib/windowpane_web/(controllers|live|components)/.*(ex|heex)$"
     ]
   ]
 
 # Enable dev routes for dashboard and mailbox
-config :aurora, dev_routes: true
+config :windowpane, dev_routes: true
 
 # Do not include metadata nor timestamps in development logs
 config :logger, :console, format: "[$level] $message\n"

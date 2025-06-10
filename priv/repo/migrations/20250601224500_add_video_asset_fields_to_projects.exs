@@ -1,4 +1,4 @@
-defmodule Aurora.Repo.Migrations.AddVideoAssetFieldsToProjects do
+defmodule Windowpane.Repo.Migrations.AddVideoAssetFieldsToProjects do
   use Ecto.Migration
 
   def change do
@@ -36,7 +36,7 @@ defmodule Aurora.Repo.Migrations.AddVideoAssetFieldsToProjects do
     AND column_name = '#{column}'
     """
 
-    case Ecto.Adapters.SQL.query(Aurora.Repo, query, []) do
+    case Ecto.Adapters.SQL.query(Windowpane.Repo, query, []) do
       {:ok, %{rows: [[_]]}} -> true
       _ -> false
     end

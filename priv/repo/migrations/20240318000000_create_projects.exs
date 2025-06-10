@@ -1,4 +1,4 @@
-defmodule Aurora.Repo.Migrations.CreateProjects do
+defmodule Windowpane.Repo.Migrations.CreateProjects do
   use Ecto.Migration
 
   def change do

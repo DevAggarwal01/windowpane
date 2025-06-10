@@ -1,4 +1,4 @@
-defmodule Aurora.Repo.Migrations.CreateUsersAuthTables do
+defmodule Windowpane.Repo.Migrations.CreateUsersAuthTables do
   use Ecto.Migration
 
   def change do

@@ -1,4 +1,4 @@
-defmodule Aurora.Repo.Migrations.CreateUserRoleEnum do
+defmodule Windowpane.Repo.Migrations.CreateUserRoleEnum do
   use Ecto.Migration
 
   def up do

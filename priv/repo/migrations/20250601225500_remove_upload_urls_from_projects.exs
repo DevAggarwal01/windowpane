@@ -1,4 +1,4 @@
-defmodule Aurora.Repo.Migrations.RemoveUploadUrlsFromProjects do
+defmodule Windowpane.Repo.Migrations.RemoveUploadUrlsFromProjects do
   use Ecto.Migration
 
   def change do

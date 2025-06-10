@@ -1,4 +1,4 @@
-defmodule Aurora.Repo.Migrations.AddPlaybackIdFieldsToProjects do
+defmodule Windowpane.Repo.Migrations.AddPlaybackIdFieldsToProjects do
   use Ecto.Migration
 
   def change do
@@ -24,7 +24,7 @@ defmodule Aurora.Repo.Migrations.AddPlaybackIdFieldsToProjects do
     AND column_name = '#{column}'
     """
 
-    case Ecto.Adapters.SQL.query(Aurora.Repo, query, []) do
+    case Ecto.Adapters.SQL.query(Windowpane.Repo, query, []) do
       {:ok, %{rows: [[_]]}} -> true
       _ -> false
     end

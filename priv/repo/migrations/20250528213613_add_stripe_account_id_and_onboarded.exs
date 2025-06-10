@@ -1,4 +1,4 @@
-defmodule Aurora.Repo.Migrations.AddStripeAccountIdAndOnboarded do
+defmodule Windowpane.Repo.Migrations.AddStripeAccountIdAndOnboarded do
   use Ecto.Migration
 
   def change do

@@ -1,4 +1,4 @@
-defmodule Aurora.Repo.Migrations.CreateFilms do
+defmodule Windowpane.Repo.Migrations.CreateFilms do
   use Ecto.Migration
 
   def change do

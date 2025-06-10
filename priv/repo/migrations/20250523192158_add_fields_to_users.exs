@@ -1,4 +1,4 @@
-defmodule Aurora.Repo.Migrations.AddFieldsToUsers do
+defmodule Windowpane.Repo.Migrations.AddFieldsToUsers do
   use Ecto.Migration
 
   def change do

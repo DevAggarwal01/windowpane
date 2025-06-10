@@ -1,4 +1,4 @@
-defmodule Aurora.Repo.Migrations.ModifyTrailerUploadUrlType do
+defmodule Windowpane.Repo.Migrations.ModifyTrailerUploadUrlType do
   use Ecto.Migration
 
   def change do

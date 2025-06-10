@@ -1,4 +1,4 @@
-defmodule AuroraWeb.ConnCase do
+defmodule WindowpaneWeb.ConnCase do
   @moduledoc """
   This module defines the test case to be used by
   tests that require setting up a connection.
@@ -11,7 +11,7 @@ defmodule AuroraWeb.ConnCase do
   we enable the SQL sandbox, so changes done to the database
   are reverted at the end of every test. If you are using
   PostgreSQL, you can even run database tests asynchronously
-  by setting `use AuroraWeb.ConnCase, async: true`, although
+  by setting `use WindowpaneWeb.ConnCase, async: true`, although
   this option is not recommended for other databases.
   """
 
@@ -20,19 +20,19 @@ defmodule AuroraWeb.ConnCase do
   using do
     quote do
       # The default endpoint for testing
-      @endpoint AuroraWeb.Endpoint
+      @endpoint WindowpaneWeb.Endpoint
 
-      use AuroraWeb, :verified_routes
+      use WindowpaneWeb, :verified_routes
 
       # Import conveniences for testing with connections
       import Plug.Conn
       import Phoenix.ConnTest
-      import AuroraWeb.ConnCase
+      import WindowpaneWeb.ConnCase
     end
   end
 
   setup tags do
-    Aurora.DataCase.setup_sandbox(tags)
+    Windowpane.DataCase.setup_sandbox(tags)
     {:ok, conn: Phoenix.ConnTest.build_conn()}
   end
 
@@ -45,7 +45,7 @@ defmodule AuroraWeb.ConnCase do
   test context.
   """
   def register_and_log_in_user(%{conn: conn}) do
-    user = Aurora.AccountsFixtures.user_fixture()
+    user = Windowpane.AccountsFixtures.user_fixture()
     %{conn: log_in_user(conn, user), user: user}
   end
 
@@ -55,7 +55,7 @@ defmodule AuroraWeb.ConnCase do
   It returns an updated `conn`.
   """
   def log_in_user(conn, user) do
-    token = Aurora.Accounts.generate_user_session_token(user)
+    token = Windowpane.Accounts.generate_user_session_token(user)
 
     conn
     |> Phoenix.ConnTest.init_test_session(%{})
@@ -71,7 +71,7 @@ defmodule AuroraWeb.ConnCase do
   test context.
   """
   def register_and_log_in_admin(%{conn: conn}) do
-    admin = Aurora.AdministrationFixtures.admin_fixture()
+    admin = Windowpane.AdministrationFixtures.admin_fixture()
     %{conn: log_in_admin(conn, admin), admin: admin}
   end
 
@@ -81,7 +81,7 @@ defmodule AuroraWeb.ConnCase do
   It returns an updated `conn`.
   """
   def log_in_admin(conn, admin) do
-    token = Aurora.Administration.generate_admin_session_token(admin)
+    token = Windowpane.Administration.generate_admin_session_token(admin)
 
     conn
     |> Phoenix.ConnTest.init_test_session(%{})

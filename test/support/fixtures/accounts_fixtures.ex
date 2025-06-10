@@ -1,7 +1,7 @@
-defmodule Aurora.AccountsFixtures do
+defmodule Windowpane.AccountsFixtures do
   @moduledoc """
   This module defines test helpers for creating
-  entities via the `Aurora.Accounts` context.
+  entities via the `Windowpane.Accounts` context.
   """
 
   def unique_user_email, do: "user#{System.unique_integer()}@example.com"
@@ -18,7 +18,7 @@ defmodule Aurora.AccountsFixtures do
     {:ok, user} =
       attrs
       |> valid_user_attributes()
-      |> Aurora.Accounts.register_user()
+      |> Windowpane.Accounts.register_user()
 
     user
   end

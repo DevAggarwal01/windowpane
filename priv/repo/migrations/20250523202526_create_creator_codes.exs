@@ -1,4 +1,4 @@
-defmodule Aurora.Repo.Migrations.CreateCreatorCodes do
+defmodule Windowpane.Repo.Migrations.CreateCreatorCodes do
   use Ecto.Migration
 
   def change do

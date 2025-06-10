@@ -1,9 +1,9 @@
-defmodule Aurora.MixProject do
+defmodule Windowpane.MixProject do
   use Mix.Project
 
   def project do
     [
-      app: :aurora,
+      app: :windowpane,
       version: "0.1.0",
       elixir: "~> 1.14",
       elixirc_paths: elixirc_paths(Mix.env()),
@@ -18,7 +18,7 @@ defmodule Aurora.MixProject do
   # Type `mix help compile.app` for more information.
   def application do
     [
-      mod: {Aurora.Application, []},
+      mod: {Windowpane.Application, []},
       extra_applications: [:logger, :runtime_tools]
     ]
   end
@@ -84,10 +84,10 @@ defmodule Aurora.MixProject do
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
-      "assets.build": ["tailwind aurora", "esbuild aurora"],
+      "assets.build": ["tailwind windowpane", "esbuild windowpane"],
       "assets.deploy": [
-        "tailwind aurora --minify",
-        "esbuild aurora --minify",
+        "tailwind windowpane --minify",
+        "esbuild windowpane --minify",
         "phx.digest"
       ]
     ]

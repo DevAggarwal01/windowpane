@@ -1,5 +1,5 @@
 {
-  "name": "aurora",
+  "name": "windowpane",
   "version": "1.0.0",
   "description": "To start your Phoenix server:",
   "main": "index.js",
@@ -12,15 +12,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/DevAggarwal01/aurora.git"
+    "url": "git+https://github.com/DevAggarwal01/windowpane.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/DevAggarwal01/aurora/issues"
+    "url": "https://github.com/DevAggarwal01/windowpane/issues"
   },
-  "homepage": "https://github.com/DevAggarwal01/aurora#readme",
+  "homepage": "https://github.com/DevAggarwal01/windowpane#readme",
   "devDependencies": {
     "autoprefixer": "^10.4.21",
     "postcss": "^8.5.3",

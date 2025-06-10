@@ -1,4 +1,4 @@
-defmodule Aurora.Repo.Migrations.AddUid do
+defmodule Windowpane.Repo.Migrations.AddUid do
   use Ecto.Migration
 
   def change do

@@ -1,4 +1,4 @@
-defmodule Aurora.Repo.Migrations.RemoveRoleFromUsers do
+defmodule Windowpane.Repo.Migrations.RemoveRoleFromUsers do
   use Ecto.Migration
 
   def change do

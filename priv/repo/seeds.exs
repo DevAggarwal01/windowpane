@@ -5,7 +5,7 @@
 # Inside the script, you can read and write to any of your
 # repositories directly:
 #
-#     Aurora.Repo.insert!(%Aurora.SomeSchema{})
+#     Windowpane.Repo.insert!(%Windowpane.SomeSchema{})
 #
 # We recommend using the bang functions (`insert!`, `update!`
 # and so on) as they will fail if something goes wrong.

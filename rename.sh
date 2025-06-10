@@ -2,8 +2,8 @@
 
 set -e
 
-CURRENT_NAME="Aurora"       # Module name
-CURRENT_OTP="aurora"        # OTP app name (used in paths)
+CURRENT_NAME="Windowpane"       # Module name
+CURRENT_OTP="windowpane"        # OTP app name (used in paths)
 
 NEW_NAME="Nova"
 NEW_OTP="nova"

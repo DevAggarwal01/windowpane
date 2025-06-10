@@ -1,4 +1,4 @@
-defmodule Aurora.Repo.Migrations.MigrateFilmDataFromProjects do
+defmodule Windowpane.Repo.Migrations.MigrateFilmDataFromProjects do
   use Ecto.Migration
   import Ecto.Query
 

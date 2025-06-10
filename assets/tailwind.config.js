@@ -8,8 +8,8 @@ const path = require("path")
 module.exports = {
   content: [
     "./js/**/*.js",
-    "../lib/aurora_web.ex",
-    "../lib/aurora_web/**/*.*ex"
+    "../lib/windowpane_web.ex",
+    "../lib/windowpane_web/**/*.*ex"
     
   ],
   theme: {

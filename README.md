@@ -1,4 +1,4 @@
-# Aurora
+# Windowpane
 # TODO list after getting domain
 1. After deploying, the webhook url registered in Mux settings needs to be changed
 2. the region in which fly.io app is hosted needs to match the wasabi bucket region

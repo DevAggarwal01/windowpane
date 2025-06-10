@@ -1,4 +1,4 @@
-defmodule Aurora.Repo.Migrations.CreateProjectApprovalQueue do
+defmodule Windowpane.Repo.Migrations.CreateProjectApprovalQueue do
   use Ecto.Migration
 
   def change do

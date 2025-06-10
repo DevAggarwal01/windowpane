@@ -7,19 +7,19 @@
 # General application configuration
 import Config
 
-config :aurora,
-  ecto_repos: [Aurora.Repo],
+config :windowpane,
+  ecto_repos: [Windowpane.Repo],
   generators: [timestamp_type: :utc_datetime]
 
 # Configures the endpoint
-config :aurora, AuroraWeb.Endpoint,
+config :windowpane, WindowpaneWeb.Endpoint,
   url: [host: "localhost"],
   adapter: Bandit.PhoenixAdapter,
   render_errors: [
-    formats: [html: AuroraWeb.ErrorHTML, json: AuroraWeb.ErrorJSON],
+    formats: [html: WindowpaneWeb.ErrorHTML, json: WindowpaneWeb.ErrorJSON],
     layout: false
   ],
-  pubsub_server: Aurora.PubSub,
+  pubsub_server: Windowpane.PubSub,
   live_view: [signing_salt: "792J1GSl"]
 
 # Configures the mailer
@@ -29,12 +29,12 @@ config :aurora, AuroraWeb.Endpoint,
 #
 # For production it's recommended to configure a different adapter
 # at the `config/runtime.exs`.
-config :aurora, Aurora.Mailer, adapter: Swoosh.Adapters.Local
+config :windowpane, Windowpane.Mailer, adapter: Swoosh.Adapters.Local
 
 # Configure esbuild (the version is required)
 config :esbuild,
   version: "0.17.11",
-  aurora: [
+  windowpane: [
     args:
       ~w(js/app.js --bundle --target=es2017 --outdir=../priv/static/assets --external:/fonts/* --external:/images/*),
     cd: Path.expand("../assets", __DIR__),
@@ -44,7 +44,7 @@ config :esbuild,
 # Configure tailwind (the version is required)
 config :tailwind,
   version: "3.4.3",
-  aurora: [
+  windowpane: [
     args: ~w(
       --config=tailwind.config.js
       --input=css/app.css

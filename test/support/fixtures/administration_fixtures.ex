@@ -1,7 +1,7 @@
-defmodule Aurora.AdministrationFixtures do
+defmodule Windowpane.AdministrationFixtures do
   @moduledoc """
   This module defines test helpers for creating
-  entities via the `Aurora.Administration` context.
+  entities via the `Windowpane.Administration` context.
   """
 
   def unique_admin_email, do: "admin#{System.unique_integer()}@example.com"
@@ -18,7 +18,7 @@ defmodule Aurora.AdministrationFixtures do
     {:ok, admin} =
       attrs
       |> valid_admin_attributes()
-      |> Aurora.Administration.register_admin()
+      |> Windowpane.Administration.register_admin()
 
     admin
   end

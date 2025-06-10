@@ -1,4 +1,4 @@
-defmodule Aurora.Repo.Migrations.AddRoleToAdmins do
+defmodule Windowpane.Repo.Migrations.AddRoleToAdmins do
   use Ecto.Migration
 
   def change do
