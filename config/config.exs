@@ -78,6 +78,33 @@ config :waffle,
   asset_host: "https://s3.wasabisys.com",
   bucket: System.get_env("WASABI_BUCKET")
 
+# config :ex_aws,
+#   read: %{
+#     access_key_id: System.get_env("BACKBLAZE_READ_ACCESS_KEY"),
+#     secret_access_key: System.get_env("BACKBLAZE_READ_SECRET_KEY"),
+#     region: "us-west-004",
+#     s3: [
+#       scheme: "https://",
+#       host: "s3.us-west-004.backblazeb2.com",
+#       region: "us-west-004",
+#     ]
+#   },
+#   write: %{
+#     access_key_id: System.get_env("BACKBLAZE_WRITE_ACCESS_KEY"),
+#     secret_access_key: System.get_env("BACKBLAZE_WRITE_SECRET_KEY"),
+#     region: "us-west-004",
+#     s3: [
+#       scheme: "https://",
+#       host: "s3.us-west-004.backblazeb2.com",
+#       region: "us-west-004",
+#     ]
+#   }
+
+# config :waffle,
+#   storage: Waffle.Storage.S3,
+#   asset_host: "s3.us-west-004.backblazeb2.com",
+#   bucket: System.get_env("BACKBLAZE_BUCKET")
+
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
 import_config "#{config_env()}.exs"

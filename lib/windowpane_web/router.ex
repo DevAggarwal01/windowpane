@@ -89,10 +89,8 @@ defmodule WindowpaneWeb.Router do
   end
 
   # Creators site (studio.windowpane.com)
-  scope "/", WindowpaneWeb, host: "studio.windowpane.com" do
-    pipe_through [:studio_browser, :redirect_if_creator_is_authenticated]
-
-    get "/", PageController, :home
+  scope "/", WindowpaneWeb do
+    pipe_through [:api]
     # TODO after getting a domain, need to change the webhook url in mux settings
     post "/mux/webhook", MuxWebhookController, :create
   end

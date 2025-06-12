@@ -19,9 +19,10 @@ config :windowpane, Windowpane.Repo,
 config :windowpane, WindowpaneWeb.Endpoint,
   # Binding to loopback ipv4 address prevents access from other machines.
   # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
-  http: [ip: {127, 0, 0, 1}, port: 4000],
-  url: [host: nil, port: 4000],
-  check_origin: ["//windowpane.com:4000", "//studio.windowpane.com:4000", "//admin.windowpane.com:4000"],
+  http: [ip: {0, 0, 0, 0}, port: 4000],
+  url: [host: "windowpane.fly.dev", port: 443],
+  check_origin: false,
+  # check_origin: ["//windowpane.tv", "//studio.windowpane.tv", "//admin.windowpane.tv"],
   code_reloader: true,
   debug_errors: true,
   secret_key_base: "skK6GOb8X7Gini9Z9+faiwJnrUENuDUPpGJpmLPZbfG+qUflJxlIFLMKeQl3I59m",

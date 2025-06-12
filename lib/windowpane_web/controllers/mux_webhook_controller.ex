@@ -19,49 +19,50 @@ defmodule WindowpaneWeb.MuxWebhookController do
     send_resp(conn, 400, "Invalid webhook payload")
   end
 
-  defp handle_event("video.upload.asset_created", %{"data" => %{"id" => asset_id, "passthrough" => passthrough}}) do
-    with {:ok, %{"type" => type, "project_id" => project_id}} <- parse_passthrough(passthrough),
-         project when not is_nil(project) <- Projects.get_project!(project_id),
-         film <- Projects.get_or_create_film(project),
-         update <- get_asset_update(type, asset_id),
-         {:ok, _film} <- Projects.update_film(film, update) do
-      :ok
+  defp handle_event("video.asset.ready", %{"data" => %{"id" => asset_id, "playback_ids" => [%{"id" => playback_id} | _]}} = params) do
+    Logger.info("Asset ready: #{asset_id}, playback_id: #{playback_id}")
+
+    # Extract project_id and type from passthrough
+    passthrough = get_in(params, ["data", "passthrough"])
+
+    if is_binary(passthrough) do
+      case parse_passthrough(passthrough) do
+        {:ok, %{"project_id" => project_id, "type" => type}} ->
+          handle_asset_ready_with_project_id(asset_id, playback_id, project_id, type)
+        {:error, reason} ->
+          Logger.error("Failed to parse passthrough in asset ready: #{inspect(reason)}")
+          handle_asset_ready_fallback(asset_id, playback_id)
+      end
     else
-      {:error, reason} ->
-        Logger.error("Failed to process asset creation: #{inspect(reason)}")
-        {:error, reason}
-      nil ->
-        Logger.error("Project not found for passthrough: #{inspect(passthrough)}")
-        {:error, :project_not_found}
-      error ->
-        Logger.error("Unexpected error processing asset creation: #{inspect(error)}")
-        {:error, :unexpected_error}
+      # Fallback: find project by asset_id (original logic)
+      Logger.warning("Asset ready event missing passthrough: #{asset_id}, falling back to asset_id lookup")
+      handle_asset_ready_fallback(asset_id, playback_id)
     end
   end
 
-  defp handle_event("video.asset.ready", %{"data" => %{"id" => asset_id, "playback_ids" => [%{"id" => playback_id} | _]}}) do
-    try do
-      with project when not is_nil(project) <- find_project_by_asset_id(asset_id),
-           film <- project.film || Projects.get_or_create_film(project),
-           update when update != %{} <- get_playback_update(film, asset_id, playback_id),
-           {:ok, _film} <- Projects.update_film(film, update) do
-        :ok
-      else
-        nil ->
-          Logger.error("No project found for asset_id: #{asset_id}")
-          {:error, :project_not_found}
-        %{} ->
-          Logger.error("Asset ID #{asset_id} doesn't match project's assets")
-          {:error, :asset_mismatch}
-        {:error, reason} ->
-          Logger.error("Failed to update film with playback ID: #{inspect(reason)}")
-          {:error, reason}
+  defp handle_event("video.asset.errored", %{"data" => %{"id" => asset_id, "errors" => %{"messages" => messages}}} = params) do
+    Logger.error("Asset errored: #{asset_id}, messages: #{inspect(messages)}")
+
+    # Extract project_id from passthrough if available for better error tracking
+    passthrough = get_in(params, ["data", "passthrough"])
+
+    if is_binary(passthrough) do
+      case parse_passthrough(passthrough) do
+        {:ok, %{"project_id" => project_id}} ->
+          Logger.error("Asset error for project #{project_id}: #{inspect(messages)}")
+        {:error, _reason} ->
+          Logger.error("Asset error (unable to parse project_id from passthrough): #{inspect(messages)}")
       end
-    rescue
-      e ->
-        Logger.error("Error processing asset ready event: #{inspect(e)}")
-        {:error, :unexpected_error}
+    else
+      Logger.error("Asset error (no passthrough available): #{inspect(messages)}")
     end
+
+    :ok
+  end
+
+  defp handle_event("video.asset.errored", %{"data" => %{"id" => asset_id}} = params) do
+    Logger.error("Asset errored: #{asset_id}, but no error messages found in payload: #{inspect(params)}")
+    :ok
   end
 
   defp handle_event(event_type, params) do
@@ -86,6 +87,36 @@ defmodule WindowpaneWeb.MuxWebhookController do
       case result do
         %{"type" => type, "project_id" => project_id} = map when type in ["trailer", "film"] ->
           {:ok, map}
+        %{"type" => type} when type in ["trailer", "film"] ->
+          # Return just the type if project_id is not present (since we get it from external_id now)
+          {:ok, %{"type" => type}}
+        _ ->
+          {:error, :invalid_passthrough}
+      end
+    rescue
+      e ->
+        Logger.error("Failed to parse passthrough: #{inspect(e)}")
+        {:error, :invalid_passthrough_format}
+    end
+  end
+
+  defp parse_passthrough_for_type(passthrough) do
+    try do
+      result =
+        passthrough
+        |> String.split(";")
+        |> Enum.map(fn pair ->
+          case String.split(pair, ":") do
+            [key, val] -> {key, val}
+            _ -> nil
+          end
+        end)
+        |> Enum.reject(&is_nil/1)
+        |> Enum.into(%{})
+
+      case result do
+        %{"type" => type} when type in ["trailer", "film"] ->
+          {:ok, type}
         _ ->
           {:error, :invalid_passthrough}
       end
@@ -118,6 +149,73 @@ defmodule WindowpaneWeb.MuxWebhookController do
       film.trailer_asset_id == asset_id -> %{trailer_playback_id: playback_id}
       film.film_asset_id == asset_id -> %{film_playback_id: playback_id}
       true -> %{}
+    end
+  end
+
+  defp handle_asset_ready_with_project_id(asset_id, playback_id, project_id, type) do
+    try do
+      with project when not is_nil(project) <- Projects.get_project_with_film!(project_id),
+           film <- project.film || Projects.get_or_create_film(project),
+           update when update != %{} <- get_asset_and_playback_update_by_type(type, asset_id, playback_id),
+           {:ok, _film} <- Projects.update_film(film, update) do
+        Logger.info("Successfully updated film with asset_id and playback_id for project #{project_id}")
+        :ok
+      else
+        nil ->
+          Logger.error("No project found for project_id: #{project_id}")
+          {:error, :project_not_found}
+        %{} ->
+          Logger.error("Invalid type #{type} for asset update")
+          {:error, :invalid_type}
+        {:error, reason} ->
+          Logger.error("Failed to update film with asset_id and playback_id: #{inspect(reason)}")
+          {:error, reason}
+      end
+    rescue
+      e ->
+        Logger.error("Error processing asset ready with project_id: #{inspect(e)}")
+        {:error, :unexpected_error}
+    end
+  end
+
+  defp get_asset_and_playback_update_by_type(type, asset_id, playback_id) do
+    case type do
+      "trailer" -> %{trailer_asset_id: asset_id, trailer_playback_id: playback_id}
+      "film" -> %{film_asset_id: asset_id, film_playback_id: playback_id}
+      _ -> %{}
+    end
+  end
+
+  defp handle_asset_ready_fallback(asset_id, playback_id) do
+    try do
+      with project when not is_nil(project) <- find_project_by_asset_id(asset_id),
+           film <- project.film || Projects.get_or_create_film(project),
+           update when update != %{} <- get_playback_update(film, asset_id, playback_id),
+           {:ok, _film} <- Projects.update_film(film, update) do
+        :ok
+      else
+        nil ->
+          Logger.error("No project found for asset_id: #{asset_id}")
+          {:error, :project_not_found}
+        %{} ->
+          Logger.error("Asset ID #{asset_id} doesn't match project's assets")
+          {:error, :asset_mismatch}
+        {:error, reason} ->
+          Logger.error("Failed to update film with playback ID: #{inspect(reason)}")
+          {:error, reason}
+      end
+    rescue
+      e ->
+        Logger.error("Error processing asset ready event: #{inspect(e)}")
+        {:error, :unexpected_error}
+    end
+  end
+
+  defp get_playback_update_by_type(type, playback_id) do
+    case type do
+      "trailer" -> %{trailer_playback_id: playback_id}
+      "film" -> %{film_playback_id: playback_id}
+      _ -> %{}
     end
   end
 end

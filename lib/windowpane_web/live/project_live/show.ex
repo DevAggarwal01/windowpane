@@ -69,10 +69,10 @@ defmodule WindowpaneWeb.ProjectLive.Show do
     client = Mux.client()
     params = %{
       "new_asset_settings" => %{
-        "playback_policies" => ["signed"]
+        "playback_policies" => ["signed"],
+        "passthrough" => "type:trailer;project_id:#{socket.assigns.project.id}",
       },
       "cors_origin" => "http://studio.windowpane.com:4000",
-      "passthrough" => "type:trailer;project_id:#{socket.assigns.project.id}"
     }
 
     case Mux.Video.Uploads.create(client, params) do
@@ -110,10 +110,10 @@ defmodule WindowpaneWeb.ProjectLive.Show do
     client = Mux.client()
     params = %{
       "new_asset_settings" => %{
-        "playback_policies" => ["signed"]
+        "playback_policies" => ["signed"],
+        "passthrough" => "type:film;project_id:#{socket.assigns.project.id}",
       },
       "cors_origin" => "http://studio.windowpane.com:4000",
-      "passthrough" => "type:film;project_id:#{socket.assigns.project.id}"
     }
 
     case Mux.Video.Uploads.create(client, params) do
@@ -369,7 +369,7 @@ defmodule WindowpaneWeb.ProjectLive.Show do
           <div class="bg-white rounded-lg shadow-sm p-6">
             <h2 class="text-xl font-semibold mb-4 flex items-center">
               Trailer
-              <%= if @project.film && @project.film.trailer_upload_id && @project.film.trailer_upload_id != "" do %>
+              <%= if @project.film && @project.film.trailer_asset_id && @project.film.trailer_asset_id != "" && @project.film.trailer_playback_id && @project.film.trailer_playback_id != "" do %>
                 <svg class="ml-2 h-5 w-5 text-green-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                   <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" />
                 </svg>
@@ -396,24 +396,6 @@ defmodule WindowpaneWeb.ProjectLive.Show do
                 </div>
               <% end %>
 
-              <%= if @project.film && @project.film.trailer_upload_id && @project.film.trailer_upload_id != "" do %>
-                <div class="mb-4 rounded-md bg-yellow-50 p-4">
-                  <div class="flex">
-                    <div class="flex-shrink-0">
-                      <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M8.485 3.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 3.495zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
-                      </svg>
-                    </div>
-                    <div class="ml-3">
-                      <h3 class="text-sm font-medium text-yellow-800">Existing Trailer</h3>
-                      <div class="mt-2 text-sm text-yellow-700">
-                        <p>Uploading a new trailer will replace the existing one.</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              <% end %>
-
               <!-- Always show button to generate upload URL -->
               <button
                 type="button"
@@ -423,7 +405,7 @@ defmodule WindowpaneWeb.ProjectLive.Show do
                 <svg class="mr-2 -ml-1 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                 </svg>
-                <%= if @project.film && @project.film.trailer_upload_id && @project.film.trailer_upload_id != "" do %>
+                <%= if @project.film && @project.film.trailer_asset_id && @project.film.trailer_asset_id != "" && @project.film.trailer_playback_id && @project.film.trailer_playback_id != "" do %>
                   Replace Trailer
                 <% else %>
                 Upload Trailer
@@ -435,7 +417,7 @@ defmodule WindowpaneWeb.ProjectLive.Show do
           <div class="bg-white rounded-lg shadow-sm p-6">
             <h2 class="text-xl font-semibold mb-4 flex items-center">
               Film
-              <%= if @project.film && @project.film.film_upload_id && @project.film.film_upload_id != "" do %>
+              <%= if @project.film && @project.film.film_asset_id && @project.film.film_asset_id != "" && @project.film.film_playback_id && @project.film.film_playback_id != "" do %>
                 <svg class="ml-2 h-5 w-5 text-green-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                   <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" />
                 </svg>
@@ -462,24 +444,6 @@ defmodule WindowpaneWeb.ProjectLive.Show do
                 </div>
               <% end %>
 
-              <%= if @project.film && @project.film.film_upload_id && @project.film.film_upload_id != "" do %>
-                <div class="mb-4 rounded-md bg-yellow-50 p-4">
-                  <div class="flex">
-                    <div class="flex-shrink-0">
-                      <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M8.485 3.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 3.495zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
-                      </svg>
-                    </div>
-                    <div class="ml-3">
-                      <h3 class="text-sm font-medium text-yellow-800">Existing Film</h3>
-                      <div class="mt-2 text-sm text-yellow-700">
-                        <p>Uploading a new film will replace the existing one.</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              <% end %>
-
               <!-- Always show button to generate upload URL -->
               <button
                 type="button"
@@ -489,7 +453,7 @@ defmodule WindowpaneWeb.ProjectLive.Show do
                 <svg class="mr-2 -ml-1 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                 </svg>
-                <%= if @project.film && @project.film.film_upload_id && @project.film.film_upload_id != "" do %>
+                <%= if @project.film && @project.film.film_asset_id && @project.film.film_asset_id != "" && @project.film.film_playback_id && @project.film.film_playback_id != "" do %>
                   Replace Film
                 <% else %>
                 Upload Film
