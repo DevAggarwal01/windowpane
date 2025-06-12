@@ -149,17 +149,49 @@ defmodule WindowpaneWeb.ProjectLive.Show do
   def handle_event("deploy", _, socket) do
     project = socket.assigns.project
 
-    case Projects.add_to_approval_queue(project) do
-      {:ok, _queue_entry} ->
-        {:noreply,
-         socket
-         |> put_flash(:info, "Project submitted for approval")
-         |> assign(:project, project)}
+    IO.puts("=== DEPLOY DEBUG ===")
+    IO.puts("Project ID: #{project.id}")
+    IO.puts("Project status: #{project.status}")
+    IO.puts("In approval queue: #{Projects.in_approval_queue?(project)}")
+    IO.puts("Ready for deployment: #{Projects.ready_for_deployment?(project)}")
 
-      {:error, _changeset} ->
-        {:noreply,
-         socket
-         |> put_flash(:error, "Project is already in the approval queue")}
+    # Check if project is ready for deployment first
+    if Projects.ready_for_deployment?(project) do
+      case Projects.add_to_approval_queue(project) do
+        {:ok, _queue_entry} ->
+          # Update project status to waiting for approval
+          IO.puts("📝 Updating project status from '#{project.status}' to 'waiting for approval'")
+          case Projects.update_project(project, %{status: "waiting for approval"}) do
+            {:ok, updated_project} ->
+              IO.puts("✅ Project status updated successfully to '#{updated_project.status}'")
+              updated_project_with_film = Projects.get_project_with_film!(updated_project.id)
+              IO.puts("🔄 Reloaded project with film, status: '#{updated_project_with_film.status}'")
+
+              IO.puts("✅ Project added to approval queue")
+              {:noreply,
+               socket
+               |> put_flash(:info, "Project submitted for approval")
+               |> assign(:project, updated_project_with_film)}
+
+            {:error, changeset} ->
+              IO.puts("❌ Failed to update project status: #{inspect(changeset.errors)}")
+              {:noreply,
+               socket
+               |> put_flash(:error, "Project submitted but status update failed")
+               |> assign(:project, project)}
+          end
+        {:error, _changeset} ->
+          IO.puts("❌ Project already in approval queue")
+          {:noreply,
+           socket
+           |> put_flash(:error, "Project is already in the approval queue")}
+      end
+    else
+      # Show simple error message
+      IO.puts("❌ Project not ready for deployment")
+      {:noreply,
+       socket
+       |> put_flash(:error, "Cannot deploy project. All fields have not been filled out. Please complete all required fields and uploads.")}
     end
   end
 
@@ -229,6 +261,7 @@ defmodule WindowpaneWeb.ProjectLive.Show do
   @impl true
   def render(assigns) do
     ~H"""
+    <.flash_group flash={@flash} />
     <div class="container mx-auto px-4 py-8">
       <div class="flex items-center gap-4 mb-8">
         <.link
@@ -325,10 +358,6 @@ defmodule WindowpaneWeb.ProjectLive.Show do
                 <div>
                   <label class="block text-sm font-medium text-gray-500">Type</label>
                   <p class="mt-1 text-gray-900 capitalize"><%= String.replace(@project.type, "_", " ") %></p>
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-gray-500">Status</label>
-                  <p class="mt-1 text-gray-900 capitalize"><%= @project.status %></p>
                 </div>
                 <div>
                   <label class="block text-sm font-medium text-gray-500">Premiere Date</label>
@@ -572,20 +601,20 @@ defmodule WindowpaneWeb.ProjectLive.Show do
           <div class="bg-white rounded-lg shadow-sm p-6">
             <h2 class="text-xl font-semibold mb-4">Actions</h2>
             <div class="space-y-4">
-              <%= if @project.status == "draft" do %>
+              <%= if @project.status == "draft" or @project.status == "waiting for approval" do %>
                 <button
                   phx-click="deploy"
                   class="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
-                  disabled={Projects.in_approval_queue?(@project) or not Projects.ready_for_deployment?(@project)}
+                  disabled={@project.status == "waiting for approval" or Projects.in_approval_queue?(@project)}
                 >
                   <svg class="mr-2 -ml-1 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                   </svg>
                   <%= cond do %>
+                    <% @project.status == "waiting for approval" -> %>
+                      Pending Approval
                     <% Projects.in_approval_queue?(@project) -> %>
                       Pending Approval
-                    <% not Projects.ready_for_deployment?(@project) -> %>
-                      Complete All Fields & Uploads
                     <% true -> %>
                       Deploy Project
                   <% end %>
@@ -597,6 +626,12 @@ defmodule WindowpaneWeb.ProjectLive.Show do
           <div class="bg-white rounded-lg shadow-sm p-6">
             <h2 class="text-xl font-semibold mb-4">Project Stats</h2>
             <div class="space-y-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-500">Status</label>
+                <p class="mt-1 text-gray-900 capitalize">
+                  <%= String.replace(@project.status, "_", " ") %>
+                </p>
+              </div>
               <div>
                 <label class="block text-sm font-medium text-gray-500">Created</label>
                 <p class="mt-1 text-gray-900">

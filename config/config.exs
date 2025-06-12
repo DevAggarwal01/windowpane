@@ -63,47 +63,22 @@ config :phoenix, :json_library, Jason
 
 config :stripity_stripe, api_key: System.get_env("STRIPE_SECRET")
 
+# ExAws configuration with Backblaze B2 settings
 config :ex_aws,
-  access_key_id: System.get_env("WASABI_ACCESS_KEY"),
-  secret_access_key: System.get_env("WASABI_SECRET_KEY"),
-  region: "us-east-1",
+  access_key_id: System.get_env("BACKBLAZE_ACCESS_KEY"),
+  secret_access_key: System.get_env("BACKBLAZE_SECRET_KEY"),
+  region: "us-east-1",  # Use standard AWS region to avoid ExAws validation issues
   s3: [
     scheme: "https://",
-    host: "s3.wasabisys.com",
-    region: "us-east-1"
+    host: System.get_env("BACKBLAZE_HOST") || "s3.us-west-004.backblazeb2.com",
+    region: "us-east-1"  # Keep consistent with main region setting
   ]
 
+# Configure Waffle to use Backblaze B2 for file uploads
 config :waffle,
   storage: Waffle.Storage.S3,
-  asset_host: "https://s3.wasabisys.com",
-  bucket: System.get_env("WASABI_BUCKET")
-
-# config :ex_aws,
-#   read: %{
-#     access_key_id: System.get_env("BACKBLAZE_READ_ACCESS_KEY"),
-#     secret_access_key: System.get_env("BACKBLAZE_READ_SECRET_KEY"),
-#     region: "us-west-004",
-#     s3: [
-#       scheme: "https://",
-#       host: "s3.us-west-004.backblazeb2.com",
-#       region: "us-west-004",
-#     ]
-#   },
-#   write: %{
-#     access_key_id: System.get_env("BACKBLAZE_WRITE_ACCESS_KEY"),
-#     secret_access_key: System.get_env("BACKBLAZE_WRITE_SECRET_KEY"),
-#     region: "us-west-004",
-#     s3: [
-#       scheme: "https://",
-#       host: "s3.us-west-004.backblazeb2.com",
-#       region: "us-west-004",
-#     ]
-#   }
-
-# config :waffle,
-#   storage: Waffle.Storage.S3,
-#   asset_host: "s3.us-west-004.backblazeb2.com",
-#   bucket: System.get_env("BACKBLAZE_BUCKET")
+  asset_host: "https://" <> (System.get_env("BACKBLAZE_HOST") || "s3.us-west-004.backblazeb2.com"),
+  bucket: System.get_env("BACKBLAZE_BUCKET")
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.

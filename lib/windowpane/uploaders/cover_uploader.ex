@@ -6,6 +6,9 @@ defmodule Windowpane.Uploaders.CoverUploader do
 
   @versions [:original]
 
+  # Set ACL to public_read for all uploads (required for Backblaze B2)
+  @acl :public_read
+
   # Whitelist file extensions:
   def validate({file, _}) do
     file_extension = file.file_name |> Path.extname() |> String.downcase()
@@ -23,7 +26,7 @@ defmodule Windowpane.Uploaders.CoverUploader do
 
   # Override the storage directory:
   def storage_dir(_version, {_file, scope}) do
-    "projects/#{scope.id}"
+    "#{scope.id}"
   end
 
   # Override the filename:
@@ -49,31 +52,30 @@ defmodule Windowpane.Uploaders.CoverUploader do
   Generates the public URL for a project's cover image.
   """
   def cover_url(project, version \\ :original) do
-    fake_file = %{file_name: "cover"}
-    url({fake_file, project}, version)
+    bucket = System.get_env("BACKBLAZE_BUCKET") || "videocoverlibrary"
+    object_key = "#{project.id}/cover"
+
+    "https://f004.backblazeb2.com/file/#{bucket}/#{object_key}"
   end
 
   @doc """
-  Checks if a cover image exists for the given project by making a head request to S3.
+  Checks if a cover image exists for the given project using ExAws.
   """
   def cover_exists?(project_id) when is_integer(project_id) or is_binary(project_id) do
-    bucket = System.fetch_env!("WASABI_BUCKET")
-    object_key = "projects/#{project_id}/cover"
+    bucket = System.get_env("BACKBLAZE_BUCKET")
+    object_key = "#{project_id}/cover"
 
     IO.puts("=== COVER EXISTS DEBUG ===")
     IO.puts("Project ID: #{project_id}")
     IO.puts("Bucket: #{bucket}")
     IO.puts("Object Key: #{object_key}")
 
-    result = ExAws.S3.head_object(bucket, object_key) |> ExAws.request()
-    IO.puts("S3 Head Object Result: #{inspect(result)}")
-
-    case result do
-      {:ok, response} ->
-        IO.puts("✅ Cover exists! Response: #{inspect(response)}")
+    case ExAws.S3.head_object(bucket, object_key) |> ExAws.request() do
+      {:ok, _response} ->
+        IO.puts("✅ Cover exists!")
         true
-      {:error, {:http_error, 404, body}} ->
-        IO.puts("❌ Cover not found (404). Body: #{inspect(body)}")
+      {:error, {:http_error, 404, _body}} ->
+        IO.puts("❌ Cover not found (404)")
         false
       {:error, error} ->
         IO.puts("❌ S3 Error: #{inspect(error)}")
@@ -89,7 +91,7 @@ defmodule Windowpane.Uploaders.CoverUploader do
   Generates the storage path for a project's cover image.
   """
   def cover_path(project, version \\ :original) do
-    storage_dir = "projects/#{project.id}"
+    storage_dir = "#{project.id}"
     filename = if version == :original, do: "cover", else: "cover_#{version}"
     "#{storage_dir}/#{filename}"
   end
@@ -103,36 +105,59 @@ defmodule Windowpane.Uploaders.CoverUploader do
   end
 
   @doc """
-  Debug function to test S3 connection and configuration.
+  Debug function to test B2 connection and configuration.
   """
   def debug_s3_connection do
-    IO.puts("=== S3 CONNECTION DEBUG ===")
+    IO.puts("=== B2 CONNECTION DEBUG ===")
 
     # Check environment variables
-    bucket = System.get_env("WASABI_BUCKET")
-    access_key = System.get_env("WASABI_ACCESS_KEY")
-    secret_key = System.get_env("WASABI_SECRET_KEY")
+    bucket = System.get_env("BACKBLAZE_BUCKET")
+    access_key = System.get_env("BACKBLAZE_ACCESS_KEY")
+    secret_key = System.get_env("BACKBLAZE_SECRET_KEY")
 
-    IO.puts("WASABI_BUCKET: #{inspect(bucket)}")
-    IO.puts("WASABI_ACCESS_KEY: #{if access_key, do: "✅ Set (#{String.length(access_key)} chars)", else: "❌ Not set"}")
-    IO.puts("WASABI_SECRET_KEY: #{if secret_key, do: "✅ Set (#{String.length(secret_key)} chars)", else: "❌ Not set"}")
+    IO.puts("BACKBLAZE_BUCKET: #{inspect(bucket)}")
+    IO.puts("BACKBLAZE_ACCESS_KEY: #{if access_key, do: "✅ Set (#{String.length(access_key)} chars)", else: "❌ Not set"}")
+    IO.puts("BACKBLAZE_SECRET_KEY: #{if secret_key, do: "✅ Set (#{String.length(secret_key)} chars)", else: "❌ Not set"}")
 
     # Check ExAws config
     config = ExAws.Config.new(:s3)
     IO.puts("ExAws S3 Config: #{inspect(config)}")
 
-    # Test basic S3 connection by listing bucket
+    # Test basic B2 connection by listing bucket
     if bucket do
-      IO.puts("Testing S3 connection by listing bucket contents...")
+      IO.puts("Testing B2 connection by listing bucket contents...")
       case ExAws.S3.list_objects_v2(bucket, max_keys: 1) |> ExAws.request() do
         {:ok, response} ->
-          IO.puts("✅ S3 connection successful!")
+          IO.puts("✅ B2 connection successful!")
           IO.puts("Bucket contents sample: #{inspect(response)}")
         {:error, error} ->
-          IO.puts("❌ S3 connection failed: #{inspect(error)}")
+          IO.puts("❌ B2 connection failed: #{inspect(error)}")
       end
     else
-      IO.puts("❌ Cannot test S3 - WASABI_BUCKET not set")
+      IO.puts("❌ Cannot test B2 - BACKBLAZE_BUCKET not set")
+    end
+  end
+
+  @doc """
+  Debug function to check what files exist for a project.
+  """
+  def debug_project_files(project_id) do
+    bucket = System.get_env("BACKBLAZE_BUCKET")
+    prefix = "#{project_id}/"
+
+    IO.puts("=== PROJECT FILES DEBUG ===")
+    IO.puts("Project ID: #{project_id}")
+    IO.puts("Bucket: #{bucket}")
+    IO.puts("Prefix: #{prefix}")
+
+    case ExAws.S3.list_objects_v2(bucket, prefix: prefix) |> ExAws.request() do
+      {:ok, %{body: %{contents: contents}}} ->
+        IO.puts("Files found:")
+        Enum.each(contents, fn object ->
+          IO.puts("  - #{object.key} (#{object.size} bytes, #{object.last_modified})")
+        end)
+      {:error, error} ->
+        IO.puts("❌ Error listing files: #{inspect(error)}")
     end
   end
 end

@@ -53,7 +53,7 @@ defmodule Windowpane.Projects.Project do
     |> validate_number(:rental_price, greater_than_or_equal_to: 0)
     |> validate_number(:purchase_price, greater_than_or_equal_to: 0)
     |> validate_number(:rental_window_hours, greater_than: 0)
-    |> validate_inclusion(:status, ["draft", "published", "archived"])
+    |> validate_inclusion(:status, ["draft", "published", "archived", "waiting for approval"])
     |> foreign_key_constraint(:creator_id)
   end
 end
