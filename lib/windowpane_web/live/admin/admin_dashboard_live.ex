@@ -4,6 +4,7 @@ defmodule WindowpaneWeb.Admin.AdminDashboardLive do
   alias Windowpane.Administration
   alias Windowpane.Accounts
   alias Windowpane.Creators
+  alias Windowpane.Projects
   alias Windowpane.Accounts.User, as: User
   alias Windowpane.Accounts.{Creator}
 
@@ -15,6 +16,10 @@ defmodule WindowpaneWeb.Admin.AdminDashboardLive do
       accounts_data = Administration.list_accounts("users")
       IO.puts("Current admin role: #{socket.assigns.current_admin.role}")
       admins = if socket.assigns.current_admin.role == "superadmin", do: Administration.list_admins(), else: []
+
+      # Fetch pending projects
+      pending_project_ids = Projects.list_pending_approvals(10)
+      pending_projects = Enum.map(pending_project_ids, &Projects.get_project_with_film!/1)
 
       {:ok,
        assign(socket,
@@ -46,7 +51,8 @@ defmodule WindowpaneWeb.Admin.AdminDashboardLive do
            "role" => ""
          },
          show_delete_confirmation_modal: false,
-         account_to_delete: nil
+         account_to_delete: nil,
+         pending_projects: pending_projects
        )}
     else
       {:ok,
@@ -667,9 +673,59 @@ defmodule WindowpaneWeb.Admin.AdminDashboardLive do
             <% "content" -> %>
               <div class="bg-white shadow rounded-lg">
                 <div class="p-6">
-                  <h2 class="text-lg font-medium text-gray-900">Content Management</h2>
-                  <p class="mt-1 text-sm text-gray-500">Review and moderate content.</p>
-                  <!-- Add content management UI here -->
+                  <div class="sm:flex sm:items-center">
+                    <div class="sm:flex-auto">
+                      <h2 class="text-lg font-medium text-gray-900">Content Management</h2>
+                      <p class="mt-1 text-sm text-gray-500">Review and moderate content pending approval.</p>
+                    </div>
+                  </div>
+
+                  <div class="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                    <%= for project <- @pending_projects do %>
+                      <.link navigate={~p"/#{project.id}"} class="block">
+                        <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+                          <div class="aspect-w-16 aspect-h-9 bg-gray-200">
+                            <%= case project.type do %>
+                              <% "film" -> %>
+                                <div class="flex items-center justify-center">
+                                  <span class="text-4xl">🎞️</span>
+                                </div>
+                              <% "tv_show" -> %>
+                                <div class="flex items-center justify-center">
+                                  <span class="text-4xl">🎬</span>
+                                </div>
+                              <% "live_event" -> %>
+                                <div class="flex items-center justify-center">
+                                  <span class="text-4xl">🎤</span>
+                                </div>
+                              <% "book" -> %>
+                                <div class="flex items-center justify-center">
+                                  <span class="text-4xl">📚</span>
+                                </div>
+                              <% "music" -> %>
+                                <div class="flex items-center justify-center">
+                                  <span class="text-4xl">🎶</span>
+                                </div>
+                            <% end %>
+                          </div>
+                          <div class="p-4">
+                            <h3 class="text-lg font-medium text-gray-900"><%= project.title %></h3>
+                            <p class="mt-1 text-sm text-gray-500 line-clamp-2"><%= project.description %></p>
+                            <div class="mt-4 flex items-center justify-between">
+                              <div class="flex items-center space-x-2">
+                                <span class="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">
+                                  <%= String.capitalize(project.type) %>
+                                </span>
+                                <span class="inline-flex items-center rounded-md bg-yellow-50 px-2 py-1 text-xs font-medium text-yellow-700">
+                                  Pending Approval
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </.link>
+                    <% end %>
+                  </div>
                 </div>
               </div>
           <% end %>
@@ -1102,6 +1158,50 @@ defmodule WindowpaneWeb.Admin.AdminDashboardLive do
        total_pages: accounts_data.total_pages,
        total_accounts: accounts_data.total_count
      )}
+  end
+
+  @impl true
+  def handle_event("approve-project", %{"id" => project_id}, socket) do
+    project = Projects.get_project_with_film!(project_id)
+    case Projects.update_project(project, %{status: "published"}) do
+      {:ok, _updated_project} ->
+        # Remove from approval queue
+        Projects.remove_from_approval_queue(project)
+        # Refresh pending projects
+        pending_project_ids = Projects.list_pending_approvals(10)
+        pending_projects = Enum.map(pending_project_ids, &Projects.get_project_with_film!/1)
+
+        {:noreply,
+         socket
+         |> put_flash(:info, "Project approved successfully")
+         |> assign(pending_projects: pending_projects)}
+      {:error, _changeset} ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "Failed to approve project")}
+    end
+  end
+
+  @impl true
+  def handle_event("reject-project", %{"id" => project_id}, socket) do
+    project = Projects.get_project_with_film!(project_id)
+    case Projects.update_project(project, %{status: "draft"}) do
+      {:ok, _updated_project} ->
+        # Remove from approval queue
+        Projects.remove_from_approval_queue(project)
+        # Refresh pending projects
+        pending_project_ids = Projects.list_pending_approvals(10)
+        pending_projects = Enum.map(pending_project_ids, &Projects.get_project_with_film!/1)
+
+        {:noreply,
+         socket
+         |> put_flash(:info, "Project rejected and returned to draft")
+         |> assign(pending_projects: pending_projects)}
+      {:error, _changeset} ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "Failed to reject project")}
+    end
   end
 
   defp error_to_string(changeset) do

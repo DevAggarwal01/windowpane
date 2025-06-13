@@ -340,7 +340,7 @@ defmodule WindowpaneWeb.ProjectLive.Show do
               <div class="flex justify-between items-center mb-4">
                 <h2 class="text-xl font-semibold">Project Details</h2>
                 <.link
-                  patch={~p"/projects/#{@project}?edit=true"}
+                  patch={~p"/#{@project}?edit=true"}
                   class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                 >
                   <svg class="mr-2 -ml-0.5 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">

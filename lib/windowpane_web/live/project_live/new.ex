@@ -58,7 +58,7 @@ defmodule WindowpaneWeb.ProjectLive.New do
         {:noreply,
          socket
          |> put_flash(:info, "Project created successfully!")
-         |> redirect(to: ~p"/projects/#{project.id}")}
+         |> redirect(to: ~p"/#{project.id}")}
 
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply,

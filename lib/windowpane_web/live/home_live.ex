@@ -83,7 +83,7 @@ defmodule WindowpaneWeb.HomeLive do
             {:noreply,
              socket
              |> put_flash(:info, "Project created successfully!")
-             |> redirect(to: ~p"/projects/#{project.id}")}
+             |> redirect(to: ~p"/#{project.id}")}
 
           {:error, _changeset} ->
             {:noreply,
@@ -530,7 +530,7 @@ defmodule WindowpaneWeb.HomeLive do
 
               <!-- Project Cards -->
               <%= for project <- @projects do %>
-                <.link navigate={~p"/projects/#{project.id}"} class="block">
+                <.link navigate={~p"/#{project.id}"} class="block">
                   <div class="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow">
                     <div class="aspect-w-16 aspect-h-9 bg-gray-200 rounded-lg mb-4">
                       <%= case project.type do %>

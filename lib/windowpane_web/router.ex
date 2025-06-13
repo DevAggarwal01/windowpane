@@ -108,6 +108,7 @@ defmodule WindowpaneWeb.Router do
     end
 
     post "/creators/log_in", CreatorSessionController, :create
+    get "/", PageController, :home
   end
 
   scope "/", WindowpaneWeb, host: "studio.windowpane.com" do
@@ -118,7 +119,7 @@ defmodule WindowpaneWeb.Router do
       live "/dashboard", HomeLive, :show
       live "/projects", ProjectLive.Index, :index
       live "/projects/new", ProjectLive.New, :new
-      live "/projects/:id", ProjectLive.Show, :show
+      live "/:id", ProjectLive.Show, :show
       live "/creators/settings", CreatorSettingsLive, :edit
       live "/creators/settings/confirm_email/:token", CreatorSettingsLive, :confirm_email
     end
@@ -181,6 +182,7 @@ defmodule WindowpaneWeb.Router do
       live "/", Admin.AdminDashboardLive, :index
       live "/settings", Admin.AdminSettingsLive, :edit
       live "/settings/confirm_email/:token", Admin.AdminSettingsLive, :confirm_email
+      live "/:id", Admin.ProjectDetailsLive, :show
     end
 
     get "/settings", AdminSettingsController, :edit

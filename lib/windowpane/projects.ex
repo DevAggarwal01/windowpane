@@ -335,4 +335,13 @@ defmodule Windowpane.Projects do
   defp cover_uploaded?(project) do
     Windowpane.Uploaders.CoverUploader.cover_exists?(project)
   end
+
+  @doc """
+  Removes a project from the approval queue.
+  Returns {:ok, _} if successful, {:error, _} if there's an error.
+  """
+  def remove_from_approval_queue(project) do
+    from(q in ProjectApprovalQueue, where: q.project_id == ^project.id)
+    |> Repo.delete_all()
+  end
 end
