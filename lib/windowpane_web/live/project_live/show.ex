@@ -18,6 +18,8 @@ defmodule WindowpaneWeb.ProjectLive.Show do
      |> assign(:project, project)
      |> assign(:editing, false)
      |> assign(:show_cover_modal, false)
+     |> assign(:show_cropper_modal, false)
+     |> assign(:cover_uploading, false)
      |> assign(:trailer_upload_url, nil)
      |> assign(:trailer_upload_id, nil)
      |> assign(:film_upload_url, nil)
@@ -267,6 +269,40 @@ defmodule WindowpaneWeb.ProjectLive.Show do
     {:noreply, assign(socket, :show_cover_modal, false)}
   end
 
+  @impl true
+  def handle_event("show_cropper_modal", _params, socket) do
+    {:noreply, assign(socket, :show_cropper_modal, true)}
+  end
+
+  @impl true
+  def handle_event("hide_cropper_modal", _params, socket) do
+    {:noreply, assign(socket, :show_cropper_modal, false)}
+  end
+
+  @impl true
+  def handle_event("set_uploading", %{"uploading" => uploading}, socket) do
+    {:noreply, assign(socket, :cover_uploading, uploading)}
+  end
+
+  @impl true
+  def handle_event("upload_success", _params, socket) do
+    updated_project = Projects.get_project_with_film!(socket.assigns.project.id)
+    {:noreply,
+     socket
+     |> assign(:project, updated_project)
+     |> assign(:show_cropper_modal, false)
+     |> assign(:cover_uploading, false)
+     |> put_flash(:info, "Cover image uploaded successfully!")}
+  end
+
+  @impl true
+  def handle_event("upload_error", %{"error" => error}, socket) do
+    {:noreply,
+     socket
+     |> assign(:cover_uploading, false)
+     |> put_flash(:error, "Upload failed: #{error}")}
+  end
+
   defp format_price(nil), do: "-"
   defp format_price(price) when is_struct(price, Decimal), do: "$#{Decimal.to_string(price)}"
 
@@ -513,18 +549,38 @@ defmodule WindowpaneWeb.ProjectLive.Show do
               <% end %>
             </h2>
 
-            <div class="mt-4">
+            <div class="mt-4" id="image-cropper-hook" phx-hook="ImageCropper" data-project-id={@project.id}>
+              <!-- Include Cropper.js CDN -->
+              <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
+              <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+
               <div class="flex gap-2">
                 <button
                   type="button"
-                  onclick="handleCoverUpload()"
-                  class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  onclick="document.getElementById('cover-file-input').click()"
+                  class={[
+                    "inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500",
+                    @cover_uploading && "opacity-50 cursor-not-allowed"
+                  ]}
+                  disabled={@cover_uploading}
                 >
-                  <svg class="mr-2 -ml-1 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                      </svg>
-                  Upload Image
-                    </button>
+                  <%= if @cover_uploading do %>
+                    <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Uploading...
+                  <% else %>
+                    <svg class="mr-2 -ml-1 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                    <%= if CoverUploader.cover_exists?(@project) do %>
+                      Replace Cover
+                    <% else %>
+                      Upload Cover
+                    <% end %>
+                  <% end %>
+                </button>
 
                 <%= if CoverUploader.cover_url(@project) do %>
                   <button
@@ -541,65 +597,11 @@ defmodule WindowpaneWeb.ProjectLive.Show do
                 <% end %>
               </div>
 
-              <script>
-                function handleCoverUpload() {
-                  console.log("Cover upload area clicked");
-                  const fileInput = document.getElementById('cover-file-input');
-                  if (fileInput) {
-                    fileInput.click();
-                  }
-                }
-
-                function handleFileSelection(event) {
-                  const file = event.target.files[0];
-                  if (file) {
-                    console.log("File selected:", file.name);
-
-                    // Create FormData for upload
-                    const formData = new FormData();
-                    formData.append('cover', file);
-                    formData.append('project_id', '<%= @project.id %>');
-
-                    // Show uploading state on button
-                    const uploadButton = document.querySelector('button[onclick="handleCoverUpload()"]');
-                    const originalText = uploadButton.innerHTML;
-                    uploadButton.innerHTML = '<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Uploading...';
-                    uploadButton.disabled = true;
-
-                    // Upload via fetch
-                    fetch('/api/projects/<%= @project.id %>/cover', {
-                      method: 'POST',
-                      body: formData,
-                      headers: {
-                        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content
-                      }
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                      if (data.success) {
-                        // Reload the page to show the new cover
-                        window.location.reload();
-                      } else {
-                        uploadButton.innerHTML = originalText;
-                        uploadButton.disabled = false;
-                        alert('Upload failed: ' + data.error);
-                      }
-                    })
-                    .catch(error => {
-                      uploadButton.innerHTML = originalText;
-                      uploadButton.disabled = false;
-                      alert('Upload failed: ' + error.message);
-                    });
-                  }
-                }
-              </script>
-
               <input
                 type="file"
                 id="cover-file-input"
                 accept=".jpg,.jpeg,.png,.webp"
                 style="display: none;"
-                onchange="handleFileSelection(event)"
               />
             </div>
           </div>
@@ -670,6 +672,54 @@ defmodule WindowpaneWeb.ProjectLive.Show do
             alt="Cover Image"
             class="max-w-full max-h-96 object-contain rounded-lg shadow-lg"
           />
+        </div>
+      </div>
+    </.modal>
+
+    <!-- Cropper Modal -->
+    <.modal :if={@show_cropper_modal} id="cropper-modal" show on_cancel={JS.push("hide_cropper_modal")}>
+      <div class="text-center">
+        <div class="mb-4">
+          <h3 class="text-lg font-medium text-gray-900">Crop Cover Image</h3>
+          <p class="text-sm text-gray-500 mt-1">Adjust the crop area to fit your cover image (2:3 aspect ratio)</p>
+        </div>
+
+        <div class="cropper-container mb-6" style="max-height: 500px;">
+          <img
+            id="cropper-image"
+            src=""
+            alt="Image to crop"
+            style="max-width: 100%; display: block;"
+          />
+        </div>
+
+        <div class="flex justify-center gap-3">
+          <button
+            type="button"
+            onclick="document.dispatchEvent(new CustomEvent('cropper:close'))"
+            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onclick="document.dispatchEvent(new CustomEvent('cropper:crop-and-upload'))"
+            class={[
+              "px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500",
+              @cover_uploading && "opacity-50 cursor-not-allowed"
+            ]}
+            disabled={@cover_uploading}
+          >
+            <%= if @cover_uploading do %>
+              <svg class="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Uploading...
+            <% else %>
+              Crop & Upload
+            <% end %>
+          </button>
         </div>
       </div>
     </.modal>
