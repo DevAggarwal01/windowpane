@@ -4,6 +4,7 @@ defmodule WindowpaneWeb.ProjectLive.Show do
 
   alias Windowpane.Projects
   alias Windowpane.Uploaders.CoverUploader
+  alias Phoenix.LiveView.JS
 
   @impl true
   def mount(%{"id" => id}, _session, socket) do
@@ -16,6 +17,7 @@ defmodule WindowpaneWeb.ProjectLive.Show do
      |> assign(:page_title, "Project Details")
      |> assign(:project, project)
      |> assign(:editing, false)
+     |> assign(:show_cover_modal, false)
      |> assign(:trailer_upload_url, nil)
      |> assign(:trailer_upload_id, nil)
      |> assign(:film_upload_url, nil)
@@ -253,6 +255,16 @@ defmodule WindowpaneWeb.ProjectLive.Show do
   def handle_event("cancel_upload", %{"ref" => ref}, socket) do
     Logger.warning("CANCEL_UPLOAD: Project ID: #{socket.assigns.project.id}")
     {:noreply, cancel_upload(socket, :cover, ref)}
+  end
+
+  @impl true
+  def handle_event("open_cover_modal", _params, socket) do
+    {:noreply, assign(socket, :show_cover_modal, true)}
+  end
+
+  @impl true
+  def handle_event("close_cover_modal", _params, socket) do
+    {:noreply, assign(socket, :show_cover_modal, false)}
   end
 
   defp format_price(nil), do: "-"
@@ -502,6 +514,33 @@ defmodule WindowpaneWeb.ProjectLive.Show do
             </h2>
 
             <div class="mt-4">
+              <div class="flex gap-2">
+                <button
+                  type="button"
+                  onclick="handleCoverUpload()"
+                  class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  <svg class="mr-2 -ml-1 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                      </svg>
+                  Upload Image
+                    </button>
+
+                <%= if CoverUploader.cover_url(@project) do %>
+                  <button
+                    type="button"
+                    phx-click="open_cover_modal"
+                    class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  >
+                    <svg class="mr-2 -ml-1 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                    View Image
+                  </button>
+                <% end %>
+              </div>
+
               <script>
                 function handleCoverUpload() {
                   console.log("Cover upload area clicked");
@@ -509,10 +548,6 @@ defmodule WindowpaneWeb.ProjectLive.Show do
                   if (fileInput) {
                     fileInput.click();
                   }
-                }
-
-                function viewCoverImage() {
-                  window.open('<%= CoverUploader.cover_url(@project) %>', '_blank');
                 }
 
                 function handleFileSelection(event) {
@@ -558,33 +593,6 @@ defmodule WindowpaneWeb.ProjectLive.Show do
                   }
                 }
               </script>
-
-              <div class="flex gap-2">
-                <button
-                  type="button"
-                  onclick="handleCoverUpload()"
-                  class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  <svg class="mr-2 -ml-1 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                      </svg>
-                  Upload Image
-                    </button>
-
-                <%= if CoverUploader.cover_url(@project) do %>
-                  <button
-                    type="button"
-                    onclick="viewCoverImage()"
-                    class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                  >
-                    <svg class="mr-2 -ml-1 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                    View Image
-                  </button>
-                <% end %>
-              </div>
 
               <input
                 type="file"
@@ -649,6 +657,22 @@ defmodule WindowpaneWeb.ProjectLive.Show do
         </div>
       </div>
     </div>
+
+    <!-- Cover Image Modal -->
+    <.modal :if={@show_cover_modal} id="cover-image-modal" show on_cancel={JS.push("close_cover_modal")}>
+      <div class="text-center">
+        <div class="mb-4">
+          <h3 class="text-lg font-medium text-gray-900">Cover Image</h3>
+        </div>
+        <div class="flex justify-center">
+          <img
+            src={CoverUploader.cover_url(@project)}
+            alt="Cover Image"
+            class="max-w-full max-h-96 object-contain rounded-lg shadow-lg"
+          />
+        </div>
+      </div>
+    </.modal>
     """
   end
 end
