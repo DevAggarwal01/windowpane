@@ -8,9 +8,6 @@ defmodule Windowpane.MuxToken do
 
     key_id = System.get_env("MUX_SIGNING_KEY_ID")
 
-    IO.inspect(String.slice(private_key_pem || "", 0, 50), label: "PEM key first 50 chars")
-    IO.inspect(key_id, label: "Key ID")
-
     signer =
       Joken.Signer.create(
         "RS256",
@@ -18,19 +15,18 @@ defmodule Windowpane.MuxToken do
         %{"kid" => key_id}
       )
 
-    now = DateTime.utc_now() |> DateTime.to_unix()
 
     claims = %{
       "sub" => playback_id,
-      "exp" => now + ttl_seconds,
+      "exp" => 1749873512,
       "aud" => "v",
       "kid" => key_id
     }
 
     try do
       {:ok, token, _claims} = Joken.encode_and_sign(claims, signer)
+      IO.inspect(playback_id, label: "Playback ID")
       IO.inspect(token, label: "Generated JWT token")
-      IO.inspect(String.slice(token, 0, 100), label: "JWT token first 100 chars")
       token
     rescue
       error ->

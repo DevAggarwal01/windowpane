@@ -116,12 +116,14 @@ defmodule WindowpaneWeb.Admin.ProjectDetailsLive do
               <div class="bg-white rounded-lg shadow-sm p-6 min-h-[300px] flex items-center justify-center">
                 <%= if @selected_tab == "trailer" do %>
                   <!-- Trailer video player placeholder -->
-                  <script src="https://cdn.jsdelivr.net/npm/@mux/mux-player" defer></script>
-                  <%= if @project.film && @project.film.trailer_playback_id && @trailer_token do %>
+
+                  <%= if @project.film && @project.film.trailer_playback_id do %>
+                    <script src="https://cdn.jsdelivr.net/npm/@mux/mux-player" defer></script>
                     <mux-player
-                      playback-id={@project.film.trailer_playback_id}
-                      tokens={Jason.encode!(%{@project.film.trailer_playback_id => @trailer_token})}
+                      playback-id="XamuNYpAzCOw7MVac302qibSwGfIm3hKVwisAl1i6RN4"
+                      playback-token="eyJhbGciOiJSUzI1NiJ9.eyJraWQiOiJDc2pxY1lxRENaZnNTcHB1ekg4UEJQaE9yMUlMNjAyUk0yWm9XZTNnZzAwQ0UiLCJhdWQiOiJ2Iiwic3ViIjoiWGFtdU5ZcEF6Q093N01WYWMzMDJxaWJTd0dmSW0zaEtWd2lzQWwxaTZSTjQiLCJleHAiOjE3NTAxOTA5Mzh9.hRW1CHd-mwW7YJCQzLRqJqcnt0dBkPgU4rtsDHzcOL2YsSO_UwMeXdGAF1M3VQmVYK7hsXz11hbziQhSX0kQxShKS12deyu3ZpyZ76L_wP_BHNc26nQC9FcDGh0XGxYuICBxA_dMp6mOH0H7umELqc5yBiHE46E99W7G9nrl6RStLorT9e89hXwEshN2qC06Ac34_zDgs-ts3ymEORBAAOttPv8krOHLGFxV4cEmdxbxGEqF84JA6H44HbPvvErE-oB88jcc554YV6MfaA-ziLvmYayi4rKYFxXCLGatFP8yTlLqZvtXWMponfuM0odvvQbBTBz3oqHDABXy6Evd9Q"
                     ></mux-player>
+
                   <% else %>
                     <div class="w-full text-center text-lg text-gray-500">No trailer available</div>
                   <% end %>
