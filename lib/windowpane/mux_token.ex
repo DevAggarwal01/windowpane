@@ -1,7 +1,7 @@
 defmodule Windowpane.MuxToken do
   use Joken.Config
 
-  def generate_playback_token(playback_id, ttl_seconds \\ 3600) do
+  def generate_playback_token(playback_id, ttl_seconds \\ 86400) do
     private_key_pem =
       System.get_env("MUX_SIGNING_KEY_PRIVATE_KEY")
       |> String.replace("\\n", "\n")
@@ -15,10 +15,11 @@ defmodule Windowpane.MuxToken do
         %{"kid" => key_id}
       )
 
+    exp_time = DateTime.utc_now() |> DateTime.add(ttl_seconds, :second) |> DateTime.to_unix()
 
     claims = %{
       "sub" => playback_id,
-      "exp" => 1749873512,
+      "exp" => exp_time,
       "aud" => "v",
       "kid" => key_id
     }
