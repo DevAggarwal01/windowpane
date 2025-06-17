@@ -47,7 +47,7 @@ defmodule WindowpaneWeb.ProjectLive.Show do
   def handle_event("save", %{"project" => project_params}, socket) do
     case Projects.update_project(socket.assigns.project, project_params) do
       {:ok, project} ->
-        updated_project = Projects.get_project_with_film!(project.id)
+        updated_project = Projects.get_project_with_film_and_reviews!(project.id)
         {:noreply,
          socket
          |> put_flash(:info, "Project updated successfully")
@@ -90,7 +90,7 @@ defmodule WindowpaneWeb.ProjectLive.Show do
           "trailer_upload_id" => id
         }) do
           {:ok, _updated_film} ->
-            updated_project = Projects.get_project_with_film!(socket.assigns.project.id)
+            updated_project = Projects.get_project_with_film_and_reviews!(socket.assigns.project.id)
             {:noreply,
              socket
              |> assign(:project, updated_project)
@@ -131,7 +131,7 @@ defmodule WindowpaneWeb.ProjectLive.Show do
           "film_upload_id" => id
         }) do
           {:ok, _updated_film} ->
-            updated_project = Projects.get_project_with_film!(socket.assigns.project.id)
+            updated_project = Projects.get_project_with_film_and_reviews!(socket.assigns.project.id)
             {:noreply,
              socket
              |> assign(:project, updated_project)
@@ -168,7 +168,7 @@ defmodule WindowpaneWeb.ProjectLive.Show do
           case Projects.update_project(project, %{status: "waiting for approval"}) do
             {:ok, updated_project} ->
               IO.puts("✅ Project status updated successfully to '#{updated_project.status}'")
-              updated_project_with_film = Projects.get_project_with_film!(updated_project.id)
+              updated_project_with_film = Projects.get_project_with_film_and_reviews!(updated_project.id)
               IO.puts("🔄 Reloaded project with film, status: '#{updated_project_with_film.status}'")
 
               IO.puts("✅ Project added to approval queue")
@@ -286,7 +286,7 @@ defmodule WindowpaneWeb.ProjectLive.Show do
 
   @impl true
   def handle_event("upload_success", _params, socket) do
-    updated_project = Projects.get_project_with_film!(socket.assigns.project.id)
+    updated_project = Projects.get_project_with_film_and_reviews!(socket.assigns.project.id)
     {:noreply,
      socket
      |> assign(:project, updated_project)
@@ -582,7 +582,7 @@ defmodule WindowpaneWeb.ProjectLive.Show do
                   <% end %>
                 </button>
 
-                <%= if CoverUploader.cover_url(@project) do %>
+                <%= if CoverUploader.cover_exists?(@project) do %>
                   <button
                     type="button"
                     phx-click="open_cover_modal"
@@ -652,7 +652,7 @@ defmodule WindowpaneWeb.ProjectLive.Show do
           </div>
 
           <!-- Feedback Section -->
-          <%= if length(@project.reviews) > 0 do %>
+          <%= if @project.reviews && length(@project.reviews) > 0 do %>
             <div class="bg-white rounded-lg shadow-sm p-6">
               <h2 class="text-xl font-semibold mb-4">Feedback</h2>
               <div class="space-y-4">

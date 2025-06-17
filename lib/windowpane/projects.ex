@@ -401,4 +401,46 @@ defmodule Windowpane.Projects do
       Enum.sort_by(reviews, & &1.inserted_at, :desc)
     end)
   end
+
+  @doc """
+  Returns a list of published film projects with films preloaded.
+
+  ## Examples
+
+      iex> list_published_films()
+      [%Project{}, ...]
+
+      iex> list_published_films(10)
+      [%Project{}, ...]
+
+  """
+  def list_published_films(limit \\ 21) do
+    query = Project
+    |> where([p], p.type == "film" and p.status == "published")
+    |> preload([:film, :creator])
+    |> order_by([p], desc: p.premiere_date)
+
+    case limit do
+      nil -> Repo.all(query)
+      limit when is_integer(limit) ->
+        query
+        |> limit(^limit)
+        |> Repo.all()
+    end
+  end
+
+  @doc """
+  Returns the count of published film projects.
+
+  ## Examples
+
+      iex> count_published_films()
+      5
+
+  """
+  def count_published_films do
+    Project
+    |> where([p], p.type == "film" and p.status == "published")
+    |> Repo.aggregate(:count, :id)
+  end
 end

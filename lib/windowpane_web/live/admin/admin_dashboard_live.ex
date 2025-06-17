@@ -6,7 +6,7 @@ defmodule WindowpaneWeb.Admin.AdminDashboardLive do
   alias Windowpane.Creators
   alias Windowpane.Projects
   alias Windowpane.Accounts.User, as: User
-  alias Windowpane.Accounts.{Creator}
+  alias Windowpane.Creators.Creator
   alias Windowpane.Uploaders.CoverUploader
 
   @accounts_per_page 10
