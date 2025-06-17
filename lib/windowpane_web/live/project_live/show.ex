@@ -8,7 +8,7 @@ defmodule WindowpaneWeb.ProjectLive.Show do
 
   @impl true
   def mount(%{"id" => id}, _session, socket) do
-    project = Projects.get_project_with_film!(id)
+    project = Projects.get_project_with_film_and_reviews!(id)
     Logger.warning("MOUNT: Setting initial editing state to false")
     Logger.warning("MOUNT: Project ID: #{id}")
 
@@ -30,7 +30,7 @@ defmodule WindowpaneWeb.ProjectLive.Show do
 
   @impl true
   def handle_params(%{"id" => id} = params, _, socket) do
-    project = Projects.get_project_with_film!(id)
+    project = Projects.get_project_with_film_and_reviews!(id)
     editing = Map.get(params, "edit", "false") == "true"
 
     Logger.warning("HANDLE_PARAMS: Params: #{inspect(params)}")
@@ -648,14 +648,32 @@ defmodule WindowpaneWeb.ProjectLive.Show do
                   <%= Calendar.strftime(@project.inserted_at, "%B %d, %Y") %>
                 </p>
               </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-500">Last Updated</label>
-                <p class="mt-1 text-gray-900">
-                  <%= Calendar.strftime(@project.updated_at, "%B %d, %Y") %>
-                </p>
-              </div>
             </div>
           </div>
+
+          <!-- Feedback Section -->
+          <%= if length(@project.reviews) > 0 do %>
+            <div class="bg-white rounded-lg shadow-sm p-6">
+              <h2 class="text-xl font-semibold mb-4">Feedback</h2>
+              <div class="space-y-4">
+                <%= for review <- @project.reviews do %>
+                  <div class={["border-l-4 pl-4", if(review.status == "approved", do: "border-green-500", else: "border-red-500")]}>
+                    <div class="flex items-center justify-between mb-2">
+                      <span class={["inline-flex items-center rounded-md px-2 py-1 text-xs font-medium", if(review.status == "approved", do: "bg-green-50 text-green-700", else: "bg-red-50 text-red-700")]}>
+                        <%= String.capitalize(review.status) %>
+                      </span>
+                      <span class="text-sm text-gray-500">
+                        <%= Calendar.strftime(review.inserted_at, "%B %d, %Y at %I:%M %p") %>
+                      </span>
+                    </div>
+                    <%= if review.feedback do %>
+                      <p class="text-sm text-gray-700"><%= review.feedback %></p>
+                    <% end %>
+                  </div>
+                <% end %>
+              </div>
+            </div>
+          <% end %>
         </div>
       </div>
     </div>

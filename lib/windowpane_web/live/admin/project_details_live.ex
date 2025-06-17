@@ -3,6 +3,7 @@ defmodule WindowpaneWeb.Admin.ProjectDetailsLive do
 
   alias Windowpane.Projects
   alias Windowpane.MuxToken
+  alias Phoenix.LiveView.JS
 
   @impl true
   def mount(%{"id" => id}, _session, socket) do
@@ -27,7 +28,9 @@ defmodule WindowpaneWeb.Admin.ProjectDetailsLive do
      |> assign(:project, project)
      |> assign(:selected_tab, "trailer")
      |> assign(:trailer_token, trailer_token)
-     |> assign(:film_token, film_token)}
+     |> assign(:film_token, film_token)
+     |> assign(:show_feedback_modal, false)
+     |> assign(:feedback_text, "")}
   end
 
   @impl true
@@ -66,15 +69,41 @@ defmodule WindowpaneWeb.Admin.ProjectDetailsLive do
             <!-- Left side - Cover Image -->
             <div class="w-1/3">
               <div class="bg-white rounded-lg shadow-sm p-6">
+                <!-- Action Buttons -->
+                <!-- Debug: Current Status = <%= @project.status %> -->
+                <div class="flex gap-3 mb-6">
+                  <button
+                    phx-click="approve-project"
+                    phx-value-id={@project.id}
+                    class="flex-1 inline-flex items-center justify-center rounded-md bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600"
+                  >
+                    <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    Approve
+                  </button>
+                  <button
+                    phx-click="show-feedback-modal"
+                    phx-value-id={@project.id}
+                    class="flex-1 inline-flex items-center justify-center rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600"
+                  >
+                    <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                    Deny
+                  </button>
+                </div>
+
                 <h3 class="text-lg font-medium text-gray-900 mb-4">Cover Image</h3>
                 <%= if Windowpane.Uploaders.CoverUploader.cover_exists?(@project) do %>
                   <img
                     src={Windowpane.Uploaders.CoverUploader.cover_url(@project)}
-                    class="w-full aspect-[16/9] object-cover rounded-lg"
+                    class="w-full object-cover rounded-lg"
+                    style="width: 320px; height: 480px; aspect-ratio: 2/3;"
                     alt={@project.title}
                   />
                 <% else %>
-                  <div class="aspect-w-16 aspect-h-9 bg-gray-200 rounded-lg flex items-center justify-center">
+                  <div class="bg-gray-200 rounded-lg flex items-center justify-center" style="width: 320px; height: 480px; aspect-ratio: 2/3;">
                     <%= case @project.type do %>
                       <% "film" -> %>
                         <span class="text-4xl">🎞️</span>
@@ -118,7 +147,7 @@ defmodule WindowpaneWeb.Admin.ProjectDetailsLive do
                   <!-- Trailer video player placeholder -->
 
                   <%= if @project.film && @project.film.trailer_playback_id do %>
-                    <script src="https://cdn.jsdelivr.net/npm/@mux/mux-player" defer></script>
+
                     <mux-player
                       playback-id={@project.film.trailer_playback_id}
                       playback-token={@trailer_token}
@@ -197,25 +226,6 @@ defmodule WindowpaneWeb.Admin.ProjectDetailsLive do
                       </div>
                     </div>
                   </div>
-
-                  <div class="mt-8 flex justify-end space-x-3">
-                    <%= if @project.status == "waiting for approval" do %>
-                      <button
-                        phx-click="approve-project"
-                        phx-value-id={@project.id}
-                        class="inline-flex items-center rounded-md bg-green-50 px-3 py-2 text-sm font-medium text-green-700 hover:bg-green-100"
-                      >
-                        Approve Project
-                      </button>
-                      <button
-                        phx-click="reject-project"
-                        phx-value-id={@project.id}
-                        class="inline-flex items-center rounded-md bg-red-50 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-100"
-                      >
-                        Reject Project
-                      </button>
-                    <% end %>
-                  </div>
                 </div>
               </div>
             </div>
@@ -223,6 +233,45 @@ defmodule WindowpaneWeb.Admin.ProjectDetailsLive do
         </div>
       </main>
     </div>
+
+    <!-- Feedback Modal -->
+    <.modal :if={@show_feedback_modal} id="feedback-modal" show on_cancel={JS.push("close-feedback-modal")}>
+      <div class="text-center">
+        <div class="mb-4">
+          <h3 class="text-lg font-medium text-gray-900">Deny Project</h3>
+          <p class="text-sm text-gray-500 mt-1">Please provide feedback explaining why this project is being denied. This feedback will be visible to the creator.</p>
+        </div>
+
+        <form phx-submit="submit-feedback" class="mt-4">
+          <div class="mb-4">
+            <textarea
+              name="feedback"
+              value={@feedback_text}
+              rows="4"
+              class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              placeholder="Enter your feedback here..."
+              required
+            ></textarea>
+          </div>
+
+          <div class="flex justify-center gap-3">
+            <button
+              type="button"
+              phx-click="close-feedback-modal"
+              class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              class="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+            >
+              Deny Project
+            </button>
+          </div>
+        </form>
+      </div>
+    </.modal>
     """
   end
 
@@ -234,10 +283,18 @@ defmodule WindowpaneWeb.Admin.ProjectDetailsLive do
         # Remove from approval queue
         Projects.remove_from_approval_queue(updated_project)
 
+        # Create project review
+        Projects.create_project_review(%{
+          status: "approved",
+          feedback: nil,
+          project_id: project.id
+        })
+
         {:noreply,
          socket
          |> put_flash(:info, "Project approved successfully")
-         |> assign(:project, updated_project)}
+         |> assign(:project, updated_project)
+         |> push_navigate(to: ~p"/")}
 
       {:error, _changeset} ->
         {:noreply,
@@ -247,22 +304,57 @@ defmodule WindowpaneWeb.Admin.ProjectDetailsLive do
   end
 
   @impl true
-  def handle_event("reject-project", %{"id" => project_id}, socket) do
+  def handle_event("show-feedback-modal", %{"id" => project_id}, socket) do
     project = Projects.get_project_with_film!(project_id)
-    case Projects.update_project(project, %{status: "draft"}) do
-      {:ok, updated_project} ->
-        # Remove from approval queue
-        Projects.remove_from_approval_queue(updated_project)
+    {:noreply,
+     socket
+     |> assign(:show_feedback_modal, true)
+     |> assign(:project, project)}
+  end
 
-        {:noreply,
-         socket
-         |> put_flash(:info, "Project rejected and returned to draft")
-         |> assign(:project, updated_project)}
+  @impl true
+  def handle_event("close-feedback-modal", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:show_feedback_modal, false)
+     |> assign(:feedback_text, "")}
+  end
 
-      {:error, _changeset} ->
-        {:noreply,
-         socket
-         |> put_flash(:error, "Failed to reject project")}
+  @impl true
+  def handle_event("submit-feedback", %{"feedback" => feedback}, socket) do
+    project = socket.assigns.project
+
+    if String.trim(feedback) == "" do
+      {:noreply,
+       socket
+       |> put_flash(:error, "Feedback is required for denial")}
+    else
+      # Update project status to draft
+      case Projects.update_project(project, %{status: "draft"}) do
+        {:ok, updated_project} ->
+          # Remove from approval queue
+          Projects.remove_from_approval_queue(updated_project)
+
+          # Create project review
+          Projects.create_project_review(%{
+            status: "denied",
+            feedback: feedback,
+            project_id: project.id
+          })
+
+          {:noreply,
+           socket
+           |> put_flash(:info, "Project denied and returned to draft")
+           |> assign(:project, updated_project)
+           |> assign(:show_feedback_modal, false)
+           |> assign(:feedback_text, "")
+           |> push_navigate(to: ~p"/")}
+
+        {:error, _changeset} ->
+          {:noreply,
+           socket
+           |> put_flash(:error, "Failed to deny project")}
+      end
     end
   end
 

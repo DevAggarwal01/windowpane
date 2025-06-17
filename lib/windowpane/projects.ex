@@ -8,6 +8,7 @@ defmodule Windowpane.Projects do
   alias Windowpane.Projects.Project
   alias Windowpane.Projects.Film
   alias Windowpane.Projects.ProjectApprovalQueue
+  alias Windowpane.Projects.ProjectReview
 
   @doc """
   Returns the list of projects for a creator.
@@ -343,5 +344,61 @@ defmodule Windowpane.Projects do
   def remove_from_approval_queue(project) do
     from(q in ProjectApprovalQueue, where: q.project_id == ^project.id)
     |> Repo.delete_all()
+  end
+
+  # Project Review functions
+
+  @doc """
+  Creates a project review.
+
+  ## Examples
+
+      iex> create_project_review(%{status: "denied", feedback: "Needs improvement", project_id: 1})
+      {:ok, %ProjectReview{}}
+
+      iex> create_project_review(%{field: bad_value})
+      {:error, %Ecto.Changeset{}}
+
+  """
+  def create_project_review(attrs \\ %{}) do
+    %ProjectReview{}
+    |> ProjectReview.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  @doc """
+  Gets a project with reviews preloaded.
+
+  ## Examples
+
+      iex> get_project_with_reviews!(123)
+      %Project{reviews: [%ProjectReview{}, ...]}
+
+  """
+  def get_project_with_reviews!(id) do
+    Project
+    |> Repo.get!(id)
+    |> Repo.preload(:reviews)
+    |> Map.update!(:reviews, fn reviews ->
+      Enum.sort_by(reviews, & &1.inserted_at, :desc)
+    end)
+  end
+
+  @doc """
+  Gets a project with film and reviews preloaded.
+
+  ## Examples
+
+      iex> get_project_with_film_and_reviews!(123)
+      %Project{film: %Film{}, reviews: [%ProjectReview{}, ...]}
+
+  """
+  def get_project_with_film_and_reviews!(id) do
+    Project
+    |> Repo.get!(id)
+    |> Repo.preload([:film, :reviews])
+    |> Map.update!(:reviews, fn reviews ->
+      Enum.sort_by(reviews, & &1.inserted_at, :desc)
+    end)
   end
 end

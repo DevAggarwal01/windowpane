@@ -7,6 +7,7 @@ defmodule WindowpaneWeb.Admin.AdminDashboardLive do
   alias Windowpane.Projects
   alias Windowpane.Accounts.User, as: User
   alias Windowpane.Accounts.{Creator}
+  alias Windowpane.Uploaders.CoverUploader
 
   @accounts_per_page 10
 
@@ -24,6 +25,8 @@ defmodule WindowpaneWeb.Admin.AdminDashboardLive do
       {:ok,
        assign(socket,
          page_title: "Admin Dashboard",
+         cover_width: 200,
+         cover_height: 300,
          stats: %{
            total_users: accounts_data.total_count,
            total_creators: Administration.list_accounts("creators").total_count,
@@ -680,46 +683,52 @@ defmodule WindowpaneWeb.Admin.AdminDashboardLive do
                     </div>
                   </div>
 
-                  <div class="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                  <div class="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                     <%= for project <- @pending_projects do %>
                       <.link navigate={~p"/#{project.id}"} class="block">
-                        <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
-                          <div class="aspect-w-16 aspect-h-9 bg-gray-200">
-                            <%= case project.type do %>
-                              <% "film" -> %>
-                                <div class="flex items-center justify-center">
-                                  <span class="text-4xl">🎞️</span>
-                                </div>
-                              <% "tv_show" -> %>
-                                <div class="flex items-center justify-center">
-                                  <span class="text-4xl">🎬</span>
-                                </div>
-                              <% "live_event" -> %>
-                                <div class="flex items-center justify-center">
-                                  <span class="text-4xl">🎤</span>
-                                </div>
-                              <% "book" -> %>
-                                <div class="flex items-center justify-center">
-                                  <span class="text-4xl">📚</span>
-                                </div>
-                              <% "music" -> %>
-                                <div class="flex items-center justify-center">
-                                  <span class="text-4xl">🎶</span>
-                                </div>
+                        <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow w-fit">
+                          <div class="bg-gray-200 overflow-hidden" style={"width: #{@cover_width}px; height: #{@cover_height}px;"}>
+                            <%= if CoverUploader.cover_exists?(project) do %>
+                              <img
+                                src={CoverUploader.cover_url(project)}
+                                alt={"Cover image for #{project.title}"}
+                                class="w-full h-full object-cover"
+                                style={"width: #{@cover_width}px; height: #{@cover_height}px;"}
+                              />
+                            <% else %>
+                              <%= case project.type do %>
+                                <% "film" -> %>
+                                  <div class="flex items-center justify-center w-full h-full">
+                                    <span class="text-4xl">🎞️</span>
+                                  </div>
+                                <% "tv_show" -> %>
+                                  <div class="flex items-center justify-center w-full h-full">
+                                    <span class="text-4xl">🎬</span>
+                                  </div>
+                                <% "live_event" -> %>
+                                  <div class="flex items-center justify-center w-full h-full">
+                                    <span class="text-4xl">🎤</span>
+                                  </div>
+                                <% "book" -> %>
+                                  <div class="flex items-center justify-center w-full h-full">
+                                    <span class="text-4xl">📚</span>
+                                  </div>
+                                <% "music" -> %>
+                                  <div class="flex items-center justify-center w-full h-full">
+                                    <span class="text-4xl">🎶</span>
+                                  </div>
+                              <% end %>
                             <% end %>
                           </div>
-                          <div class="p-4">
-                            <h3 class="text-lg font-medium text-gray-900"><%= project.title %></h3>
-                            <p class="mt-1 text-sm text-gray-500 line-clamp-2"><%= project.description %></p>
-                            <div class="mt-4 flex items-center justify-between">
-                              <div class="flex items-center space-x-2">
-                                <span class="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">
-                                  <%= String.capitalize(project.type) %>
-                                </span>
-                                <span class="inline-flex items-center rounded-md bg-yellow-50 px-2 py-1 text-xs font-medium text-yellow-700">
-                                  Pending Approval
-                                </span>
-                              </div>
+                          <div class="p-3">
+                            <h3 class="text-sm font-medium text-gray-900 truncate"><%= project.title %></h3>
+                            <div class="mt-2 flex flex-col gap-1">
+                              <span class="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 w-fit">
+                                <%= String.capitalize(project.type) %>
+                              </span>
+                              <span class="inline-flex items-center rounded-md bg-yellow-50 px-2 py-1 text-xs font-medium text-yellow-700 w-fit">
+                                Pending Approval
+                              </span>
                             </div>
                           </div>
                         </div>

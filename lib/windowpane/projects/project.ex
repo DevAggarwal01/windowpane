@@ -19,6 +19,7 @@ defmodule Windowpane.Projects.Project do
     # Relations
     belongs_to :creator, Windowpane.Accounts.Creator, define_field: false
     has_one :film, Windowpane.Projects.Film
+    has_many :reviews, Windowpane.Projects.ProjectReview
 
     timestamps()
   end
