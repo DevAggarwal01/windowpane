@@ -44,7 +44,10 @@ defmodule WindowpaneWeb.Router do
   scope "/", WindowpaneWeb, host: "windowpane.com" do
     pipe_through [:browser, :redirect_if_user_is_authenticated]
 
-    get "/", PageController, :home
+    live_session :browse_layout,
+      layout: {WindowpaneWeb.Layouts, :browse} do
+      live "/", LandingLive, :home
+    end
   end
 
   # User authentication routes (windowpane.com)
