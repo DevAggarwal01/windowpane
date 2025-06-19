@@ -1,4 +1,4 @@
-defmodule Windowpane.Uploaders.CoverUploader do
+defmodule Windowpane.Uploaders.BannerUploader do
   use Waffle.Definition
 
   # To add a thumbnail version:
@@ -31,7 +31,7 @@ defmodule Windowpane.Uploaders.CoverUploader do
 
   # Override the filename:
   def filename(_version, {_file, _scope}) do
-    "cover"
+    "banner"
   end
 
   # Override the storage location (optional if using S3):
@@ -49,25 +49,25 @@ defmodule Windowpane.Uploaders.CoverUploader do
   # Helper Functions
 
   @doc """
-  Generates the public URL for a project's cover image.
+  Generates the public URL for a project's banner image.
   """
-  def cover_url(project, version \\ :original) do
+  def banner_url(project, version \\ :original) do
     bucket = System.get_env("TIGRIS_BUCKET")
-    object_key = "#{project.id}/cover"
+    object_key = "#{project.id}/banner"
 
     "https://#{bucket}.fly.storage.tigris.dev/#{object_key}"
   end
 
   @doc """
-  Checks if a cover image exists for the given project using ExAws.
+  Checks if a banner image exists for the given project using ExAws.
   """
-  def cover_exists?(project_id) when is_integer(project_id) or is_binary(project_id) do
+  def banner_exists?(project_id) when is_integer(project_id) or is_binary(project_id) do
     bucket = System.get_env("TIGRIS_BUCKET")
-    object_key = "#{project_id}/cover"
+    object_key = "#{project_id}/banner"
     # Generate the URL that would be accessed
     url = "https://#{bucket}.fly.storage.tigris.dev/#{object_key}"
 
-    IO.puts("=== COVER EXISTS DEBUG (TIGRIS) ===")
+    IO.puts("=== BANNER EXISTS DEBUG (TIGRIS) ===")
     IO.puts("Project ID: #{project_id}")
     IO.puts("Bucket: #{bucket}")
     IO.puts("Object Key: #{object_key}")
@@ -75,10 +75,10 @@ defmodule Windowpane.Uploaders.CoverUploader do
 
     case ExAws.S3.head_object(bucket, object_key) |> ExAws.request() do
       {:ok, _response} ->
-        IO.puts("✅ Cover exists!")
+        IO.puts("✅ Banner exists!")
         true
       {:error, {:http_error, 404, _body}} ->
-        IO.puts("❌ Cover not found (404)")
+        IO.puts("❌ Banner not found (404)")
         false
       {:error, error} ->
         IO.puts("❌ S3 Error: #{inspect(error)}")
@@ -86,24 +86,24 @@ defmodule Windowpane.Uploaders.CoverUploader do
     end
   end
 
-  def cover_exists?(project) when is_map(project) do
-    cover_exists?(project.id)
+  def banner_exists?(project) when is_map(project) do
+    banner_exists?(project.id)
   end
 
   @doc """
-  Generates the storage path for a project's cover image.
+  Generates the storage path for a project's banner image.
   """
-  def cover_path(project, version \\ :original) do
+  def banner_path(project, version \\ :original) do
     storage_dir = "#{project.id}"
-    filename = if version == :original, do: "cover", else: "cover_#{version}"
+    filename = if version == :original, do: "banner", else: "banner_#{version}"
     "#{storage_dir}/#{filename}"
   end
 
   @doc """
-  Deletes the cover image for a project.
+  Deletes the banner image for a project.
   """
-  def delete_cover(project) do
-    fake_file = %{file_name: "cover"}
+  def delete_banner(project) do
+    fake_file = %{file_name: "banner"}
     delete({fake_file, project})
   end
 

@@ -31,15 +31,35 @@ defmodule WindowpaneWeb.FilmModalComponent do
 
           <!-- Trailer Area (placeholder for future implementation) -->
           <div class="relative w-full">
-            <mux-player
-              playback-id="XamuNYpAzCOw7MVac302qibSwGfIm3hKVwisAl1i6RN4"
-              placeholder="https://f004.backblazeb2.com/file/videocoverlibrary/1/cover"
-              playback-token="eyJhbGciOiJSUzI1NiJ9.eyJraWQiOiJDc2pxY1lxRENaZnNTcHB1ekg4UEJQaE9yMUlMNjAyUk0yWm9XZTNnZzAwQ0UiLCJhdWQiOiJ2Iiwic3ViIjoiWGFtdU5ZcEF6Q093N01WYWMzMDJxaWJTd0dmSW0zaEtWd2lzQWwxaTZSTjQiLCJleHAiOjE3NTA0NDc4OTZ9.ZWR6TGxu9d8XXj_7tm0Vki3TGA2US2cjZLzBY2ENSnLrC8TdfMYvho1go5MZRwbp-RlN5jNjCJXn6dljRXu1jK4UXMU6gueaCHthhYOmDe70-2Q3ZNP4BHb_L5azceVQ-oJH-rStt8XJsWHgQXsrBtiTTb-iP4UCar_ODj_xGF2Vk6HCg_2SiJ1Bjglmyb3crb2Hld7D6KXdbLB5XejtIt5xv8sUOC3veSnD0daO-E8DZCbO8I12djTdjf_n4jGIwdB3IL5rgqxyyObYNAzhTS2yxTwXJ8rP2eJpvVdjkapYWCBNpXAoga01hxnYxYLai2RziLOxp4YrFog0lEL7gw"
-              stream-type="on-demand"
-              style="--controls: none;"
-              autoplay="any"
-              title="Trailer"
-            ></mux-player>
+            <%= if @film.film && @film.film.trailer_playback_id && @trailer_token do %>
+              <mux-player
+                playback-id={@film.film.trailer_playback_id}
+                placeholder={if Windowpane.Uploaders.BannerUploader.banner_exists?(@film), do: Windowpane.Uploaders.BannerUploader.banner_url(@film), else: nil}
+                playback-token={@trailer_token}
+                stream-type="on-demand"
+                style="--controls: none;"
+                autoplay="any"
+                title="Trailer"
+              ></mux-player>
+            <% else %>
+              <!-- Fallback when no trailer is available -->
+              <div class="w-full aspect-video bg-gray-800 flex items-center justify-center">
+                <%= if Windowpane.Uploaders.CoverUploader.cover_exists?(@film) do %>
+                  <img
+                    src={Windowpane.Uploaders.CoverUploader.cover_url(@film)}
+                    alt={"Cover for #{@film.title}"}
+                    class="w-full h-full object-cover"
+                  />
+                <% else %>
+                  <div class="text-center text-gray-400">
+                    <svg class="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                    <p>No trailer available</p>
+                  </div>
+                <% end %>
+              </div>
+            <% end %>
             <div class="absolute top-4 left-4 text-white text-xl font-bold z-10 bg-black bg-opacity-60 px-4 py-2 rounded">
               <%= @film.title %>
             </div>

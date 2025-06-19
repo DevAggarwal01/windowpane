@@ -1,25 +1,25 @@
-defmodule WindowpaneWeb.Api.CoverController do
+defmodule WindowpaneWeb.Api.BannerController do
   use WindowpaneWeb, :controller
 
   alias Windowpane.Projects
-  alias Windowpane.Uploaders.CoverUploader
+  alias Windowpane.Uploaders.BannerUploader
 
-  def create(conn, %{"id" => project_id, "cover" => cover_upload}) do
+  def create(conn, %{"id" => project_id, "banner" => banner_upload}) do
     project = Projects.get_project!(project_id)
 
     # Validate the upload
-    if File.exists?(cover_upload.path) do
+    if File.exists?(banner_upload.path) do
       # Read the uploaded file binary data
-      case File.read(cover_upload.path) do
+      case File.read(banner_upload.path) do
         {:ok, file_binary} ->
           # Get bucket and construct object key
           bucket = System.get_env("TIGRIS_BUCKET")
-          object_key = "#{project.id}/cover"
+          object_key = "#{project.id}/banner"
 
           # Get content type from the uploaded file
-          content_type = MIME.from_path(cover_upload.filename) || "application/octet-stream"
+          content_type = MIME.from_path(banner_upload.filename) || "application/octet-stream"
 
-          IO.puts("=== DIRECT S3 UPLOAD DEBUG (TIGRIS) ===")
+          IO.puts("=== DIRECT S3 BANNER UPLOAD DEBUG (TIGRIS) ===")
           IO.puts("Bucket: #{bucket}")
           IO.puts("Object Key: #{object_key}")
           IO.puts("Content Type: #{content_type}")
@@ -31,15 +31,15 @@ defmodule WindowpaneWeb.Api.CoverController do
             acl: :public_read
           ]) |> ExAws.request() do
             {:ok, _response} ->
-              IO.puts("✅ Upload successful!")
+              IO.puts("✅ Banner upload successful!")
               json(conn, %{
                 success: true,
-                message: "Cover uploaded successfully",
-                url: CoverUploader.cover_url(project)
+                message: "Banner uploaded successfully",
+                url: BannerUploader.banner_url(project)
               })
 
             {:error, reason} ->
-              IO.puts("❌ Upload failed: #{inspect(reason)}")
+              IO.puts("❌ Banner upload failed: #{inspect(reason)}")
               conn
               |> put_status(:unprocessable_entity)
               |> json(%{success: false, error: "Upload failed: #{inspect(reason)}"})

@@ -35,4 +35,6 @@ windowpane-*.tar
 npm-debug.log
 /assets/node_modules/
 
+/mux.pem/
+
 /.env/

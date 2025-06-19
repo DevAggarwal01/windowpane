@@ -146,6 +146,7 @@ defmodule WindowpaneWeb.Router do
     pipe_through [:api]
 
     post "/projects/:id/cover", CoverController, :create
+    post "/projects/:id/banner", BannerController, :create
   end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development

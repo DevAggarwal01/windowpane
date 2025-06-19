@@ -2,6 +2,7 @@ defmodule WindowpaneWeb.LandingLive do
   use WindowpaneWeb, :live_view
 
   alias Windowpane.Projects
+  alias Windowpane.MuxToken
 
   @impl true
   def mount(_params, _session, socket) do
@@ -30,9 +31,17 @@ defmodule WindowpaneWeb.LandingLive do
           end
       end
 
+    # Generate trailer token if film has trailer playback ID
+    trailer_token = if selected_film && selected_film.film && selected_film.film.trailer_playback_id do
+      MuxToken.generate_playback_token(selected_film.film.trailer_playback_id)
+    else
+      nil
+    end
+
     socket =
       socket
       |> assign(:selected_film, selected_film)
+      |> assign(:trailer_token, trailer_token)
 
     {:noreply, socket}
   end
@@ -173,6 +182,7 @@ defmodule WindowpaneWeb.LandingLive do
         module={WindowpaneWeb.FilmModalComponent}
         id="film-modal"
         film={@selected_film}
+        trailer_token={@trailer_token}
       />
     <% end %>
     """

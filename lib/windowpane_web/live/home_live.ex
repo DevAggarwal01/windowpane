@@ -155,6 +155,48 @@ defmodule WindowpaneWeb.HomeLive do
     )}
   end
 
+  # Banner cropper event handlers (to prevent crashes if events are sent here accidentally)
+  def handle_event("show_banner_cropper_modal", _params, socket) do
+    {:noreply, socket}
+  end
+
+  def handle_event("hide_banner_cropper_modal", _params, socket) do
+    {:noreply, socket}
+  end
+
+  def handle_event("set_banner_uploading", _params, socket) do
+    {:noreply, socket}
+  end
+
+  def handle_event("banner_upload_success", _params, socket) do
+    {:noreply, socket}
+  end
+
+  def handle_event("banner_upload_error", _params, socket) do
+    {:noreply, socket}
+  end
+
+  # Cover cropper event handlers (to prevent crashes if events are sent here accidentally)
+  def handle_event("show_cropper_modal", _params, socket) do
+    {:noreply, socket}
+  end
+
+  def handle_event("hide_cropper_modal", _params, socket) do
+    {:noreply, socket}
+  end
+
+  def handle_event("set_uploading", _params, socket) do
+    {:noreply, socket}
+  end
+
+  def handle_event("upload_success", _params, socket) do
+    {:noreply, socket}
+  end
+
+  def handle_event("upload_error", _params, socket) do
+    {:noreply, socket}
+  end
+
   @impl true
   def render(assigns) do
     ~H"""

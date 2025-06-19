@@ -63,22 +63,22 @@ config :phoenix, :json_library, Jason
 
 config :stripity_stripe, api_key: System.get_env("STRIPE_SECRET")
 
-# ExAws configuration with Backblaze B2 settings
+# ExAws configuration with Tigris settings
 config :ex_aws,
-  access_key_id: System.get_env("BACKBLAZE_ACCESS_KEY"),
-  secret_access_key: System.get_env("BACKBLAZE_SECRET_KEY"),
-  region: "us-east-1",  # Use standard AWS region to avoid ExAws validation issues
-  s3: [
-    scheme: "https://",
-    host: System.get_env("BACKBLAZE_HOST") || "s3.us-west-004.backblazeb2.com",
-    region: "us-east-1"  # Keep consistent with main region setting
-  ]
+  access_key_id: System.get_env("TIGRIS_ACCESS_KEY_ID"),
+  secret_access_key: System.get_env("TIGRIS_SECRET_KEY")
 
-# Configure Waffle to use Backblaze B2 for file uploads
+config :ex_aws, :s3,
+  scheme: "https://",
+  host: "fly.storage.tigris.dev",
+  region: "us-east-1",
+  port: 443
+
+# Configure Waffle to use Tigris for file uploads
 config :waffle,
   storage: Waffle.Storage.S3,
-  asset_host: "https://" <> (System.get_env("BACKBLAZE_HOST") || "s3.us-west-004.backblazeb2.com"),
-  bucket: System.get_env("BACKBLAZE_BUCKET")
+  asset_host: fn bucket, _version -> "https://#{bucket}.fly.storage.tigris.dev" end,
+  bucket: System.get_env("TIGRIS_BUCKET")
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.

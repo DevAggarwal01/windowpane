@@ -304,7 +304,8 @@ defmodule Windowpane.Projects do
     uploads_valid = [
       film_uploaded?(project),
       trailer_uploaded?(project),
-      cover_uploaded?(project)
+      cover_uploaded?(project),
+      banner_uploaded?(project)
     ]
 
     # All validations must pass
@@ -335,6 +336,11 @@ defmodule Windowpane.Projects do
   # Helper function to check if cover is uploaded
   defp cover_uploaded?(project) do
     Windowpane.Uploaders.CoverUploader.cover_exists?(project)
+  end
+
+  # Helper function to check if banner is uploaded
+  defp banner_uploaded?(project) do
+    Windowpane.Uploaders.BannerUploader.banner_exists?(project)
   end
 
   @doc """

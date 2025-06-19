@@ -4,6 +4,7 @@ defmodule WindowpaneWeb.ProjectLive.Show do
 
   alias Windowpane.Projects
   alias Windowpane.Uploaders.CoverUploader
+  alias Windowpane.Uploaders.BannerUploader
   alias Phoenix.LiveView.JS
 
   @impl true
@@ -20,12 +21,16 @@ defmodule WindowpaneWeb.ProjectLive.Show do
      |> assign(:show_cover_modal, false)
      |> assign(:show_cropper_modal, false)
      |> assign(:cover_uploading, false)
+     |> assign(:show_banner_modal, false)
+     |> assign(:show_banner_cropper_modal, false)
+     |> assign(:banner_uploading, false)
      |> assign(:trailer_upload_url, nil)
      |> assign(:trailer_upload_id, nil)
      |> assign(:film_upload_url, nil)
      |> assign(:film_upload_id, nil)
      |> assign(:changeset, Projects.change_project(project))
-     |> allow_upload(:cover, accept: ~w(.jpg .jpeg .png .webp), max_entries: 1)}
+     |> allow_upload(:cover, accept: ~w(.jpg .jpeg .png .webp), max_entries: 1)
+     |> allow_upload(:banner, accept: ~w(.jpg .jpeg .png .webp), max_entries: 1)}
   end
 
   @impl true
@@ -266,6 +271,7 @@ defmodule WindowpaneWeb.ProjectLive.Show do
 
   @impl true
   def handle_event("close_cover_modal", _params, socket) do
+    Logger.warning("CLOSE_COVER_MODAL: Closing cover modal")
     {:noreply, assign(socket, :show_cover_modal, false)}
   end
 
@@ -301,6 +307,111 @@ defmodule WindowpaneWeb.ProjectLive.Show do
      socket
      |> assign(:cover_uploading, false)
      |> put_flash(:error, "Upload failed: #{error}")}
+  end
+
+  @impl true
+  def handle_event("trigger_banner_file_input", _, socket) do
+    Logger.warning("TRIGGER_BANNER_FILE_INPUT: File input clicked")
+    Logger.warning("TRIGGER_BANNER_FILE_INPUT: Sending push_event to client")
+
+    socket = push_event(socket, "trigger-banner-file-input", %{input_id: "banner-upload"})
+    Logger.warning("TRIGGER_BANNER_FILE_INPUT: push_event sent")
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("upload_banner", _params, socket) do
+    Logger.warning("UPLOAD_BANNER: Project ID: #{socket.assigns.project.id}")
+
+    uploaded_files =
+      consume_uploaded_entries(socket, :banner, fn %{path: path}, entry ->
+        # Upload to Wasabi using our BannerUploader - just pass the path
+        case BannerUploader.store({path, socket.assigns.project}) do
+          {:ok, _filename} ->
+            Logger.info("Successfully uploaded banner for project #{socket.assigns.project.id}")
+            {:ok, :uploaded}
+
+          {:error, reason} ->
+            Logger.error("Failed to upload banner for project #{socket.assigns.project.id}: #{inspect(reason)}")
+            {:error, reason}
+        end
+      end)
+
+    case uploaded_files do
+      [] ->
+        {:noreply, put_flash(socket, :error, "No files were uploaded")}
+
+      files when length(files) > 0 ->
+        # Check if all uploads were successful
+        if Enum.all?(files, fn file -> file == :uploaded end) do
+          {:noreply,
+           socket
+           |> put_flash(:info, "Banner image uploaded successfully!")
+           |> assign(:uploaded_files, files)}
+        else
+          failed_uploads = Enum.filter(files, fn file -> file != :uploaded end)
+          Logger.error("Some uploads failed: #{inspect(failed_uploads)}")
+          {:noreply, put_flash(socket, :error, "Failed to upload some files")}
+        end
+    end
+  end
+
+  @impl true
+  def handle_event("validate_banner", _params, socket) do
+    Logger.warning("VALIDATE_BANNER: Project ID: #{socket.assigns.project.id}")
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("cancel_banner_upload", %{"ref" => ref}, socket) do
+    Logger.warning("CANCEL_BANNER_UPLOAD: Project ID: #{socket.assigns.project.id}")
+    {:noreply, cancel_upload(socket, :banner, ref)}
+  end
+
+  @impl true
+  def handle_event("open_banner_modal", _params, socket) do
+    {:noreply, assign(socket, :show_banner_modal, true)}
+  end
+
+  @impl true
+  def handle_event("close_banner_modal", _params, socket) do
+    Logger.warning("CLOSE_BANNER_MODAL: Closing banner modal")
+    {:noreply, assign(socket, :show_banner_modal, false)}
+  end
+
+  @impl true
+  def handle_event("show_banner_cropper_modal", _params, socket) do
+    {:noreply, assign(socket, :show_banner_cropper_modal, true)}
+  end
+
+  @impl true
+  def handle_event("hide_banner_cropper_modal", _params, socket) do
+    {:noreply, assign(socket, :show_banner_cropper_modal, false)}
+  end
+
+  @impl true
+  def handle_event("set_banner_uploading", %{"uploading" => uploading}, socket) do
+    {:noreply, assign(socket, :banner_uploading, uploading)}
+  end
+
+  @impl true
+  def handle_event("banner_upload_success", _params, socket) do
+    updated_project = Projects.get_project_with_film_and_reviews!(socket.assigns.project.id)
+    {:noreply,
+     socket
+     |> assign(:project, updated_project)
+     |> assign(:show_banner_cropper_modal, false)
+     |> assign(:banner_uploading, false)
+     |> put_flash(:info, "Banner image uploaded successfully!")}
+  end
+
+  @impl true
+  def handle_event("banner_upload_error", %{"error" => error}, socket) do
+    {:noreply,
+     socket
+     |> assign(:banner_uploading, false)
+     |> put_flash(:error, "Banner upload failed: #{error}")}
   end
 
   defp format_price(nil), do: "-"
@@ -565,7 +676,7 @@ defmodule WindowpaneWeb.ProjectLive.Show do
                   disabled={@cover_uploading}
                 >
                   <%= if @cover_uploading do %>
-                    <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <svg class="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                       <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                       <path class="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
@@ -600,6 +711,73 @@ defmodule WindowpaneWeb.ProjectLive.Show do
               <input
                 type="file"
                 id="cover-file-input"
+                accept=".jpg,.jpeg,.png,.webp"
+                style="display: none;"
+              />
+            </div>
+          </div>
+
+          <div class="bg-white rounded-lg shadow-sm p-6">
+            <h2 class="text-xl font-semibold mb-4 flex items-center">
+              Film Banner
+              <%= if BannerUploader.banner_exists?(@project) do %>
+                <svg class="ml-2 h-5 w-5 text-green-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" />
+                </svg>
+              <% end %>
+            </h2>
+
+            <div class="mt-4" id="banner-cropper-hook" phx-hook="BannerCropper" data-project-id={@project.id}>
+              <!-- Include Cropper.js CDN -->
+              <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
+              <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+
+              <div class="flex gap-2">
+                <button
+                  type="button"
+                  onclick="document.getElementById('banner-file-input').click()"
+                  class={[
+                    "inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500",
+                    @banner_uploading && "opacity-50 cursor-not-allowed"
+                  ]}
+                  disabled={@banner_uploading}
+                >
+                  <%= if @banner_uploading do %>
+                    <svg class="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Uploading...
+                  <% else %>
+                    <svg class="mr-2 -ml-1 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                    <%= if BannerUploader.banner_exists?(@project) do %>
+                      Replace Banner
+                    <% else %>
+                      Upload Banner
+                    <% end %>
+                  <% end %>
+                </button>
+
+                <%= if BannerUploader.banner_exists?(@project) do %>
+                  <button
+                    type="button"
+                    phx-click="open_banner_modal"
+                    class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  >
+                    <svg class="mr-2 -ml-1 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                    View Image
+                  </button>
+                <% end %>
+              </div>
+
+              <input
+                type="file"
+                id="banner-file-input"
                 accept=".jpg,.jpeg,.png,.webp"
                 style="display: none;"
               />
@@ -729,6 +907,70 @@ defmodule WindowpaneWeb.ProjectLive.Show do
             disabled={@cover_uploading}
           >
             <%= if @cover_uploading do %>
+              <svg class="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Uploading...
+            <% else %>
+              Crop & Upload
+            <% end %>
+          </button>
+        </div>
+      </div>
+    </.modal>
+
+    <!-- Banner Image Modal -->
+    <.modal :if={@show_banner_modal} id="banner-image-modal" show on_cancel={JS.push("close_banner_modal")}>
+      <div class="text-center">
+        <div class="mb-4">
+          <h3 class="text-lg font-medium text-gray-900">Banner Image</h3>
+        </div>
+        <div class="flex justify-center">
+          <img
+            src={BannerUploader.banner_url(@project)}
+            alt="Banner Image"
+            class="max-w-full max-h-96 object-contain rounded-lg shadow-lg"
+          />
+        </div>
+      </div>
+    </.modal>
+
+    <!-- Banner Cropper Modal -->
+    <.modal :if={@show_banner_cropper_modal} id="banner-cropper-modal" show on_cancel={JS.push("hide_banner_cropper_modal")}>
+      <div class="text-center">
+        <div class="mb-4">
+          <h3 class="text-lg font-medium text-gray-900">Crop Banner Image</h3>
+          <p class="text-sm text-gray-500 mt-1">Adjust the crop area to fit your banner image (16:9 aspect ratio)</p>
+        </div>
+
+        <div class="cropper-container mb-6" style="max-height: 500px;">
+          <img
+            id="banner-cropper-image"
+            src=""
+            alt="Banner image to crop"
+            style="max-width: 100%; display: block;"
+          />
+        </div>
+
+        <div class="flex justify-center gap-3">
+          <button
+            type="button"
+            onclick="document.dispatchEvent(new CustomEvent('banner-cropper:close'))"
+            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onclick="document.dispatchEvent(new CustomEvent('banner-cropper:crop-and-upload'))"
+            class={[
+              "px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500",
+              @banner_uploading && "opacity-50 cursor-not-allowed"
+            ]}
+            disabled={@banner_uploading}
+          >
+            <%= if @banner_uploading do %>
               <svg class="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
