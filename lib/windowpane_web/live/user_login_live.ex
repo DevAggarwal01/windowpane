@@ -5,7 +5,13 @@ defmodule WindowpaneWeb.UserLoginLive do
   def mount(_params, _session, socket) do
     email = Phoenix.Flash.get(socket.assigns, :email)
     form = to_form(%{"email" => email}, as: "user")
-    {:ok, assign(socket, form: form, trigger_submit: false), layout: {WindowpaneWeb.Layouts, :minimal}}
+    {:ok, assign(socket, form: form, trigger_submit: false, redirect_to: nil), layout: {WindowpaneWeb.Layouts, :minimal}}
+  end
+
+  @impl true
+  def handle_params(params, _url, socket) do
+    redirect_to = params["redirect"] || "/"
+    {:noreply, assign(socket, redirect_to: redirect_to)}
   end
 
   @impl true
@@ -19,7 +25,7 @@ defmodule WindowpaneWeb.UserLoginLive do
         <h2 class="text-2xl text-white font-light mb-8">Welcome back</h2>
 
         <div class="bg-white rounded-lg p-6 shadow-lg w-full max-w-md">
-      <.simple_form for={@form} id="login_form" action={~p"/users/log_in?_action=logged_in&redirect_to=/browse"} phx-update="ignore">
+      <.simple_form for={@form} id="login_form" action={~p"/users/log_in?_action=logged_in&redirect_to=#{@redirect_to}"} phx-update="ignore">
             <.input
               field={@form[:email]}
               type="email"
@@ -71,7 +77,7 @@ defmodule WindowpaneWeb.UserLoginLive do
             </div>
 
             <.link
-              navigate={~p"/users/register"}
+              navigate={~p"/users/register?redirect=#{@redirect_to}"}
               class="mt-4 w-full inline-block text-center px-4 py-2 border border-gray-300 rounded-md text-[#0073b1] hover:bg-gray-50"
             >
               Join now

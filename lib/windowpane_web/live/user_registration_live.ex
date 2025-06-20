@@ -6,8 +6,14 @@ defmodule WindowpaneWeb.UserRegistrationLive do
 
   def mount(_params, _session, socket) do
     changeset = Accounts.change_user_registration(%User{})
-    socket = assign(socket, trigger_submit: false, check_errors: false)
+    socket = assign(socket, trigger_submit: false, check_errors: false, redirect_to: nil)
     {:ok, assign_form(socket, changeset), layout: {WindowpaneWeb.Layouts, :minimal}}
+  end
+
+  @impl true
+  def handle_params(params, _url, socket) do
+    redirect_to = params["redirect"] || "/"
+    {:noreply, assign(socket, redirect_to: redirect_to)}
   end
 
   def render(assigns) do
@@ -26,7 +32,7 @@ defmodule WindowpaneWeb.UserRegistrationLive do
             phx-submit="save"
             phx-change="validate"
             phx-trigger-action={@trigger_submit}
-            action={~p"/users/log_in?_action=registered&redirect_to=/browse"}
+            action={~p"/users/log_in?_action=registered&redirect_to=#{@redirect_to}"}
             method="post"
           >
             <.error :if={@check_errors}>
@@ -80,7 +86,7 @@ defmodule WindowpaneWeb.UserRegistrationLive do
             </div>
 
             <.link
-              navigate={~p"/users/log_in"}
+              navigate={~p"/users/log_in?redirect=#{@redirect_to}"}
               class="mt-4 w-full inline-block text-center px-4 py-2 border border-gray-300 rounded-md text-[#0073b1] hover:bg-gray-50"
             >
               Sign in

@@ -183,6 +183,7 @@ defmodule WindowpaneWeb.LandingLive do
         id="film-modal"
         film={@selected_film}
         trailer_token={@trailer_token}
+        current_user={@current_user}
       />
     <% end %>
     """

@@ -28,12 +28,6 @@ defmodule WindowpaneWeb.NavComponents do
                   Dashboard
                 </.nav_link>
               <% end %>
-              <.nav_link navigate={~p"/browse"} active={@current_path == :browse}>
-                Browse
-              </.nav_link>
-              <.nav_link navigate={~p"/library"} active={@current_path == :library}>
-                Library
-              </.nav_link>
               <.nav_link navigate={~p"/social"} active={@current_path == :social}>
                 Social
               </.nav_link>

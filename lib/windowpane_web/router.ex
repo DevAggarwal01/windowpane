@@ -42,11 +42,18 @@ defmodule WindowpaneWeb.Router do
 
   # Consumer site (windowpane.com)
   scope "/", WindowpaneWeb, host: "windowpane.com" do
-    pipe_through [:browser, :redirect_if_user_is_authenticated]
+    pipe_through [:browser]
 
-    live_session :browse_layout,
-      layout: {WindowpaneWeb.Layouts, :browse} do
+    live_session :home_page,
+      layout: {WindowpaneWeb.Layouts, :browse},
+      on_mount: [{WindowpaneWeb.UserAuth, :mount_current_user}] do
       live "/", LandingLive, :home
+    end
+
+    live_session :watch_page,
+      layout: {WindowpaneWeb.Layouts, :minimal},
+      on_mount: [{WindowpaneWeb.UserAuth, :mount_current_user}] do
+      live "/watch", WatchLive, :watch
     end
   end
 
@@ -69,8 +76,8 @@ defmodule WindowpaneWeb.Router do
     pipe_through [:browser, :require_authenticated_user]
 
     live_session :require_authenticated_user,
+      layout: {WindowpaneWeb.Layouts, :browse},
       on_mount: [{WindowpaneWeb.UserAuth, :ensure_authenticated}] do
-      live "/browse", BrowseLive, :index
       live "/library", LibraryLive, :index
       live "/social", SocialLive, :index
       live "/users/settings", UserSettingsLive, :edit
@@ -91,11 +98,11 @@ defmodule WindowpaneWeb.Router do
     end
   end
 
-  # Creators site (studio.windowpane.com)
   scope "/", WindowpaneWeb do
     pipe_through [:api]
     # TODO after getting a domain, need to change the webhook url in mux settings
     post "/mux/webhook", MuxWebhookController, :create
+    post "/stripe/webhook", StripeWebhookController, :create
   end
 
   # Creator authentication routes (studio.windowpane.com)
@@ -122,6 +129,7 @@ defmodule WindowpaneWeb.Router do
       live "/dashboard", HomeLive, :show
       live "/projects", ProjectLive.Index, :index
       live "/projects/new", ProjectLive.New, :new
+      live "/social", SocialLive, :index
       live "/:id", ProjectLive.Show, :show
       live "/creators/settings", CreatorSettingsLive, :edit
       live "/creators/settings/confirm_email/:token", CreatorSettingsLive, :confirm_email
