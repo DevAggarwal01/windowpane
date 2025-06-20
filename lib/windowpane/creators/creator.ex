@@ -14,9 +14,9 @@ defmodule Windowpane.Creators.Creator do
     field :stripe_account_id, :string
     field :onboarded, :boolean, default: false
     field :uid, Ecto.UUID
+    field :wallet_balance, :integer, default: 0 # in cents
 
     has_many :projects, Windowpane.Projects.Project
-
 
     timestamps(type: :utc_datetime)
   end

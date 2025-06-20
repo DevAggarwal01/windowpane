@@ -290,13 +290,13 @@ defmodule WindowpaneWeb.CreatorSettingsLive do
     else
       refresh_url = URI.to_string(%{
         URI.parse(url(~p"/creators/settings?status=failure")) |
-        host: "studio.windowpane.com",
+        host: "studio.windowpane.tv",
         port: 4000
       })
 
       return_url = URI.to_string(%{
         URI.parse(url(~p"/creators/settings?status=success")) |
-        host: "studio.windowpane.com",
+        host: "studio.windowpane.tv",
         port: 4000
       })
 

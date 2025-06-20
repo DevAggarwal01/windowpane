@@ -41,6 +41,9 @@ defmodule WindowpaneWeb.Endpoint do
   plug Plug.RequestId
   plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint]
 
+  # Add raw body plug before parsers for webhook endpoints
+  plug WindowpaneWeb.Plugs.RawBodyPlug
+
   plug Plug.Parsers,
     parsers: [:urlencoded, :multipart, :json],
     pass: ["*/*"],

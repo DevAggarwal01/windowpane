@@ -372,7 +372,8 @@ defmodule Windowpane.Administration do
             confirmed_at: u.confirmed_at,
             inserted_at: u.inserted_at,
             onboarded: nil,
-            uid: u.uid
+            uid: u.uid,
+            wallet_balance: u.wallet_balance
           },
           order_by: [asc: u.id]
         {query, Repo.aggregate(User, :count, :id)}
@@ -389,7 +390,8 @@ defmodule Windowpane.Administration do
             inserted_at: c.inserted_at,
             onboarded: c.onboarded,
             stripe_account_id: c.stripe_account_id,
-            uid: c.uid
+            uid: c.uid,
+            wallet_balance: c.wallet_balance
           },
           order_by: [asc: c.id]
         {query, Repo.aggregate(Creator, :count, :id)}
@@ -428,7 +430,8 @@ defmodule Windowpane.Administration do
             confirmed_at: u.confirmed_at,
             inserted_at: u.inserted_at,
             onboarded: nil,
-            uid: u.uid
+            uid: u.uid,
+            wallet_balance: u.wallet_balance
           },
           order_by: [asc: u.id]
         {query, Repo.aggregate(query, :count, :id)}
@@ -446,7 +449,8 @@ defmodule Windowpane.Administration do
             inserted_at: c.inserted_at,
             onboarded: c.onboarded,
             stripe_account_id: c.stripe_account_id,
-            uid: c.uid
+            uid: c.uid,
+            wallet_balance: c.wallet_balance
           },
           order_by: [asc: c.id]
         {query, Repo.aggregate(query, :count, :id)}

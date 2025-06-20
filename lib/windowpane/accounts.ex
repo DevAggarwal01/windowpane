@@ -394,4 +394,89 @@ defmodule Windowpane.Accounts do
   end
 
   def delete_user(_), do: {:error, :invalid_user}
+
+  ## Wallet functions
+
+  @doc """
+  Adds funds to a user's wallet balance.
+
+  ## Examples
+
+      iex> add_wallet_funds(123, 1000)
+      {:ok, %User{}}
+
+      iex> add_wallet_funds(999, 1000)
+      {:error, :user_not_found}
+
+  """
+  def add_wallet_funds(user_id, amount_cents) when is_integer(amount_cents) and amount_cents > 0 do
+    case get_user!(user_id) do
+      %User{} = user ->
+        user
+        |> Ecto.Changeset.change(wallet_balance: user.wallet_balance + amount_cents)
+        |> Repo.update()
+
+      nil ->
+        {:error, :user_not_found}
+    end
+  rescue
+    Ecto.NoResultsError ->
+      {:error, :user_not_found}
+  end
+
+  def add_wallet_funds(user_id, amount_cents) when is_binary(user_id) do
+    add_wallet_funds(String.to_integer(user_id), amount_cents)
+  end
+
+  @doc """
+  Gets a user's current wallet balance.
+
+  ## Examples
+
+      iex> get_wallet_balance(123)
+      1500
+
+      iex> get_wallet_balance(999)
+      {:error, :user_not_found}
+
+  """
+  def get_wallet_balance(user_id) do
+    case get_user!(user_id) do
+      %User{wallet_balance: balance} -> balance
+      nil -> {:error, :user_not_found}
+    end
+  rescue
+    Ecto.NoResultsError ->
+      {:error, :user_not_found}
+  end
+
+  @doc """
+  Deducts funds from a user's wallet balance.
+
+  ## Examples
+
+      iex> deduct_wallet_funds(123, 500)
+      {:ok, %User{}}
+
+      iex> deduct_wallet_funds(123, 999999)
+      {:error, :insufficient_funds}
+
+  """
+  def deduct_wallet_funds(user_id, amount_cents) when is_integer(amount_cents) and amount_cents > 0 do
+    case get_user!(user_id) do
+      %User{wallet_balance: current_balance} = user when current_balance >= amount_cents ->
+        user
+        |> Ecto.Changeset.change(wallet_balance: current_balance - amount_cents)
+        |> Repo.update()
+
+      %User{} ->
+        {:error, :insufficient_funds}
+
+      nil ->
+        {:error, :user_not_found}
+    end
+  rescue
+    Ecto.NoResultsError ->
+      {:error, :user_not_found}
+  end
 end

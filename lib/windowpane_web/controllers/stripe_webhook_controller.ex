@@ -3,26 +3,48 @@ defmodule WindowpaneWeb.StripeWebhookController do
   require Logger
 
   def create(conn, _params) do
-    {:ok, payload, _conn} = Plug.Conn.read_body(conn)
+    # Get the raw body from assigns (set by RawBodyPlug)
+    raw_body = conn.assigns[:raw_body]
     sig_header = get_req_header(conn, "stripe-signature") |> List.first()
     endpoint_secret = Application.get_env(:windowpane, :stripe_webhook_secret)
 
-    case verify_webhook_signature(payload, sig_header, endpoint_secret) do
-      {:ok, event} ->
-        handle_stripe_event(event)
-        send_resp(conn, 200, "OK")
+    cond do
+      is_nil(raw_body) or raw_body == "" ->
+        Logger.error("Stripe webhook: No raw body available")
+        send_resp(conn, 400, "No request body")
 
-      {:error, reason} ->
-        Logger.error("Stripe webhook verification failed: #{inspect(reason)}")
-        send_resp(conn, 400, "Webhook signature verification failed")
+      is_nil(sig_header) ->
+        Logger.error("Stripe webhook: Missing stripe-signature header")
+        send_resp(conn, 400, "Missing signature header")
+
+      is_nil(endpoint_secret) ->
+        Logger.error("Stripe webhook: STRIPE_WEBHOOK_SECRET not configured")
+        send_resp(conn, 500, "Webhook secret not configured")
+
+      true ->
+        case verify_webhook_signature(raw_body, sig_header, endpoint_secret) do
+          {:ok, event} ->
+            handle_stripe_event(event)
+            send_resp(conn, 200, "OK")
+
+          {:error, reason} ->
+            Logger.error("Stripe webhook verification failed: #{inspect(reason)}")
+            send_resp(conn, 400, "Webhook signature verification failed")
+        end
     end
   end
 
   defp verify_webhook_signature(payload, sig_header, endpoint_secret) do
     try do
+      Logger.debug("Verifying webhook with payload length: #{byte_size(payload)}")
+
       case Stripe.Webhook.construct_event(payload, sig_header, endpoint_secret) do
-        {:ok, event} -> {:ok, event}
-        {:error, reason} -> {:error, reason}
+        {:ok, event} ->
+          Logger.debug("Webhook verification successful")
+          {:ok, event}
+        {:error, reason} ->
+          Logger.warning("Stripe webhook verification failed: #{inspect(reason)}")
+          {:error, reason}
       end
     rescue
       e ->
@@ -31,27 +53,15 @@ defmodule WindowpaneWeb.StripeWebhookController do
     end
   end
 
-  defp handle_stripe_event(%{"type" => event_type} = event) do
+  defp handle_stripe_event(%Stripe.Event{type: event_type, data: %{object: event_data}} = event) do
     Logger.info("Received Stripe webhook event: #{event_type}")
 
     case event_type do
-      "payment_intent.succeeded" ->
-        handle_payment_succeeded(event["data"]["object"])
+      "checkout.session.completed" ->
+        handle_checkout_session_completed(event_data)
 
-      "payment_intent.payment_failed" ->
-        handle_payment_failed(event["data"]["object"])
-
-      "invoice.payment_succeeded" ->
-        handle_invoice_payment_succeeded(event["data"]["object"])
-
-      "customer.subscription.created" ->
-        handle_subscription_created(event["data"]["object"])
-
-      "customer.subscription.updated" ->
-        handle_subscription_updated(event["data"]["object"])
-
-      "customer.subscription.deleted" ->
-        handle_subscription_deleted(event["data"]["object"])
+      "checkout.session.async_payment_succeeded" ->
+        handle_async_payment_succeeded(event_data)
 
       _ ->
         Logger.info("Unhandled Stripe webhook event type: #{event_type}")
@@ -59,63 +69,40 @@ defmodule WindowpaneWeb.StripeWebhookController do
     end
   end
 
-  defp handle_payment_succeeded(payment_intent) do
-    Logger.info("Payment succeeded: #{payment_intent["id"]}")
+  defp handle_checkout_session_completed(%Stripe.Checkout.Session{} = session) do
+    Logger.info("Checkout session completed: #{session.id}")
 
-    # Extract metadata to identify the purchase
-    metadata = payment_intent["metadata"] || %{}
+    # Extract metadata from the session
+    metadata = session.metadata || %{}
+
+    case metadata do
+      %{"user_id" => user_id, "type" => "wallet_funds", "amount" => amount} ->
+        # Handle wallet funds addition
+        process_wallet_funds_transaction(user_id, amount, session)
+
+      _ ->
+        Logger.warning("Checkout session completed but missing required metadata: #{inspect(metadata)}")
+    end
+  end
+
+  defp handle_async_payment_succeeded(%Stripe.Checkout.Session{} = session) do
+    Logger.info("Async payment succeeded for session: #{session.id}")
+
+    # Extract metadata from the session
+    metadata = session.metadata || %{}
 
     case metadata do
       %{"project_id" => project_id, "user_id" => user_id, "type" => type} ->
         # Handle film rental or purchase
-        process_film_transaction(project_id, user_id, type, payment_intent)
+        process_film_transaction(project_id, user_id, type, session)
+
+      %{"user_id" => user_id, "type" => "wallet_funds", "amount" => amount} ->
+        # Handle wallet funds addition
+        process_wallet_funds_transaction(user_id, amount, session)
 
       _ ->
-        Logger.warning("Payment succeeded but missing required metadata: #{inspect(metadata)}")
+        Logger.warning("Async payment succeeded but missing required metadata: #{inspect(metadata)}")
     end
-  end
-
-  defp handle_payment_failed(payment_intent) do
-    Logger.warning("Payment failed: #{payment_intent["id"]}")
-
-    # You might want to notify the user or update order status
-    metadata = payment_intent["metadata"] || %{}
-    Logger.info("Failed payment metadata: #{inspect(metadata)}")
-  end
-
-  defp handle_invoice_payment_succeeded(invoice) do
-    Logger.info("Invoice payment succeeded: #{invoice["id"]}")
-
-    # Handle subscription payments
-    subscription_id = invoice["subscription"]
-    if subscription_id do
-      Logger.info("Subscription payment succeeded: #{subscription_id}")
-      # Update subscription status, extend access, etc.
-    end
-  end
-
-  defp handle_subscription_created(subscription) do
-    Logger.info("Subscription created: #{subscription["id"]}")
-
-    # Handle new subscription creation
-    customer_id = subscription["customer"]
-    Logger.info("New subscription for customer: #{customer_id}")
-  end
-
-  defp handle_subscription_updated(subscription) do
-    Logger.info("Subscription updated: #{subscription["id"]}")
-
-    # Handle subscription changes (plan changes, etc.)
-    status = subscription["status"]
-    Logger.info("Subscription status: #{status}")
-  end
-
-  defp handle_subscription_deleted(subscription) do
-    Logger.info("Subscription deleted: #{subscription["id"]}")
-
-    # Handle subscription cancellation
-    customer_id = subscription["customer"]
-    Logger.info("Subscription cancelled for customer: #{customer_id}")
   end
 
   defp process_film_transaction(project_id, user_id, type, payment_intent) do
@@ -139,6 +126,27 @@ defmodule WindowpaneWeb.StripeWebhookController do
 
       _ ->
         Logger.warning("Unknown transaction type: #{type}")
+    end
+  end
+
+  defp process_wallet_funds_transaction(user_id, amount, payment_intent) do
+    Logger.info("Processing wallet funds transaction for user #{user_id}, amount: #{amount}")
+
+    # Convert amount from string to integer if needed
+    amount_cents = case amount do
+      amount when is_binary(amount) -> String.to_integer(amount)
+      amount when is_integer(amount) -> amount
+    end
+
+    # Add funds to user's wallet
+    case Windowpane.Accounts.add_wallet_funds(user_id, amount_cents) do
+      {:ok, user} ->
+        Logger.info("Successfully added #{amount_cents} cents to user #{user_id} wallet. New balance: #{user.wallet_balance}")
+        :ok
+
+      {:error, reason} ->
+        Logger.error("Failed to add wallet funds for user #{user_id}: #{inspect(reason)}")
+        :error
     end
   end
 end

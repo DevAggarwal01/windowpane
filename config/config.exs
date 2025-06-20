@@ -13,7 +13,7 @@ config :windowpane,
 
 # Configures the endpoint
 config :windowpane, WindowpaneWeb.Endpoint,
-  url: [host: "localhost"],
+  url: [host: "windowpane.tv", port: 4000],
   adapter: Bandit.PhoenixAdapter,
   render_errors: [
     formats: [html: WindowpaneWeb.ErrorHTML, json: WindowpaneWeb.ErrorJSON],
@@ -62,6 +62,9 @@ config :logger, :console,
 config :phoenix, :json_library, Jason
 
 config :stripity_stripe, api_key: System.get_env("STRIPE_SECRET")
+
+# Configure Stripe webhook secret
+config :windowpane, :stripe_webhook_secret, System.get_env("STRIPE_WEBHOOK_SECRET")
 
 # ExAws configuration with Tigris settings
 config :ex_aws,

@@ -420,6 +420,41 @@ defmodule Windowpane.Creators do
     end
   end
 
+  def add_to_wallet_plans do
+    Logger.info("add_to_wallet_plans called")
+
+    case Application.get_env(:stripity_stripe, :api_key) do
+      nil ->
+        Logger.warning("No Stripe API key configured")
+        []
+      _ ->
+        try do
+          {:ok, products} = Stripe.Product.list(%{active: true})
+          Logger.info("Stripe product successfully fetched: #{inspect(products.data)}")
+          stripe_plans = products.data
+          |> Enum.filter(&String.starts_with?(&1.name, "Add $"))
+          |> Enum.map(fn product ->
+            {:ok, prices} = Stripe.Price.list(%{product: product.id, active: true})
+            price = List.first(prices.data)
+            %{
+              id: product.id,
+              price: price.unit_amount / 100, # Convert cents to dollars
+              price_id: price.id
+            }
+          end)
+
+          # Combine free plan with stripe plans and sort by price
+          ([stripe_plans]
+          |> Enum.sort_by(& &1.price))
+        rescue
+          e ->
+            # Log the error and return empty list if Stripe API call fails
+            Logger.error("Error fetching creator plans: #{inspect(e)}")
+            []
+        end
+    end
+  end
+
   @doc """
   Updates a creator with the given attributes.
 

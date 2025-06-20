@@ -8,7 +8,7 @@ defmodule Windowpane.Creators.CreatorNotifier do
     email =
       new()
       |> to(recipient)
-      |> from({"Windowpane Studio", "studio@windowpane.com"})
+      |> from({"Windowpane Studio", "studio@windowpane.tv"})
       |> subject(subject)
       |> text_body(body)
 

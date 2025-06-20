@@ -138,7 +138,7 @@ defmodule WindowpaneWeb.LandingLive do
               Join thousands of creators sharing their films with audiences worldwide.
             </p>
             <.link
-              href="http://studio.windowpane.com"
+              href="http://studio.windowpane.tv"
               class="inline-flex items-center px-4 py-2 bg-white text-accent rounded-md font-medium hover:bg-gray-100 transition-colors"
             >
               Start Creating

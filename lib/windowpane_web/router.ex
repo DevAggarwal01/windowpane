@@ -40,8 +40,8 @@ defmodule WindowpaneWeb.Router do
     plug :accepts, ["json"]
   end
 
-  # Consumer site (windowpane.com)
-  scope "/", WindowpaneWeb, host: "windowpane.com" do
+  # Consumer site (windowpane.tv)
+  scope "/", WindowpaneWeb, host: "windowpane.tv" do
     pipe_through [:browser]
 
     live_session :home_page,
@@ -57,8 +57,8 @@ defmodule WindowpaneWeb.Router do
     end
   end
 
-  # User authentication routes (windowpane.com)
-  scope "/", WindowpaneWeb, host: "windowpane.com" do
+  # User authentication routes (windowpane.tv)
+  scope "/", WindowpaneWeb, host: "windowpane.tv" do
     pipe_through [:browser, :redirect_if_user_is_authenticated]
 
     live_session :redirect_if_user_is_authenticated,
@@ -72,20 +72,21 @@ defmodule WindowpaneWeb.Router do
     post "/users/log_in", UserSessionController, :create
   end
 
-  scope "/", WindowpaneWeb, host: "windowpane.com" do
+  scope "/", WindowpaneWeb, host: "windowpane.tv" do
     pipe_through [:browser, :require_authenticated_user]
 
     live_session :require_authenticated_user,
       layout: {WindowpaneWeb.Layouts, :browse},
       on_mount: [{WindowpaneWeb.UserAuth, :ensure_authenticated}] do
       live "/library", LibraryLive, :index
+      live "/shop", ShopLive, :index
       live "/social", SocialLive, :index
       live "/users/settings", UserSettingsLive, :edit
       live "/users/settings/confirm_email/:token", UserSettingsLive, :confirm_email
     end
   end
 
-  scope "/", WindowpaneWeb, host: "windowpane.com" do
+  scope "/", WindowpaneWeb, host: "windowpane.tv" do
     pipe_through [:browser]
 
     delete "/users/log_out", UserSessionController, :delete
@@ -105,8 +106,8 @@ defmodule WindowpaneWeb.Router do
     post "/stripe/webhook", StripeWebhookController, :create
   end
 
-  # Creator authentication routes (studio.windowpane.com)
-  scope "/", WindowpaneWeb, host: "studio.windowpane.com" do
+  # Creator authentication routes (studio.windowpane.tv)
+  scope "/", WindowpaneWeb, host: "studio.windowpane.tv" do
     pipe_through [:studio_browser, :redirect_if_creator_is_authenticated]
 
     live_session :redirect_if_creator_is_authenticated,
@@ -121,7 +122,7 @@ defmodule WindowpaneWeb.Router do
     get "/", PageController, :home
   end
 
-  scope "/", WindowpaneWeb, host: "studio.windowpane.com" do
+  scope "/", WindowpaneWeb, host: "studio.windowpane.tv" do
     pipe_through [:studio_browser, :require_authenticated_creator]
 
     live_session :require_authenticated_creator,
@@ -136,7 +137,7 @@ defmodule WindowpaneWeb.Router do
     end
   end
 
-  scope "/", WindowpaneWeb, host: "studio.windowpane.com" do
+  scope "/", WindowpaneWeb, host: "studio.windowpane.tv" do
     pipe_through [:studio_browser]
 
     delete "/creators/log_out", CreatorSessionController, :delete
@@ -149,8 +150,8 @@ defmodule WindowpaneWeb.Router do
     end
   end
 
-  # API routes for studio.windowpane.com
-  scope "/api", WindowpaneWeb.Api, host: "studio.windowpane.com" do
+  # API routes for studio.windowpane.tv
+  scope "/api", WindowpaneWeb.Api, host: "studio.windowpane.tv" do
     pipe_through [:api]
 
     post "/projects/:id/cover", CoverController, :create
@@ -174,8 +175,8 @@ defmodule WindowpaneWeb.Router do
     end
   end
 
-  # Admin site (admin.windowpane.com)
-  scope "/", WindowpaneWeb, host: "admin.windowpane.com" do
+  # Admin site (admin.windowpane.tv)
+  scope "/", WindowpaneWeb, host: "admin.windowpane.tv" do
     pipe_through [:admin_browser, :redirect_if_admin_is_authenticated]
 
     get "/log_in", AdminSessionController, :new
@@ -186,7 +187,7 @@ defmodule WindowpaneWeb.Router do
     put "/reset_password/:token", AdminResetPasswordController, :update
   end
 
-  scope "/", WindowpaneWeb, host: "admin.windowpane.com" do
+  scope "/", WindowpaneWeb, host: "admin.windowpane.tv" do
     pipe_through [:admin_browser, :require_authenticated_admin]
 
     live_session :require_authenticated_admin,
@@ -202,7 +203,7 @@ defmodule WindowpaneWeb.Router do
     get "/settings/confirm_email/:token", AdminSettingsController, :confirm_email
   end
 
-  scope "/", WindowpaneWeb, host: "admin.windowpane.com" do
+  scope "/", WindowpaneWeb, host: "admin.windowpane.tv" do
     pipe_through [:admin_browser]
 
     delete "/log_out", AdminSessionController, :delete

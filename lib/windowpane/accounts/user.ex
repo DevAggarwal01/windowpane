@@ -11,6 +11,7 @@ defmodule Windowpane.Accounts.User do
     field :plan, :string, default: "free"
     field :name, :string
     field :uid, Ecto.UUID
+    field :wallet_balance, :integer, default: 0 # in cents
 
     timestamps(type: :utc_datetime)
   end
@@ -41,7 +42,7 @@ defmodule Windowpane.Accounts.User do
   def registration_changeset(user, attrs, opts \\ []) do
     uid = Windowpane.Accounts.GlobalUID.generate_unique_uid()
     user
-    |> cast(Map.put(attrs, "uid", uid), [:email, :password, :uid])
+    |> cast(Map.put(attrs, "uid", uid), [:email, :password, :uid, :name])
     |> validate_email(opts)
     |> validate_password(opts)
   end

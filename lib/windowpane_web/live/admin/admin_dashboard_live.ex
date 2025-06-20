@@ -55,7 +55,12 @@ defmodule WindowpaneWeb.Admin.AdminDashboardLive do
          },
          show_delete_confirmation_modal: false,
          account_to_delete: nil,
-         pending_projects: pending_projects
+         pending_projects: pending_projects,
+         show_wallet_edit_modal: false,
+         wallet_edit_form: %{
+           "amount" => "",
+           "reason" => ""
+         }
        )}
     else
       {:ok,
@@ -487,6 +492,22 @@ defmodule WindowpaneWeb.Admin.AdminDashboardLive do
                           <%= String.capitalize(@selected_account.plan || "Free") %>
                         </dd>
                       </div>
+                      <%= if Map.has_key?(@selected_account, :wallet_balance) do %>
+                        <div class="px-4 py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
+                          <dt class="text-sm font-medium leading-6 text-gray-900">Wallet Balance</dt>
+                          <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0 flex items-center justify-between">
+                            <span class="font-medium text-green-600">
+                              <%= format_wallet_balance(@selected_account.wallet_balance) %>
+                            </span>
+                            <button
+                              phx-click="edit-wallet-balance"
+                              class="ml-2 inline-flex items-center px-2.5 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand"
+                            >
+                              Edit
+                            </button>
+                          </dd>
+                        </div>
+                      <% end %>
                       <div class="px-4 py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
                         <dt class="text-sm font-medium leading-6 text-gray-900">Account Type</dt>
                         <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
@@ -673,6 +694,90 @@ defmodule WindowpaneWeb.Admin.AdminDashboardLive do
                 </div>
               </.modal>
 
+              <.modal
+                :if={@show_wallet_edit_modal}
+                id="wallet-edit-modal"
+                show
+                on_cancel={JS.push("cancel-wallet-edit")}
+              >
+                <:title>Edit Wallet Balance</:title>
+
+                <%= if @selected_account do %>
+                  <div class="mt-6">
+                    <div class="mb-4 bg-gray-50 p-4 rounded-md">
+                      <dl class="divide-y divide-gray-200">
+                        <div class="py-2">
+                          <dt class="text-sm font-medium text-gray-500">Account</dt>
+                          <dd class="mt-1 text-sm text-gray-900"><%= @selected_account.email %></dd>
+                        </div>
+                        <div class="py-2">
+                          <dt class="text-sm font-medium text-gray-500">Current Balance</dt>
+                          <dd class="mt-1 text-sm text-gray-900 font-medium">
+                            <%= format_wallet_balance(@selected_account.wallet_balance) %>
+                          </dd>
+                        </div>
+                      </dl>
+                    </div>
+
+                    <.form
+                      for={%{}}
+                      phx-submit="update-wallet-balance"
+                      class="space-y-4"
+                    >
+                      <div>
+                        <.label for="amount">New Balance (in dollars)</.label>
+                        <div class="mt-1 relative rounded-md shadow-sm">
+                          <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                            <span class="text-gray-500 sm:text-sm">$</span>
+                          </div>
+                          <.input
+                            type="number"
+                            name="amount"
+                            id="amount"
+                            step="0.01"
+                            min="0"
+                            value={@wallet_edit_form["amount"]}
+                            placeholder="0.00"
+                            class="pl-7"
+                            required
+                            phx-change="update-wallet-form"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <.label for="reason">Reason for Change</.label>
+                        <.input
+                          type="text"
+                          name="reason"
+                          id="reason"
+                          value={@wallet_edit_form["reason"]}
+                          placeholder="Admin adjustment, refund, etc."
+                          required
+                          phx-change="update-wallet-form"
+                        />
+                      </div>
+
+                      <div class="flex justify-end space-x-3 mt-6">
+                        <.button
+                          type="button"
+                          phx-click="cancel-wallet-edit"
+                          class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50"
+                        >
+                          Cancel
+                        </.button>
+                        <.button
+                          type="submit"
+                          class="px-4 py-2 text-sm font-medium text-white bg-brand rounded-md shadow-sm hover:bg-accent"
+                        >
+                          Update Balance
+                        </.button>
+                      </div>
+                    </.form>
+                  </div>
+                <% end %>
+              </.modal>
+
             <% "content" -> %>
               <div class="bg-white shadow rounded-lg">
                 <div class="p-6">
@@ -854,6 +959,7 @@ defmodule WindowpaneWeb.Admin.AdminDashboardLive do
   @impl true
   def handle_event("submit_registration", params, socket) do
     IO.inspect(params, label: "Registration params")
+
     registration_params = %{
       "email" => socket.assigns.registration_form["email"],
       "password" => socket.assigns.registration_form["password"],
@@ -894,8 +1000,8 @@ defmodule WindowpaneWeb.Admin.AdminDashboardLive do
 
       "user" ->
         # Create regular user
-        params = Map.put(params, "type", "user")
-        case Accounts.register_user(params) do
+        user_params = Map.put(registration_params, "type", "user")
+        case Accounts.register_user(user_params) do
           {:ok, user} ->
             accounts_data = Administration.list_accounts(socket.assigns.account_filter)
             {:noreply,
@@ -922,8 +1028,14 @@ defmodule WindowpaneWeb.Admin.AdminDashboardLive do
         end
 
       "admin" ->
-        # Create admin user
-        case Administration.register_admin(params) do
+        # Create admin user - admins don't have wallet balance
+        admin_params = %{
+          "email" => socket.assigns.registration_form["email"],
+          "password" => socket.assigns.registration_form["password"],
+          "name" => socket.assigns.registration_form["name"],
+          "role" => socket.assigns.registration_form["role"]
+        }
+        case Administration.register_admin(admin_params) do
           {:ok, admin} ->
             {:noreply,
              socket
@@ -1212,6 +1324,105 @@ defmodule WindowpaneWeb.Admin.AdminDashboardLive do
          |> put_flash(:error, "Failed to reject project")}
     end
   end
+
+  @impl true
+  def handle_event("edit-wallet-balance", _params, socket) do
+    # Pre-fill the form with current balance in dollars
+    current_balance_dollars = socket.assigns.selected_account.wallet_balance / 100.0
+    amount_string = :erlang.float_to_binary(current_balance_dollars, [{:decimals, 2}])
+
+    {:noreply,
+     assign(socket,
+       show_wallet_edit_modal: true,
+       wallet_edit_form: %{
+         "amount" => amount_string,
+         "reason" => ""
+       }
+     )}
+  end
+
+  @impl true
+  def handle_event("cancel-wallet-edit", _params, socket) do
+    {:noreply,
+     assign(socket,
+       show_wallet_edit_modal: false,
+       wallet_edit_form: %{
+         "amount" => "",
+         "reason" => ""
+       }
+     )}
+  end
+
+  @impl true
+  def handle_event("update-wallet-form", params = %{"_target" => [field]}, socket) do
+    {:noreply,
+     assign(socket,
+       wallet_edit_form: Map.put(socket.assigns.wallet_edit_form, field, params[field])
+     )}
+  end
+
+  @impl true
+  def handle_event("update-wallet-balance", _params, socket) do
+    account = socket.assigns.selected_account
+    amount_dollars = String.to_float(socket.assigns.wallet_edit_form["amount"])
+    amount_cents = round(amount_dollars * 100)
+    reason = socket.assigns.wallet_edit_form["reason"]
+
+    old_balance = account.wallet_balance
+
+    # Find the actual account record to update
+    result = case account.type do
+      "user" ->
+        user = Windowpane.Repo.get_by(Windowpane.Accounts.User, uid: account.uid)
+        if user do
+          changeset = Ecto.Changeset.change(user, %{wallet_balance: amount_cents})
+          Windowpane.Repo.update(changeset)
+        else
+          {:error, :not_found}
+        end
+      "creator" ->
+        creator = Windowpane.Repo.get_by(Windowpane.Creators.Creator, uid: account.uid)
+        if creator do
+          changeset = Ecto.Changeset.change(creator, %{wallet_balance: amount_cents})
+          Windowpane.Repo.update(changeset)
+        else
+          {:error, :not_found}
+        end
+    end
+
+    case result do
+      {:ok, updated_account} ->
+        # Log the change
+        IO.puts("Wallet balance updated by #{socket.assigns.current_admin.email}: #{account.email} from #{format_wallet_balance(old_balance)} to #{format_wallet_balance(amount_cents)}. Reason: #{reason}")
+
+        # Refresh the account list to show updated balance
+        accounts_data = Administration.list_accounts(socket.assigns.account_filter, socket.assigns.current_page)
+
+        # Find the updated account in the list
+        updated_selected_account = Enum.find(accounts_data.accounts, fn acc -> acc.uid == account.uid end)
+
+        {:noreply,
+         socket
+         |> put_flash(:info, "Wallet balance updated successfully")
+         |> assign(
+           show_wallet_edit_modal: false,
+           wallet_edit_form: %{"amount" => "", "reason" => ""},
+           filtered_accounts: accounts_data.accounts,
+           selected_account: updated_selected_account || account
+         )}
+
+      {:error, _} ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "Failed to update wallet balance")}
+    end
+  end
+
+  defp format_wallet_balance(balance_cents) when is_integer(balance_cents) do
+    dollars = balance_cents / 100.0
+    "$#{:erlang.float_to_binary(dollars, [{:decimals, 2}])}"
+  end
+  defp format_wallet_balance(nil), do: "$0.00"
 
   defp error_to_string(changeset) do
     Ecto.Changeset.traverse_errors(changeset, fn {msg, opts} ->

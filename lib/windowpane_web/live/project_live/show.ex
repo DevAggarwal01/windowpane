@@ -81,7 +81,7 @@ defmodule WindowpaneWeb.ProjectLive.Show do
         "playback_policies" => ["signed"],
         "passthrough" => "type:trailer;project_id:#{socket.assigns.project.id}",
       },
-      "cors_origin" => "http://studio.windowpane.com:4000",
+      "cors_origin" => "http://studio.windowpane.tv:4000",
     }
 
     case Mux.Video.Uploads.create(client, params) do
@@ -122,7 +122,7 @@ defmodule WindowpaneWeb.ProjectLive.Show do
         "playback_policies" => ["signed"],
         "passthrough" => "type:film;project_id:#{socket.assigns.project.id}",
       },
-      "cors_origin" => "http://studio.windowpane.com:4000",
+      "cors_origin" => "http://studio.windowpane.tv:4000",
     }
 
     case Mux.Video.Uploads.create(client, params) do

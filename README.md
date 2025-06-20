@@ -1,12 +1,17 @@
 # Windowpane
 # TODO list after getting domain
 1. After deploying, the webhook url registered in Mux settings needs to be changed
-2. the region in which fly.io app is hosted needs to match the wasabi bucket region
+2. the webhook for stripe also needs to be changed
+
+
 
 To start your Phoenix server:
 
   * Run `mix setup` to install and setup dependencies
   * Start Phoenix endpoint with `mix phx.server` or inside IEx with `iex -S mix phx.server`
+
+To forward stripe webhooks to local dev server, do:
+  * stripe listen --forward-to windowpane.tv:4000/stripe/webhook
 
 Now you can visit [`localhost:4000`](http://localhost:4000) from your browser.
 
