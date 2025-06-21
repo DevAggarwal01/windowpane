@@ -3,7 +3,7 @@
 1. After deploying, the webhook url registered in Mux settings needs to be changed
 2. the webhook for stripe also needs to be changed
 
-
+to do premieres, premiere date in project table is already indexed so it should be easy to do quick retrieval
 
 To start your Phoenix server:
 

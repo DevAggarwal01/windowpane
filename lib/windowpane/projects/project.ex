@@ -20,6 +20,7 @@ defmodule Windowpane.Projects.Project do
     belongs_to :creator, Windowpane.Creators.Creator, define_field: false
     has_one :film, Windowpane.Projects.Film
     has_many :reviews, Windowpane.Projects.ProjectReview
+    has_many :ownership_records, Windowpane.OwnershipRecord
 
     timestamps()
   end

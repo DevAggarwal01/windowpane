@@ -13,6 +13,8 @@ defmodule Windowpane.Accounts.User do
     field :uid, Ecto.UUID
     field :wallet_balance, :integer, default: 0 # in cents
 
+    has_many :ownership_records, Windowpane.OwnershipRecord
+
     timestamps(type: :utc_datetime)
   end
 

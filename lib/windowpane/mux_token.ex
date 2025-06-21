@@ -1,7 +1,7 @@
 defmodule Windowpane.MuxToken do
   use Joken.Config
 
-  def generate_playback_token(playback_id, ttl_seconds \\ 86400) do
+  def generate_playback_token(playback_id, ttl_seconds \\ 172800) do # 48 hours before expiration
     private_key_pem =
       System.get_env("MUX_SIGNING_KEY_PRIVATE_KEY")
       |> String.replace("\\n", "\n")

@@ -18,9 +18,8 @@ defmodule WindowpaneWeb.Admin.AdminDashboardLive do
       IO.puts("Current admin role: #{socket.assigns.current_admin.role}")
       admins = if socket.assigns.current_admin.role == "superadmin", do: Administration.list_admins(), else: []
 
-      # Fetch pending projects
-      pending_project_ids = Projects.list_pending_approvals(10)
-      pending_projects = Enum.map(pending_project_ids, &Projects.get_project_with_film!/1)
+      # Fetch pending projects with queue information
+      pending_entries = Projects.list_pending_approvals_with_projects(10)
 
       {:ok,
        assign(socket,
@@ -55,7 +54,7 @@ defmodule WindowpaneWeb.Admin.AdminDashboardLive do
          },
          show_delete_confirmation_modal: false,
          account_to_delete: nil,
-         pending_projects: pending_projects,
+         pending_entries: pending_entries,
          show_wallet_edit_modal: false,
          wallet_edit_form: %{
            "amount" => "",
@@ -789,19 +788,19 @@ defmodule WindowpaneWeb.Admin.AdminDashboardLive do
                   </div>
 
                   <div class="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-                    <%= for project <- @pending_projects do %>
-                      <.link navigate={~p"/#{project.id}"} class="block">
+                    <%= for entry <- @pending_entries do %>
+                      <.link navigate={~p"/#{entry.project.id}"} class="block">
                         <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow w-fit">
                           <div class="bg-gray-200 overflow-hidden" style={"width: #{@cover_width}px; height: #{@cover_height}px;"}>
-                            <%= if CoverUploader.cover_exists?(project) do %>
+                            <%= if CoverUploader.cover_exists?(entry.project) do %>
                               <img
-                                src={CoverUploader.cover_url(project)}
-                                alt={"Cover image for #{project.title}"}
+                                src={CoverUploader.cover_url(entry.project)}
+                                alt={"Cover image for #{entry.project.title}"}
                                 class="w-full h-full object-cover"
                                 style={"width: #{@cover_width}px; height: #{@cover_height}px;"}
                               />
                             <% else %>
-                              <%= case project.type do %>
+                              <%= case entry.project.type do %>
                                 <% "film" -> %>
                                   <div class="flex items-center justify-center w-full h-full">
                                     <span class="text-4xl">🎞️</span>
@@ -826,10 +825,10 @@ defmodule WindowpaneWeb.Admin.AdminDashboardLive do
                             <% end %>
                           </div>
                           <div class="p-3">
-                            <h3 class="text-sm font-medium text-gray-900 truncate"><%= project.title %></h3>
+                            <h3 class="text-sm font-medium text-gray-900 truncate"><%= entry.project.title %></h3>
                             <div class="mt-2 flex flex-col gap-1">
                               <span class="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 w-fit">
-                                <%= String.capitalize(project.type) %>
+                                <%= String.capitalize(entry.project.type) %>
                               </span>
                               <span class="inline-flex items-center rounded-md bg-yellow-50 px-2 py-1 text-xs font-medium text-yellow-700 w-fit">
                                 Pending Approval
@@ -1289,13 +1288,12 @@ defmodule WindowpaneWeb.Admin.AdminDashboardLive do
         # Remove from approval queue
         Projects.remove_from_approval_queue(project)
         # Refresh pending projects
-        pending_project_ids = Projects.list_pending_approvals(10)
-        pending_projects = Enum.map(pending_project_ids, &Projects.get_project_with_film!/1)
+        pending_entries = Projects.list_pending_approvals_with_projects(10)
 
         {:noreply,
          socket
          |> put_flash(:info, "Project approved successfully")
-         |> assign(pending_projects: pending_projects)}
+         |> assign(pending_entries: pending_entries)}
       {:error, _changeset} ->
         {:noreply,
          socket
@@ -1311,13 +1309,12 @@ defmodule WindowpaneWeb.Admin.AdminDashboardLive do
         # Remove from approval queue
         Projects.remove_from_approval_queue(project)
         # Refresh pending projects
-        pending_project_ids = Projects.list_pending_approvals(10)
-        pending_projects = Enum.map(pending_project_ids, &Projects.get_project_with_film!/1)
+        pending_entries = Projects.list_pending_approvals_with_projects(10)
 
         {:noreply,
          socket
          |> put_flash(:info, "Project rejected and returned to draft")
-         |> assign(pending_projects: pending_projects)}
+         |> assign(pending_entries: pending_entries)}
       {:error, _changeset} ->
         {:noreply,
          socket

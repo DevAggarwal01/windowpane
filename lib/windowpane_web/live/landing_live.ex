@@ -3,11 +3,12 @@ defmodule WindowpaneWeb.LandingLive do
 
   alias Windowpane.Projects
   alias Windowpane.MuxToken
+  alias Windowpane.Ownership
 
   @impl true
   def mount(_params, _session, socket) do
-    # Fetch a limited number of published films for the landing page
-    published_films = Projects.list_published_films(12)
+    # Fetch a limited number of published films for the landing page (secure version)
+    published_films = Projects.list_published_films_with_creator_names(12)
 
     socket =
       socket
@@ -26,10 +27,23 @@ defmodule WindowpaneWeb.LandingLive do
         id ->
           # Find the film by ID from the published films or fetch from database
           case Enum.find(socket.assigns.published_films, &(&1.id == String.to_integer(id))) do
-            nil -> Projects.get_project(id) # Fallback to database if not in current list
+            nil -> Projects.get_project_with_film_and_creator_name!(String.to_integer(id)) # Secure fallback
             film -> film
           end
       end
+
+    # Check if current user owns this film and get ownership record ID
+    {user_owns_film, ownership_id} = if selected_film && socket.assigns[:current_user] do
+      if Ownership.user_owns_project?(socket.assigns.current_user.id, selected_film.id) do
+        # Get the active ownership record ID
+        ownership_record = Ownership.get_active_ownership_record(socket.assigns.current_user.id, selected_film.id)
+        {true, ownership_record && ownership_record.id}
+      else
+        {false, nil}
+      end
+    else
+      {false, nil}
+    end
 
     # Generate trailer token if film has trailer playback ID
     trailer_token = if selected_film && selected_film.film && selected_film.film.trailer_playback_id do
@@ -42,6 +56,8 @@ defmodule WindowpaneWeb.LandingLive do
       socket
       |> assign(:selected_film, selected_film)
       |> assign(:trailer_token, trailer_token)
+      |> assign(:user_owns_film, user_owns_film)
+      |> assign(:ownership_id, ownership_id)
 
     {:noreply, socket}
   end
@@ -184,6 +200,8 @@ defmodule WindowpaneWeb.LandingLive do
         film={@selected_film}
         trailer_token={@trailer_token}
         current_user={@current_user}
+        user_owns_film={@user_owns_film}
+        ownership_id={@ownership_id}
       />
     <% end %>
     """
