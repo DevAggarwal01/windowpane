@@ -110,7 +110,7 @@ defmodule WindowpaneWeb.StripeWebhookController do
 
     # TODO: Implement the actual business logic
     # This would typically involve:
-    # 1. Creating a purchase/rental record
+    # 1. Creating a rental record
     # 2. Granting access to the user
     # 3. Sending confirmation email
     # 4. Updating user's library
@@ -119,10 +119,6 @@ defmodule WindowpaneWeb.StripeWebhookController do
       "rental" ->
         Logger.info("Creating rental record for project #{project_id}")
         # Windowpane.Purchases.create_rental(user_id, project_id, payment_intent)
-
-      "purchase" ->
-        Logger.info("Creating purchase record for project #{project_id}")
-        # Windowpane.Purchases.create_purchase(user_id, project_id, payment_intent)
 
       _ ->
         Logger.warning("Unknown transaction type: #{type}")

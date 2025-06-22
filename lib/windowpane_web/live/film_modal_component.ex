@@ -12,7 +12,6 @@ defmodule WindowpaneWeb.FilmModalComponent do
     {:ok, assign(socket,
       show_login_message: false,
       show_rent_confirmation: false,
-      show_buy_confirmation: false,
       show_insufficient_funds: false,
       show_rental_success: false,
       user_owns_film: false,  # Default value
@@ -124,7 +123,7 @@ defmodule WindowpaneWeb.FilmModalComponent do
                     <span class="text-xs opacity-75">You own this film</span>
                   </.link>
                 <% else %>
-                  <!-- User doesn't own - show rent/buy buttons -->
+                  <!-- User doesn't own - show rent button -->
                   <button
                     type="button"
                     class="inline-flex flex-col items-center px-4 py-3 bg-white text-black font-semibold rounded hover:bg-gray-200 transition-colors"
@@ -133,16 +132,6 @@ defmodule WindowpaneWeb.FilmModalComponent do
                   >
                     <span class="text-sm">Rent movie</span>
                     <span class="text-lg font-bold"><%= format_price(@film.rental_price) %></span>
-                  </button>
-
-                  <button
-                    type="button"
-                    class="inline-flex flex-col items-center px-4 py-3 bg-white text-black font-semibold rounded hover:bg-gray-200 transition-colors"
-                    phx-click="buy_film"
-                    phx-target={@myself}
-                  >
-                    <span class="text-sm">Buy</span>
-                    <span class="text-lg font-bold"><%= format_price(@film.purchase_price) %></span>
                   </button>
                 <% end %>
               </div>
@@ -170,7 +159,7 @@ defmodule WindowpaneWeb.FilmModalComponent do
             <div class="relative bg-white rounded-lg p-6 max-w-md w-full">
               <div class="text-center">
                 <h3 class="text-lg font-medium text-gray-900 mb-4">Uh oh, please log in or sign up</h3>
-                <p class="text-gray-600 mb-6">You need to be logged in to rent or purchase films.</p>
+                <p class="text-gray-600 mb-6">You need to be logged in to rent films.</p>
                 <div class="flex space-x-3 justify-center">
                   <.link
                     href={~p"/users/log_in?redirect=#{URI.encode("/?id=#{@film.id}")}"}
@@ -223,41 +212,6 @@ defmodule WindowpaneWeb.FilmModalComponent do
                     type="button"
                     class="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 font-medium"
                     phx-click="cancel_rent"
-                    phx-target={@myself}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      <% end %>
-
-      <!-- Buy Confirmation Modal -->
-      <%= if @show_buy_confirmation do %>
-        <div class="fixed inset-0 z-60 overflow-y-auto">
-          <div class="fixed inset-0 bg-black bg-opacity-50"></div>
-          <div class="flex min-h-full items-center justify-center p-4">
-            <div class="relative bg-white rounded-lg p-6 max-w-md w-full">
-              <div class="text-center">
-                <h3 class="text-lg font-medium text-gray-900 mb-4">Are you sure?</h3>
-                <p class="text-gray-600 mb-6">
-                  Do you want to buy "<%= @film.title %>" for <%= format_price(@film.purchase_price) %>?
-                </p>
-                <div class="flex space-x-3 justify-center">
-                  <button
-                    type="button"
-                    class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-medium"
-                    phx-click="confirm_buy"
-                    phx-target={@myself}
-                  >
-                    Yes, buy it
-                  </button>
-                  <button
-                    type="button"
-                    class="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 font-medium"
-                    phx-click="cancel_buy"
                     phx-target={@myself}
                   >
                     Cancel
@@ -380,15 +334,6 @@ defmodule WindowpaneWeb.FilmModalComponent do
   end
 
   @impl true
-  def handle_event("buy_film", _params, socket) do
-    if socket.assigns.current_user do
-      {:noreply, assign(socket, show_buy_confirmation: true)}
-    else
-      {:noreply, assign(socket, show_login_message: true)}
-    end
-  end
-
-  @impl true
   def handle_event("close_login_message", _params, socket) do
     {:noreply, assign(socket, show_login_message: false)}
   end
@@ -448,7 +393,7 @@ defmodule WindowpaneWeb.FilmModalComponent do
         nil
       end
 
-      # 2. Create ownership record
+      # 2. Create or update ownership record
       case Ownership.create_rental(user.id, film.id, jwt_token) do
         {:ok, ownership_record} ->
           # 3. Deduct funds from user's wallet
@@ -457,11 +402,14 @@ defmodule WindowpaneWeb.FilmModalComponent do
               ownership_record
 
             {:error, reason} ->
-              Repo.rollback(reason)
+              Repo.rollback("Failed to deduct wallet funds: #{reason}")
           end
 
+        {:error, :already_owns} ->
+          Repo.rollback("You already have an active rental for this film")
+
         {:error, changeset} ->
-          Repo.rollback("Failed to create rental record")
+          Repo.rollback("Failed to create rental record: #{inspect(changeset.errors)}")
       end
     end)
   end
@@ -483,18 +431,6 @@ defmodule WindowpaneWeb.FilmModalComponent do
   @impl true
   def handle_event("cancel_rent", _params, socket) do
     {:noreply, assign(socket, show_rent_confirmation: false)}
-  end
-
-  @impl true
-  def handle_event("confirm_buy", _params, socket) do
-    # TODO: Implement actual purchase logic here
-    # For now, just close the confirmation
-    {:noreply, assign(socket, show_buy_confirmation: false)}
-  end
-
-  @impl true
-  def handle_event("cancel_buy", _params, socket) do
-    {:noreply, assign(socket, show_buy_confirmation: false)}
   end
 
   @impl true

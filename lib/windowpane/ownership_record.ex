@@ -33,6 +33,19 @@ defmodule Windowpane.OwnershipRecord do
   end
 
   @doc """
+  Updates an existing ownership record for a rental renewal.
+  Sets expiration to 48 hours from now and updates the JWT token.
+  """
+  def renewal_changeset(ownership_record, attrs) do
+    expires_at = DateTime.utc_now() |> DateTime.add(48, :hour)
+
+    ownership_record
+    |> cast(attrs, [:jwt_token])
+    |> put_change(:expires_at, expires_at)
+    |> validate_required([:jwt_token, :expires_at])
+  end
+
+  @doc """
   Checks if an ownership record is still valid (not expired).
   """
   def valid?(%__MODULE__{expires_at: expires_at}) do

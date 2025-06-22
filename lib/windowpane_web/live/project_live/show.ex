@@ -482,10 +482,6 @@ defmodule WindowpaneWeb.ProjectLive.Show do
                   <.input field={f[:rental_window_hours]} type="number" label="Rental Window (hours)" />
                 </div>
 
-                <div>
-                  <.input field={f[:purchase_price]} type="number" label="Purchase Price" step="0.01" />
-                </div>
-
                 <div class="flex gap-4">
                   <.button type="submit">Save Changes</.button>
                   <.button type="button" phx-click="cancel_edit" class="bg-gray-500 hover:bg-gray-600">
@@ -543,12 +539,6 @@ defmodule WindowpaneWeb.ProjectLive.Show do
                 <div>
                   <label class="block text-sm font-medium text-gray-500">Rental Window</label>
                   <p class="mt-1 text-gray-900"><%= @project.rental_window_hours %> hours</p>
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-gray-500">Purchase Price</label>
-                  <p class="mt-1 text-gray-900">
-                    <%= format_price(@project.purchase_price) %>
-                  </p>
                 </div>
               </div>
             </div>

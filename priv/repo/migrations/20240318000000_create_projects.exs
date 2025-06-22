@@ -10,7 +10,6 @@ defmodule Windowpane.Repo.Migrations.CreateProjects do
       add :premiere_price, :decimal, precision: 10, scale: 2
       add :rental_price, :decimal, precision: 10, scale: 2, null: false
       add :rental_window_hours, :integer, null: false
-      add :purchase_price, :decimal, precision: 10, scale: 2, null: false
       add :status, :string, null: false, default: "draft"
 
       add :creator_id, references(:creators, on_delete: :restrict), null: false

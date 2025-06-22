@@ -126,7 +126,7 @@ defmodule WindowpaneWeb.ShopLive do
         <div class="mb-8">
           <h1 class="text-3xl font-bold text-gray-800 mb-4">ADD FUNDS TO YOUR WINDOWPANE WALLET</h1>
           <div class="text-gray-600 space-y-2">
-            <p>Funds in your Windowpane Wallet may be used for the purchase of any content on Windowpane or within content that supports Windowpane transactions.</p>
+            <p>Funds in your Windowpane Wallet may be used for the rental of any content on Windowpane or within content that supports Windowpane transactions.</p>
             <p>You'll have a chance to review your order before it's placed.</p>
           </div>
         </div>

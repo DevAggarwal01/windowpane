@@ -82,7 +82,7 @@ defmodule WindowpaneWeb.LibraryLive do
     <main class="max-w-7xl mx-auto px-4 py-6">
       <div class="mb-8">
         <h1 class="text-3xl font-bold text-white mb-2">My Library</h1>
-        <p class="text-gray-400">Your purchased and rented films</p>
+        <p class="text-gray-400">Your rented films</p>
       </div>
 
       <!-- Content Area -->

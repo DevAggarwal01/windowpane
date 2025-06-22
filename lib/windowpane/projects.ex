@@ -339,8 +339,7 @@ defmodule Windowpane.Projects do
       field_valid?(project.premiere_date),
       field_valid?(project.premiere_price),
       field_valid?(project.rental_price),
-      field_valid?(project.rental_window_hours),
-      field_valid?(project.purchase_price)
+      project.rental_window_hours > 0
     ]
 
     # Check uploads exist

@@ -12,13 +12,13 @@ defmodule Windowpane.Projects.Project do
     field :premiere_price, :decimal
     field :rental_price, :decimal
     field :rental_window_hours, :integer
-    field :purchase_price, :decimal
     field :status, :string, default: "draft"
     field :creator_id, :id
 
     # Relations
     belongs_to :creator, Windowpane.Creators.Creator, define_field: false
     has_one :film, Windowpane.Projects.Film
+    has_one :live_stream, Windowpane.Projects.LiveStream
     has_many :reviews, Windowpane.Projects.ProjectReview
     has_many :ownership_records, Windowpane.OwnershipRecord
 
@@ -36,7 +36,6 @@ defmodule Windowpane.Projects.Project do
       :premiere_price,
       :rental_price,
       :rental_window_hours,
-      :purchase_price,
       :status,
       :creator_id
     ])
@@ -47,13 +46,11 @@ defmodule Windowpane.Projects.Project do
       :premiere_date,
       :rental_price,
       :rental_window_hours,
-      :purchase_price,
       :creator_id
     ])
     |> validate_inclusion(:type, @project_types)
     |> validate_number(:premiere_price, greater_than_or_equal_to: 0)
     |> validate_number(:rental_price, greater_than_or_equal_to: 0)
-    |> validate_number(:purchase_price, greater_than_or_equal_to: 0)
     |> validate_number(:rental_window_hours, greater_than: 0)
     |> validate_inclusion(:status, ["draft", "published", "archived", "waiting for approval"])
     |> foreign_key_constraint(:creator_id)

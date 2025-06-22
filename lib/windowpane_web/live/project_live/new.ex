@@ -266,26 +266,6 @@ defmodule WindowpaneWeb.ProjectLive.New do
                       </div>
                     </div>
                   </div>
-                  <div>
-                    <label for="purchase_price" class="block text-sm font-medium text-gray-700">
-                      Purchase Price (lifetime access)
-                    </label>
-                    <div class="mt-1 relative rounded-md shadow-sm">
-                      <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                        <span class="text-gray-500 sm:text-sm">$</span>
-                      </div>
-                      <input
-                        type="number"
-                        name="purchase_price"
-                        id="purchase_price"
-                        step="0.01"
-                        min="0"
-                        class="pl-7 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                        placeholder="0.00"
-                        required
-                      />
-                    </div>
-                  </div>
                   <div class="flex justify-between">
                     <button
                       type="button"

@@ -9,8 +9,28 @@ defmodule Windowpane.Ownership do
 
   @doc """
   Creates an ownership record for a rental.
+  If an ownership record already exists but is expired, it will be updated with new JWT token and expiration.
   """
   def create_rental(user_id, project_id, jwt_token \\ nil) do
+    case get_ownership_record(user_id, project_id) do
+      nil ->
+        # No existing record, create a new one
+        create_new_rental(user_id, project_id, jwt_token)
+
+      existing_record ->
+        # Record exists, check if it's expired
+        if OwnershipRecord.valid?(existing_record) do
+          # Record is still active, return error
+          {:error, :already_owns}
+        else
+          # Record is expired, update it with new JWT token and expiration
+          update_expired_rental(existing_record, jwt_token)
+        end
+    end
+  end
+
+  # Creates a new ownership record for a rental.
+  defp create_new_rental(user_id, project_id, jwt_token) do
     attrs = %{
       user_id: user_id,
       project_id: project_id,
@@ -20,6 +40,15 @@ defmodule Windowpane.Ownership do
     %OwnershipRecord{}
     |> OwnershipRecord.new_rental_changeset(attrs)
     |> Repo.insert()
+  end
+
+  # Updates an expired ownership record with new JWT token and expiration.
+  defp update_expired_rental(ownership_record, jwt_token) do
+    attrs = %{jwt_token: jwt_token}
+
+    ownership_record
+    |> OwnershipRecord.renewal_changeset(attrs)
+    |> Repo.update()
   end
 
   @doc """

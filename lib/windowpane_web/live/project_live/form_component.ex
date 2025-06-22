@@ -66,17 +66,6 @@ defmodule WindowpaneWeb.ProjectLive.FormComponent do
               />
             </div>
           </div>
-
-          <div>
-            <.input
-              field={@form[:purchase_price]}
-              type="number"
-              label="Purchase Price"
-              step="0.01"
-              min="0"
-              required
-            />
-          </div>
         </div>
 
         <div class="mt-6 flex justify-end gap-4">

@@ -126,106 +126,35 @@ defmodule WindowpaneWeb.WatchLive do
         <!-- Main Watch Container -->
         <div class="min-h-screen bg-gray-50">
           <!-- Main Content -->
-          <div class="max-w-7xl mx-auto px-4 py-6">
-            <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
-              <!-- Left Column - Cover & Info -->
-              <div class="lg:col-span-1">
-                <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                  <!-- Film Cover -->
-                  <div class="aspect-[3/4] bg-gray-100 relative">
-                    <%= if Windowpane.Uploaders.CoverUploader.cover_exists?(@project) do %>
-                      <img
-                        src={Windowpane.Uploaders.CoverUploader.cover_url(@project)}
-                        alt={"Cover for #{@project.title}"}
-                        class="w-full h-full object-cover"
-                      />
-                    <% else %>
-                      <div class="flex items-center justify-center w-full h-full">
-                        <div class="text-center text-gray-400">
-                          <span class="text-6xl mb-2 block">🎬</span>
-                          <span class="text-sm font-medium">No Cover</span>
-                        </div>
-                      </div>
-                    <% end %>
-                  </div>
-
-                  <!-- Film Details -->
-                  <div class="p-4">
-                    <h1 class="text-xl font-bold text-gray-900 mb-2"><%= @project.title %></h1>
-                    <p class="text-gray-600 mb-3">By <%= @project.creator.name %></p>
-
-                    <!-- Status Badge -->
-                    <div class="flex items-center gap-2 mb-4">
-                      <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        ✓ MOVIE
-                      </span>
-                    </div>
-
-                    <!-- Film Info -->
-                    <div class="space-y-2 text-sm">
-                      <%= if @project.description && String.trim(@project.description) != "" do %>
-                        <div>
-                          <p class="text-gray-700 leading-relaxed">
-                            <%= @project.description %>
-                          </p>
-                        </div>
-                      <% end %>
-
-                      <div class="pt-2 border-t border-gray-100">
-                        <div class="space-y-1">
-                          <div class="flex justify-between">
-                            <span class="text-gray-500">Type:</span>
-                            <span class="text-gray-800 capitalize"><%= @project.type %></span>
-                          </div>
-                          <%= if @project.premiere_date do %>
-                            <div class="flex justify-between">
-                              <span class="text-gray-500">Premiered:</span>
-                              <span class="text-gray-800">
-                                <%= Calendar.strftime(@project.premiere_date, "%B %Y") %>
-                              </span>
-                            </div>
-                          <% end %>
-                          <%= if @content_type == "full" do %>
-                            <div class="flex justify-between">
-                              <span class="text-gray-500">Status:</span>
-                              <span class="text-green-600 font-medium">
-                                <%= if is_expired?(@ownership_record) do %>
-                                  Expired
-                                <% else %>
-                                  Expires <%= format_expires_at(@ownership_record.expires_at) %>
-                                <% end %>
-                              </span>
-                            </div>
-                          <% end %>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+          <div class="flex pl-8">
+            <!-- Left Side - Video Player (maintain exact current size) -->
+            <div class="w-4/5 pr-4 pb-12 flex-shrink-0">
+              <!-- Player Container -->
+              <div class="aspect-video bg-black">
+                <mux-player
+                  playback-id={@playback_id}
+                  playback-token={@playback_token}
+                  stream-type="on-demand"
+                  title={@project.title}
+                  class="w-full h-full"
+                ></mux-player>
               </div>
 
-              <!-- Middle Column - Video Player -->
-              <div class="lg:col-span-3">
-                <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                  <!-- Player Container -->
-                  <div class="aspect-video bg-black relative">
-                    <mux-player
-                      playback-id={@playback_id}
-                      playback-token={@playback_token}
-                      stream-type="on-demand"
-                      title={@project.title}
-                      class="w-full h-full"
-                    ></mux-player>
-                  </div>
-                </div>
+              <!-- Creator Info Below Video -->
+              <div class="mt-4">
+                <p class="text-gray-900 text-lg font-medium">
+                  CREATOR INFO HERE - <%= @project.creator.name %>
+                </p>
+              </div>
 
-                <!-- Additional Actions -->
-                <%= if @content_type == "trailer" do %>
-                  <div class="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <!-- Additional Actions -->
+              <%= if @content_type == "trailer" do %>
+                <div class="mt-6">
+                  <div class="p-4 bg-blue-50 rounded-lg border border-blue-200">
                     <div class="flex items-center justify-between">
                       <div>
                         <h3 class="text-lg font-medium text-blue-900">Want to watch the full film?</h3>
-                        <p class="text-blue-700">This is just the trailer. Rent or purchase to watch the complete film.</p>
+                        <p class="text-blue-700">This is just the trailer. Rent to watch the complete film.</p>
                       </div>
                       <.link
                         navigate={~p"/?id=#{@project.id}"}
@@ -235,7 +164,83 @@ defmodule WindowpaneWeb.WatchLive do
                       </.link>
                     </div>
                   </div>
-                <% end %>
+                </div>
+              <% end %>
+            </div>
+
+            <!-- Right Side - Film Details Card -->
+            <div class="flex-1 p-4">
+              <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden max-w-sm">
+                <!-- Film Cover -->
+                <div class="aspect-[3/4] bg-gray-100 relative">
+                  <%= if Windowpane.Uploaders.CoverUploader.cover_exists?(@project) do %>
+                    <img
+                      src={Windowpane.Uploaders.CoverUploader.cover_url(@project)}
+                      alt={"Cover for #{@project.title}"}
+                      class="w-full h-full object-cover"
+                    />
+                  <% else %>
+                    <div class="flex items-center justify-center w-full h-full">
+                      <div class="text-center text-gray-400">
+                        <span class="text-6xl mb-2 block">🎬</span>
+                        <span class="text-sm font-medium">No Cover</span>
+                      </div>
+                    </div>
+                  <% end %>
+                </div>
+
+                <!-- Film Details -->
+                <div class="p-4">
+                  <h1 class="text-xl font-bold text-gray-900 mb-2"><%= @project.title %></h1>
+                  <p class="text-gray-600 mb-3">By <%= @project.creator.name %></p>
+
+                  <!-- Status Badge -->
+                  <div class="flex items-center gap-2 mb-4">
+                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      ✓ MOVIE
+                    </span>
+                  </div>
+
+                  <!-- Film Info -->
+                  <div class="space-y-2 text-sm">
+                    <%= if @project.description && String.trim(@project.description) != "" do %>
+                      <div>
+                        <p class="text-gray-700 leading-relaxed">
+                          <%= @project.description %>
+                        </p>
+                      </div>
+                    <% end %>
+
+                    <div class="pt-2 border-t border-gray-100">
+                      <div class="space-y-1">
+                        <div class="flex justify-between">
+                          <span class="text-gray-500">Type:</span>
+                          <span class="text-gray-800 capitalize"><%= @project.type %></span>
+                        </div>
+                        <%= if @project.premiere_date do %>
+                          <div class="flex justify-between">
+                            <span class="text-gray-500">Premiered:</span>
+                            <span class="text-gray-800">
+                              <%= Calendar.strftime(@project.premiere_date, "%B %Y") %>
+                            </span>
+                          </div>
+                        <% end %>
+                        <%= if @content_type == "full" do %>
+                          <div class="flex justify-between">
+                            <span class="text-gray-500">Status:</span>
+                            <span class="text-green-600 font-medium">
+                              <%= if is_expired?(@ownership_record) do %>
+                                Expired
+                              <% else %>
+                                Expires <%= format_expires_at(@ownership_record.expires_at) %>
+                              <% end %>
+                            </span>
+                          </div>
+                        <% end %>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

@@ -219,10 +219,6 @@ defmodule WindowpaneWeb.Admin.ProjectDetailsLive do
                           <h4 class="text-sm font-medium text-gray-500">Rental Window</h4>
                           <p class="mt-1 text-sm text-gray-900"><%= @project.rental_window_hours %> hours</p>
                         </div>
-                        <div>
-                          <h4 class="text-sm font-medium text-gray-500">Purchase Price</h4>
-                          <p class="mt-1 text-sm text-gray-900">$<%= Decimal.to_string(@project.purchase_price) %></p>
-                        </div>
                       </div>
                     </div>
                   </div>

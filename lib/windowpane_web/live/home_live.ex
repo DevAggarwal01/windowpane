@@ -74,8 +74,7 @@ defmodule WindowpaneWeb.HomeLive do
           "status" => "draft",
           "premiere_date" => DateTime.utc_now() |> DateTime.add(30, :day),
           "rental_price" => Decimal.new("2.99"),
-          "rental_window_hours" => 48,
-          "purchase_price" => Decimal.new("9.99")
+          "rental_window_hours" => 48
         }
 
         case Windowpane.Projects.create_project(project_params) do
@@ -363,26 +362,6 @@ defmodule WindowpaneWeb.HomeLive do
                                     required
                                   />
                                 </div>
-                              </div>
-                            </div>
-                            <div>
-                              <label for="purchase_price" class="block text-sm font-medium text-gray-700 text-left">
-                                Purchase Price (lifetime access)
-                              </label>
-                              <div class="mt-1 relative rounded-md shadow-sm">
-                                <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                                  <span class="text-gray-500 sm:text-sm">$</span>
-                                </div>
-                                <input
-                                  type="number"
-                                  name="purchase_price"
-                                  id="purchase_price"
-                                  step="0.01"
-                                  min="0"
-                                  class="pl-7 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                                  placeholder="0.00"
-                                  required
-                                />
                               </div>
                             </div>
                             <div class="mt-6 sm:grid sm:grid-flow-row-dense sm:grid-cols-2 sm:gap-3">
