@@ -91,7 +91,7 @@ Hooks.ImageCropper = {
     reader.onload = (e) => {
       // Push event to LiveView to show modal
       try {
-        this.pushEvent("show_cropper_modal", {});
+        this.pushEventTo(this.el, "show_cropper_modal", {});
       } catch (error) {
         console.warn("Failed to push show_cropper_modal event:", error);
         return;
@@ -147,7 +147,7 @@ Hooks.ImageCropper = {
   
   hideCropperModal() {
     try {
-      this.pushEvent("hide_cropper_modal", {});
+      this.pushEventTo(this.el, "hide_cropper_modal", {});
     } catch (error) {
       console.warn("Failed to push hide_cropper_modal event:", error);
     }
@@ -160,7 +160,7 @@ Hooks.ImageCropper = {
     
     // Show uploading state
     try {
-      this.pushEvent("set_uploading", { uploading: true });
+      this.pushEventTo(this.el, "set_uploading", { uploading: true });
     } catch (error) {
       console.warn("Failed to push set_uploading event:", error);
       return;
@@ -179,13 +179,13 @@ Hooks.ImageCropper = {
         this.destroyCropper();
         this.hideCropperModal();
         try {
-          this.pushEvent("upload_success", {});
+          this.pushEventTo(this.el, "upload_success", {});
         } catch (error) {
           console.warn("Failed to push upload_success event:", error);
         }
       } else {
         try {
-          this.pushEvent("upload_error", { error: data.error });
+          this.pushEventTo(this.el, "upload_error", { error: data.error });
         } catch (error) {
           console.warn("Failed to push upload_error event:", error);
         }
@@ -193,14 +193,14 @@ Hooks.ImageCropper = {
     })
     .catch(error => {
       try {
-        this.pushEvent("upload_error", { error: error.message });
+        this.pushEventTo(this.el, "upload_error", { error: error.message });
       } catch (pushError) {
         console.warn("Failed to push upload_error event:", pushError);
       }
     })
     .finally(() => {
       try {
-        this.pushEvent("set_uploading", { uploading: false });
+        this.pushEventTo(this.el, "set_uploading", { uploading: false });
       } catch (error) {
         console.warn("Failed to push set_uploading event:", error);
       }
@@ -273,7 +273,7 @@ Hooks.BannerCropper = {
     reader.onload = (e) => {
       // Push event to LiveView to show modal
       try {
-        this.pushEvent("show_banner_cropper_modal", {});
+        this.pushEventTo(this.el, "show_banner_cropper_modal", {});
         
         // Wait for modal to be rendered, then initialize cropper
         setTimeout(() => {
@@ -328,7 +328,7 @@ Hooks.BannerCropper = {
   
   hideCropperModal() {
     try {
-      this.pushEvent("hide_banner_cropper_modal", {});
+      this.pushEventTo(this.el, "hide_banner_cropper_modal", {});
     } catch (error) {
       console.warn("Failed to push hide_banner_cropper_modal event:", error);
     }
@@ -341,7 +341,7 @@ Hooks.BannerCropper = {
     
     // Show uploading state
     try {
-      this.pushEvent("set_banner_uploading", { uploading: true });
+      this.pushEventTo(this.el, "set_banner_uploading", { uploading: true });
     } catch (error) {
       console.warn("Failed to push set_banner_uploading event:", error);
       return;
@@ -360,13 +360,13 @@ Hooks.BannerCropper = {
         this.destroyCropper();
         this.hideCropperModal();
         try {
-          this.pushEvent("banner_upload_success", {});
+          this.pushEventTo(this.el, "banner_upload_success", {});
         } catch (error) {
           console.warn("Failed to push banner_upload_success event:", error);
         }
       } else {
         try {
-          this.pushEvent("banner_upload_error", { error: data.error });
+          this.pushEventTo(this.el, "banner_upload_error", { error: data.error });
         } catch (error) {
           console.warn("Failed to push banner_upload_error event:", error);
         }
@@ -374,14 +374,14 @@ Hooks.BannerCropper = {
     })
     .catch(error => {
       try {
-        this.pushEvent("banner_upload_error", { error: error.message });
+        this.pushEventTo(this.el, "banner_upload_error", { error: error.message });
       } catch (pushError) {
         console.warn("Failed to push banner_upload_error event:", pushError);
       }
     })
     .finally(() => {
       try {
-        this.pushEvent("set_banner_uploading", { uploading: false });
+        this.pushEventTo(this.el, "set_banner_uploading", { uploading: false });
       } catch (error) {
         console.warn("Failed to push set_banner_uploading event:", error);
       }
