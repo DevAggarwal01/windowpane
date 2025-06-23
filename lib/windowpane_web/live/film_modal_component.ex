@@ -45,7 +45,7 @@ defmodule WindowpaneWeb.FilmModalComponent do
 
           <!-- Trailer Player -->
           <div class="relative w-full aspect-video bg-gray-800">
-            <%= if @film.film && @film.film.trailer_playback_id && @trailer_token do %>
+            <%= if @film.film && Map.get(@film.film, :trailer_playback_id) && @trailer_token do %>
               <mux-player
                 playback-id={@film.film.trailer_playback_id}
                 poster={if Windowpane.Uploaders.BannerUploader.banner_exists?(@film), do: Windowpane.Uploaders.BannerUploader.banner_url(@film), else: nil}
@@ -82,7 +82,7 @@ defmodule WindowpaneWeb.FilmModalComponent do
                 <% end %>
 
               <!-- Watch Film Button (only if no trailer but has full film) -->
-              <%= if @film.film && !@film.film.trailer_playback_id && @film.film.film_playback_id do %>
+              <%= if @film.film && !Map.get(@film.film, :trailer_playback_id) && Map.get(@film.film, :film_playback_id) do %>
                 <.link
                   navigate={~p"/watch?id=#{@film.id}"}
                   class="absolute bottom-4 right-4 bg-black bg-opacity-70 hover:bg-opacity-90 px-3 py-2 rounded cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-lg"
@@ -107,7 +107,7 @@ defmodule WindowpaneWeb.FilmModalComponent do
                   <%= @film.title %>
                 </h1>
                 <p class="text-gray-300 mb-4">
-                  By <%= @film.creator.name %>
+                  By <%= if is_map(@film.creator) && !match?(%Ecto.Association.NotLoaded{}, @film.creator), do: @film.creator.name, else: "Unknown Creator" %>
                 </p>
               </div>
 
@@ -315,13 +315,9 @@ defmodule WindowpaneWeb.FilmModalComponent do
 
   @impl true
   def handle_event("close_modal", _params, socket) do
-    # Determine the base URL to return to based on current path
-    base_url = case socket.view do
-      WindowpaneWeb.LibraryLive -> "/library"
-      _ -> "/"
-    end
-
-    {:noreply, push_patch(socket, to: base_url)}
+    # Send message to parent LiveView to handle modal closing
+    send(self(), :close_film_modal)
+    {:noreply, socket}
   end
 
   @impl true
@@ -417,10 +413,10 @@ defmodule WindowpaneWeb.FilmModalComponent do
   # Helper function to get the playback ID from a film
   defp get_film_playback_id(film) do
     cond do
-      film.film && film.film.film_playback_id ->
+      film.film && Map.get(film.film, :film_playback_id) ->
         film.film.film_playback_id
 
-      film.film && film.film.trailer_playback_id ->
+      film.film && Map.get(film.film, :trailer_playback_id) ->
         film.film.trailer_playback_id
 
       true ->

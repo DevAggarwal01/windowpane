@@ -91,6 +91,33 @@ defmodule WindowpaneWeb.HomeLive do
              |> assign(show_project_dropdown: false)}
         end
 
+      "live_event" ->
+        project_params = %{
+          "title" => "New Live Stream",
+          "description" => "A new live stream project",
+          "type" => type,
+          "creator_id" => socket.assigns.current_creator.id,
+          "status" => "draft",
+          "premiere_date" => DateTime.utc_now() |> DateTime.add(7, :day),
+          "premiere_price" => Decimal.new("0.00"),
+          "rental_price" => Decimal.new("5.00"),
+          "rental_window_hours" => 24
+        }
+
+        case Windowpane.Projects.create_project(project_params) do
+          {:ok, project} ->
+            {:noreply,
+             socket
+             |> put_flash(:info, "Live stream project created successfully!")
+             |> redirect(to: ~p"/#{project.id}")}
+
+          {:error, _changeset} ->
+            {:noreply,
+             socket
+             |> put_flash(:error, "Error creating live stream project. Please try again.")
+             |> assign(show_project_dropdown: false)}
+        end
+
       _ ->
         {:noreply, assign(socket,
           show_project_dropdown: false,
@@ -526,7 +553,7 @@ defmodule WindowpaneWeb.HomeLive do
                         class="w-full text-left px-3 py-2 text-sm rounded-md text-gray-700 hover:bg-blue-50 hover:text-blue-700 flex items-center space-x-3 transition-colors duration-150"
                       >
                         <span class="text-xl">🎤</span>
-                        <span>Live Event / Concert</span>
+                        <span>Live Stream</span>
                       </button>
                       <button
                         phx-click="create_project"

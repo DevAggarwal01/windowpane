@@ -9,6 +9,7 @@ defmodule Windowpane.Projects do
   alias Windowpane.Projects.Film
   alias Windowpane.Projects.ProjectApprovalQueue
   alias Windowpane.Projects.ProjectReview
+  alias Windowpane.Projects.LiveStream
 
   @doc """
   Returns the list of projects for a creator.
@@ -463,6 +464,24 @@ defmodule Windowpane.Projects do
   end
 
   @doc """
+  Gets a project with live stream and reviews preloaded.
+
+  ## Examples
+
+      iex> get_project_with_live_stream_and_reviews!(123)
+      %Project{live_stream: %LiveStream{}, reviews: [%ProjectReview{}, ...]}
+
+  """
+  def get_project_with_live_stream_and_reviews!(id) do
+    Project
+    |> Repo.get!(id)
+    |> Repo.preload([:live_stream, :reviews])
+    |> Map.update!(:reviews, fn reviews ->
+      Enum.sort_by(reviews, & &1.inserted_at, :desc)
+    end)
+  end
+
+  @doc """
   Returns a list of published film projects with films and only creator names (for security).
 
   ## Examples
@@ -578,5 +597,94 @@ defmodule Windowpane.Projects do
 
     # Manually set the creator with just the name
     %{project | creator: %{name: creator_name}}
+  end
+
+  @doc """
+  Gets a project with its appropriate associations (film or live_stream) and only the creator's name (for security).
+  Only loads the minimal creator data needed for display.
+
+  ## Examples
+
+      iex> get_project_with_associations_and_creator_name!(123)
+      %Project{}
+
+  """
+  def get_project_with_associations_and_creator_name!(id) do
+    # Load project first to determine type
+    project = Project |> Repo.get!(id)
+
+    # Preload appropriate associations based on project type
+    project = case project.type do
+      "film" -> Repo.preload(project, :film)
+      "live_event" -> Repo.preload(project, :live_stream)
+      _ -> project
+    end
+
+    # Get only the creator's name
+    creator_name = from(c in Windowpane.Creators.Creator,
+      where: c.id == ^project.creator_id,
+      select: c.name
+    )
+    |> Repo.one!()
+
+    # Manually set the creator with just the name
+    %{project | creator: %{name: creator_name}}
+  end
+
+  # Live Stream functions
+
+  @doc """
+  Creates a live stream for a project.
+
+  ## Examples
+
+      iex> create_live_stream(%{project_id: 1, mux_stream_id: "stream_123"})
+      {:ok, %LiveStream{}}
+
+      iex> create_live_stream(%{project_id: bad_value})
+      {:error, %Ecto.Changeset{}}
+
+  """
+  def create_live_stream(attrs \\ %{}) do
+    %LiveStream{}
+    |> LiveStream.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  @doc """
+  Updates a live stream.
+
+  ## Examples
+
+      iex> update_live_stream(live_stream, %{status: "active"})
+      {:ok, %LiveStream{}}
+
+      iex> update_live_stream(live_stream, %{field: bad_value})
+      {:error, %Ecto.Changeset{}}
+
+  """
+  def update_live_stream(%LiveStream{} = live_stream, attrs) do
+    live_stream
+    |> LiveStream.changeset(attrs)
+    |> Repo.update()
+  end
+
+  @doc """
+  Gets or creates a live stream for a project.
+
+  ## Examples
+
+      iex> get_or_create_live_stream(project)
+      %LiveStream{}
+
+  """
+  def get_or_create_live_stream(%Project{} = project) do
+    case Repo.get_by(LiveStream, project_id: project.id) do
+      nil ->
+        {:ok, live_stream} = create_live_stream(%{project_id: project.id})
+        live_stream
+      live_stream ->
+        live_stream
+    end
   end
 end

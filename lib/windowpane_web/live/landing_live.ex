@@ -27,7 +27,7 @@ defmodule WindowpaneWeb.LandingLive do
         id ->
           # Find the film by ID from the published films or fetch from database
           case Enum.find(socket.assigns.published_films, &(&1.id == String.to_integer(id))) do
-            nil -> Projects.get_project_with_film_and_creator_name!(String.to_integer(id)) # Secure fallback
+            nil -> Projects.get_project_with_associations_and_creator_name!(String.to_integer(id)) # Secure fallback for any project type
             film -> film
           end
       end
@@ -60,6 +60,12 @@ defmodule WindowpaneWeb.LandingLive do
       |> assign(:ownership_id, ownership_id)
 
     {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info(:close_film_modal, socket) do
+    # Close the modal by removing the id parameter from the URL
+    {:noreply, push_patch(socket, to: ~p"/")}
   end
 
   @impl true
