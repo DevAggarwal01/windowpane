@@ -7,6 +7,13 @@ defmodule WindowpaneWeb.FilmModalComponent do
   defp format_price(nil), do: "Free"
   defp format_price(price) when is_struct(price, Decimal), do: "$#{Decimal.to_string(price)}"
 
+  # Helper function to generate cache-busting banner URL
+  defp banner_url_with_cache_bust(film, banner_updated_at) do
+    alias Windowpane.Uploaders.BannerUploader
+    base_url = BannerUploader.banner_url(film)
+    "#{base_url}?t=#{banner_updated_at}"
+  end
+
   @impl true
   def mount(socket) do
     {:ok, assign(socket,
@@ -15,8 +22,20 @@ defmodule WindowpaneWeb.FilmModalComponent do
       show_insufficient_funds: false,
       show_rental_success: false,
       user_owns_film: false,  # Default value
-      ownership_id: nil  # Default value for ownership ID
+      ownership_id: nil,  # Default value for ownership ID
+      edit: false,  # Default value for edit parameter
+      show_banner_cropper_modal: false,
+      banner_uploading: false,
+      banner_updated_at: System.system_time(:second)
     )}
+  end
+
+  @impl true
+  def update(assigns, socket) do
+    {:ok,
+     socket
+     |> assign(assigns)
+     |> allow_upload(:banner, accept: ~w(.jpg .jpeg .png .webp), max_entries: 1)}
   end
 
   @impl true
@@ -48,7 +67,7 @@ defmodule WindowpaneWeb.FilmModalComponent do
             <%= if @film.film && Map.get(@film.film, :trailer_playback_id) && @trailer_token do %>
               <mux-player
                 playback-id={@film.film.trailer_playback_id}
-                poster={if Windowpane.Uploaders.BannerUploader.banner_exists?(@film), do: Windowpane.Uploaders.BannerUploader.banner_url(@film), else: nil}
+                poster={if Windowpane.Uploaders.BannerUploader.banner_exists?(@film), do: banner_url_with_cache_bust(@film, @banner_updated_at), else: nil}
                 playback-token={@trailer_token}
                 stream-type="on-demand"
                 style="--bottom-controls: none;"
@@ -60,7 +79,7 @@ defmodule WindowpaneWeb.FilmModalComponent do
               <%= cond do %>
                 <% Windowpane.Uploaders.BannerUploader.banner_exists?(@film) -> %>
                   <img
-                    src={Windowpane.Uploaders.BannerUploader.banner_url(@film)}
+                    src={banner_url_with_cache_bust(@film, @banner_updated_at)}
                     alt={"Banner for #{@film.title}"}
                     class="w-full h-full object-cover"
                   />
@@ -94,6 +113,20 @@ defmodule WindowpaneWeb.FilmModalComponent do
                     Watch Film
               </div>
                 </.link>
+              <% end %>
+
+              <!-- Banner Edit Pencil Icon (only when edit=true) -->
+              <%= if Map.get(assigns, :edit, false) do %>
+                <button
+                  type="button"
+                  class="absolute top-4 left-4 w-10 h-10 bg-white bg-opacity-80 rounded-full shadow-md flex items-center justify-center border border-gray-200 hover:bg-opacity-100 cursor-pointer z-10 transition-all duration-200 hover:scale-105"
+                  onclick="document.getElementById('banner-file-input').click();"
+                  title="Edit banner image"
+                >
+                  <svg class="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </button>
               <% end %>
             <% end %>
           </div>
@@ -309,6 +342,85 @@ defmodule WindowpaneWeb.FilmModalComponent do
           </div>
         </div>
       <% end %>
+
+      <!-- Banner Cropper Modal -->
+      <%= if @show_banner_cropper_modal do %>
+        <div class="fixed inset-0 z-70 overflow-y-auto">
+          <div class="fixed inset-0 bg-black bg-opacity-50"></div>
+          <div class="flex min-h-full items-center justify-center p-4">
+            <div class="relative bg-white rounded-lg p-6 max-w-4xl w-full transform transition-all duration-300 ease-in-out scale-100">
+              <div class="absolute right-0 top-0 pr-4 pt-4">
+                <button
+                  phx-click="hide_banner_cropper_modal"
+                  phx-target={@myself}
+                  type="button"
+                  class="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none"
+                >
+                  <span class="sr-only">Close</span>
+                  <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div class="text-center">
+                <div class="mb-4">
+                  <h3 class="text-lg font-medium text-gray-900">Crop Banner Image</h3>
+                  <p class="text-sm text-gray-500 mt-1">Adjust the crop area to fit your banner image (16:9 aspect ratio)</p>
+                </div>
+
+                <div class="cropper-container mb-6" style="max-height: 500px;">
+                  <img
+                    id="banner-cropper-image"
+                    src=""
+                    alt="Banner image to crop"
+                    style="max-width: 100%; display: block;"
+                  />
+                </div>
+
+                <div class="flex justify-center gap-3">
+                  <button
+                    type="button"
+                    onclick="document.dispatchEvent(new CustomEvent('banner-cropper:close'))"
+                    class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onclick="document.dispatchEvent(new CustomEvent('banner-cropper:crop-and-upload'))"
+                    class={[
+                      "px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500",
+                      @banner_uploading && "opacity-50 cursor-not-allowed"
+                    ]}
+                    disabled={@banner_uploading}
+                  >
+                    <%= if @banner_uploading do %>
+                      <svg class="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Uploading...
+                    <% else %>
+                      Crop & Upload
+                    <% end %>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      <% end %>
+
+      <!-- Hidden Banner File Input with BannerCropper Hook -->
+      <div id="banner-cropper-hook" phx-hook="BannerCropper" data-project-id={@film.id} phx-target={@myself} style="display: none;">
+        <input
+          type="file"
+          id="banner-file-input"
+          accept=".jpg,.jpeg,.png,.webp"
+          style="display: none;"
+        />
+      </div>
     </div>
     """
   end
@@ -455,5 +567,47 @@ defmodule WindowpaneWeb.FilmModalComponent do
      |> assign(show_rental_success: false)
      |> push_navigate(to: ~p"/library")  # Assuming this is the library route
     }
+  end
+
+  @impl true
+  def handle_event("show_banner_cropper_modal", _params, socket) do
+    {:noreply, assign(socket, :show_banner_cropper_modal, true)}
+  end
+
+  @impl true
+  def handle_event("hide_banner_cropper_modal", _params, socket) do
+    {:noreply, assign(socket, :show_banner_cropper_modal, false)}
+  end
+
+  @impl true
+  def handle_event("set_banner_uploading", %{"uploading" => uploading}, socket) do
+    {:noreply, assign(socket, :banner_uploading, uploading)}
+  end
+
+  @impl true
+  def handle_event("banner_upload_success", _params, socket) do
+    # Close the modal and show uploading state first
+    socket = socket
+      |> assign(:show_banner_cropper_modal, false)
+      |> assign(:banner_uploading, false)
+      |> assign(:banner_updated_at, System.system_time(:second))
+      |> put_flash(:info, "Banner image uploaded successfully!")
+
+    # Schedule a second update to ensure the image is processed and available
+    # This will create a new timestamp to force cache refresh
+    spawn(fn ->
+      Process.sleep(2000)
+      send_update(__MODULE__, id: "film-modal", banner_updated_at: System.system_time(:second))
+    end)
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("banner_upload_error", %{"error" => error}, socket) do
+    {:noreply,
+     socket
+     |> assign(:banner_uploading, false)
+     |> put_flash(:error, "Banner upload failed: #{error}")}
   end
 end

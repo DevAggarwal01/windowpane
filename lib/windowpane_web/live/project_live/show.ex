@@ -46,11 +46,22 @@ defmodule WindowpaneWeb.ProjectLive.Show do
 
   @impl true
   def handle_info({:show_film_modal, project}, socket) do
-    # Show the film modal with the project
+    # Show the film modal with the project (default edit=false)
     {:noreply,
      socket
      |> assign(:show_film_modal, true)
-     |> assign(:modal_project, project)}
+     |> assign(:modal_project, project)
+     |> assign(:modal_edit, false)}
+  end
+
+  @impl true
+  def handle_info({:show_film_modal, project, %{edit: edit}}, socket) do
+    # Show the film modal with the project and edit parameter
+    {:noreply,
+     socket
+     |> assign(:show_film_modal, true)
+     |> assign(:modal_project, project)
+     |> assign(:modal_edit, edit)}
   end
 
   @impl true
@@ -93,6 +104,7 @@ defmodule WindowpaneWeb.ProjectLive.Show do
         film={@modal_project}
         trailer_token={nil}
         current_user={assigns[:current_user]}
+        edit={@modal_edit}
       />
     <% end %>
 

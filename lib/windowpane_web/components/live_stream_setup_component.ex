@@ -17,7 +17,8 @@ defmodule WindowpaneWeb.LiveStreamSetupComponent do
      |> assign(:show_banner_modal, false)
      |> assign(:show_banner_cropper_modal, false)
      |> assign(:banner_uploading, false)
-     |> assign(:active_tab, "ui_setup")}
+     |> assign(:active_tab, "ui_setup")
+     |> assign(:cover_updated_at, System.system_time(:second))}
   end
 
   @impl true
@@ -141,6 +142,7 @@ defmodule WindowpaneWeb.LiveStreamSetupComponent do
      |> assign(:project, updated_project)
      |> assign(:show_cropper_modal, false)
      |> assign(:cover_uploading, false)
+     |> assign(:cover_updated_at, System.system_time(:second))
      |> put_flash(:info, "Cover image uploaded successfully!")}
   end
 
@@ -156,8 +158,8 @@ defmodule WindowpaneWeb.LiveStreamSetupComponent do
   def handle_event("show_film_modal", _params, socket) do
     require Logger
     Logger.info("show_film_modal event received!")
-    # Send message to parent to show FilmModalComponent
-    send(self(), {:show_film_modal, socket.assigns.project})
+    # Send message to parent to show FilmModalComponent with edit=true
+    send(self(), {:show_film_modal, socket.assigns.project, %{edit: true}})
     {:noreply, socket}
   end
 
@@ -197,6 +199,13 @@ defmodule WindowpaneWeb.LiveStreamSetupComponent do
      |> assign(:project, updated_project)
      |> assign(:show_banner_modal, false)
      |> put_flash(:info, "Banner updated successfully")}
+  end
+
+  # Helper function to generate cache-busting cover URL
+  defp cover_url_with_cache_bust(project, cover_updated_at) do
+    alias Windowpane.Uploaders.CoverUploader
+    base_url = CoverUploader.cover_url(project)
+    "#{base_url}?t=#{cover_updated_at}"
   end
 
   @impl true
@@ -239,17 +248,22 @@ defmodule WindowpaneWeb.LiveStreamSetupComponent do
                             <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
                             <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
 
-                            <div class="text-center">
-                              <svg class="mx-auto h-16 w-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                              </svg>
-                              <span class="text-xs text-gray-500">JPG, PNG, WEBP accepted</span>
-                            </div>
-
-                            <!-- Instructions text below cover -->
-                            <p class="text-sm text-gray-600 text-center mt-2">
-                              Click cover for additional configuration
-                            </p>
+                            <%= if Windowpane.Uploaders.CoverUploader.cover_exists?(@project) do %>
+                              <!-- Show uploaded cover image -->
+                              <img
+                                src={cover_url_with_cache_bust(@project, @cover_updated_at)}
+                                alt={"Cover for #{@project.title}"}
+                                class="w-full h-full object-cover rounded-lg"
+                              />
+                            <% else %>
+                              <!-- Show placeholder when no cover exists -->
+                              <div class="text-center">
+                                <svg class="mx-auto h-16 w-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                <span class="text-xs text-gray-500">JPG, PNG, WEBP accepted</span>
+                              </div>
+                            <% end %>
                           </div>
 
                           <!-- Pencil Edit Icon (positioned absolutely over the cover but outside its div) -->
@@ -369,6 +383,7 @@ defmodule WindowpaneWeb.LiveStreamSetupComponent do
             </div>
           </div>
         </div>
+
       <% end %>
 
       <!-- Tab Navigation -->
@@ -426,17 +441,22 @@ defmodule WindowpaneWeb.LiveStreamSetupComponent do
                 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
                 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
 
-                <div class="text-center">
-                  <svg class="mx-auto h-16 w-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                  <span class="text-xs text-gray-500">JPG, PNG, WEBP accepted</span>
-                </div>
-
-                <!-- Instructions text below cover -->
-                <p class="text-sm text-gray-600 text-center mt-2">
-                  Click cover for additional configuration
-                </p>
+                <%= if Windowpane.Uploaders.CoverUploader.cover_exists?(@project) do %>
+                  <!-- Show uploaded cover image -->
+                  <img
+                    src={cover_url_with_cache_bust(@project, @cover_updated_at)}
+                    alt={"Cover for #{@project.title}"}
+                    class="w-full h-full object-cover rounded-lg"
+                  />
+                <% else %>
+                  <!-- Show placeholder when no cover exists -->
+                  <div class="text-center">
+                    <svg class="mx-auto h-16 w-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <span class="text-xs text-gray-500">JPG, PNG, WEBP accepted</span>
+                  </div>
+                <% end %>
               </div>
 
               <!-- Pencil Edit Icon (positioned absolutely over the cover but outside its div) -->
@@ -463,6 +483,11 @@ defmodule WindowpaneWeb.LiveStreamSetupComponent do
               />
             </div>
           </div>
+
+          <!-- Instructions text (separate from cover) -->
+          <p class="text-sm text-gray-600 text-center mt-4">
+            Click cover for additional configuration
+          </p>
         </div>
       <% end %>
 
