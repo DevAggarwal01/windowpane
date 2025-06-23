@@ -71,7 +71,7 @@ defmodule WindowpaneWeb.FilmSetupComponent do
         "playback_policies" => ["signed"],
         "passthrough" => "type:trailer;project_id:#{socket.assigns.project.id}",
       },
-      "cors_origin" => "http://studio.windowpane.tv:4000",
+      "cors_origin" => "http://windowpane.tv:4000", # TODO delete the 4000 localhost
     }
 
     case Mux.Video.Uploads.create(client, params) do

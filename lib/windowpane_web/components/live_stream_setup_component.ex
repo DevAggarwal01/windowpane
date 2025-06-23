@@ -56,12 +56,11 @@ defmodule WindowpaneWeb.LiveStreamSetupComponent do
 
     client = Mux.client()
     params = %{
-      "playback_policy" => ["signed"],
-      "passthrough" => "type:live_stream;project_id:#{socket.assigns.project.id}",
       "new_asset_settings" => %{
         "playback_policies" => ["signed"],
-        "passthrough" => "type:recording;project_id:#{socket.assigns.project.id}"
-      }
+      },
+      "cors_origin" => "http://windowpane.tv:4000", # TODO delete the 4000 localhost
+      "passthrough" => "type:live_stream;project_id:#{socket.assigns.project.id}"
     }
 
     case Mux.Video.LiveStreams.create(client, params) do
@@ -583,37 +582,84 @@ defmodule WindowpaneWeb.LiveStreamSetupComponent do
         <div class="bg-white shadow rounded-lg p-6 mb-8">
           <h2 class="text-2xl font-bold mb-6">Live Stream Setup</h2>
 
-          <.form :let={f} for={@changeset} phx-submit="save" phx-target={@myself} class="space-y-6">
-            <div>
-              <.input field={f[:status]} type="select" label="Stream Status" options={[
-                {"Draft", "draft"},
-                {"Scheduled", "scheduled"},
-                {"Live", "live"},
-                {"Ended", "ended"}
-              ]} />
-              <p class="mt-2 text-sm text-gray-600">
-                Control the current status of your live stream.
-              </p>
-            </div>
+          <%= if @project.live_stream do %>
+            <!-- Live Stream exists - show stream info -->
+            <div class="space-y-6">
+              <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                <div class="flex items-start">
+                  <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                    </svg>
+                  </div>
+                  <div class="ml-3">
+                    <h3 class="text-sm font-medium text-green-800">Live Stream Created</h3>
+                    <div class="mt-2 text-sm text-green-700">
+                      <p>Your live stream has been successfully created!</p>
+                      <p class="mt-1"><strong>Stream Key:</strong> <code class="bg-green-100 px-2 py-1 rounded text-xs"><%= @project.live_stream.stream_key %></code></p>
+                      <p class="mt-1"><strong>Playback ID:</strong> <code class="bg-green-100 px-2 py-1 rounded text-xs"><%= @project.live_stream.playback_id %></code></p>
+                      <p class="mt-1"><strong>Status:</strong> <span class="capitalize"><%= @project.live_stream.status %></span></p>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
-            <%= if @editing do %>
-              <div class="flex justify-end">
+              <div class="flex gap-4">
                 <button
-                  type="submit"
-                  class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 transition-colors"
+                  phx-click="start_stream"
+                  phx-target={@myself}
+                  class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md font-medium hover:bg-green-700 transition-colors"
                 >
-                  Save Changes
+                  <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h8m-6 4h8m-6 4h8M6 8V6a2 2 0 012-2h8a2 2 0 012 2v2" />
+                  </svg>
+                  Start Stream
+                </button>
+
+                <button
+                  phx-click="stop_stream"
+                  phx-target={@myself}
+                  class="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-md font-medium hover:bg-red-700 transition-colors"
+                >
+                  <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+                  </svg>
+                  Stop Stream
                 </button>
               </div>
-            <% end %>
-          </.form>
+            </div>
+          <% else %>
+            <!-- No live stream exists - show create button -->
+            <div class="text-center py-8">
+              <div class="mx-auto h-24 w-24 text-gray-400 mb-6">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" class="w-full h-full">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+              </div>
+
+              <h3 class="text-lg font-medium text-gray-900 mb-2">No Live Stream Created</h3>
+              <p class="text-gray-600 mb-6">Create a live stream to start broadcasting your content.</p>
+
+              <button
+                phx-click="create_live_stream"
+                phx-target={@myself}
+                class="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 transition-colors"
+              >
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                Create Live Stream
+              </button>
+            </div>
+          <% end %>
         </div>
 
         <!-- Coming Soon Section -->
         <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-8 text-center">
           <div class="mx-auto h-24 w-24 text-blue-500 mb-6">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" class="w-full h-full">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2 2v8a2 2 0 002 2z" />
             </svg>
           </div>
 
