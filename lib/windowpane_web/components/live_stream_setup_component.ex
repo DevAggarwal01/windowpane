@@ -17,7 +17,7 @@ defmodule WindowpaneWeb.LiveStreamSetupComponent do
      |> assign(:show_banner_modal, false)
      |> assign(:show_banner_cropper_modal, false)
      |> assign(:banner_uploading, false)
-     |> assign(:active_tab, "ui_setup")
+     |> assign(:active_tab, "project_details")
      |> assign(:cover_updated_at, System.system_time(:second))}
   end
 
@@ -392,6 +392,20 @@ defmodule WindowpaneWeb.LiveStreamSetupComponent do
           <nav class="-mb-px flex">
             <button
               phx-click="switch_tab"
+              phx-value-tab="project_details"
+              phx-target={@myself}
+              class={[
+                "py-4 px-6 text-sm font-medium border-b-2 transition-colors",
+                if(@active_tab == "project_details",
+                  do: "border-blue-500 text-blue-600 bg-blue-50",
+                  else: "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                )
+              ]}
+            >
+              Project Details
+            </button>
+            <button
+              phx-click="switch_tab"
               phx-value-tab="ui_setup"
               phx-target={@myself}
               class={[
@@ -418,11 +432,84 @@ defmodule WindowpaneWeb.LiveStreamSetupComponent do
             >
               Live Stream Setup
             </button>
+            <button
+              phx-click="switch_tab"
+              phx-value-tab="pricing_details"
+              phx-target={@myself}
+              class={[
+                "py-4 px-6 text-sm font-medium border-b-2 transition-colors",
+                if(@active_tab == "pricing_details",
+                  do: "border-blue-500 text-blue-600 bg-blue-50",
+                  else: "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                )
+              ]}
+            >
+              Pricing Details
+            </button>
           </nav>
         </div>
       </div>
 
       <!-- Tab Content -->
+      <%= if @active_tab == "project_details" do %>
+        <!-- Project Details Tab -->
+        <div class="bg-white shadow rounded-lg p-6 mb-8">
+          <h2 class="text-2xl font-bold mb-6">Project Details</h2>
+
+          <.form :let={f} for={@changeset} phx-submit="save" phx-target={@myself} class="space-y-6">
+            <div>
+              <.input field={f[:title]} type="text" label="Stream Title" required />
+            </div>
+
+            <div>
+              <.input field={f[:description]} type="textarea" label="Stream Description" rows="4" />
+            </div>
+
+            <div>
+              <.input field={f[:premiere_date]} type="datetime-local" label="Scheduled Start Time" />
+            </div>
+
+            <%= if @editing do %>
+              <div class="flex justify-end">
+                <button
+                  type="submit"
+                  class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 transition-colors"
+                >
+                  Save Changes
+                </button>
+              </div>
+            <% end %>
+          </.form>
+        </div>
+      <% end %>
+
+      <%= if @active_tab == "pricing_details" do %>
+        <!-- Pricing Details Tab -->
+        <div class="bg-white shadow rounded-lg p-6 mb-8">
+          <h2 class="text-2xl font-bold mb-6">Pricing Details</h2>
+
+          <.form :let={f} for={@changeset} phx-submit="save" phx-target={@myself} class="space-y-6">
+            <div>
+              <.input field={f[:premiere_price]} type="number" label="Ticket Price ($)" step="0.01" min="0" />
+              <p class="mt-2 text-sm text-gray-600">
+                Set the price viewers will pay to access your live stream. Set to 0 for free streams.
+              </p>
+            </div>
+
+            <%= if @editing do %>
+              <div class="flex justify-end">
+                <button
+                  type="submit"
+                  class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 transition-colors"
+                >
+                  Save Changes
+                </button>
+              </div>
+            <% end %>
+          </.form>
+        </div>
+      <% end %>
+
       <%= if @active_tab == "ui_setup" do %>
         <!-- Cover Image Section -->
         <div class="bg-white shadow rounded-lg p-6 mt-8">
@@ -492,36 +579,21 @@ defmodule WindowpaneWeb.LiveStreamSetupComponent do
       <% end %>
 
       <%= if @active_tab == "live_stream_setup" do %>
-        <!-- Project Details Form -->
+        <!-- Live Stream Setup Tab -->
         <div class="bg-white shadow rounded-lg p-6 mb-8">
           <h2 class="text-2xl font-bold mb-6">Live Stream Setup</h2>
 
           <.form :let={f} for={@changeset} phx-submit="save" phx-target={@myself} class="space-y-6">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <.input field={f[:title]} type="text" label="Stream Title" required />
-              </div>
-              <div>
-                <.input field={f[:status]} type="select" label="Status" options={[
-                  {"Draft", "draft"},
-                  {"Scheduled", "scheduled"},
-                  {"Live", "live"},
-                  {"Ended", "ended"}
-                ]} />
-              </div>
-            </div>
-
             <div>
-              <.input field={f[:description]} type="textarea" label="Stream Description" rows="4" />
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <.input field={f[:premiere_date]} type="datetime-local" label="Scheduled Start Time" />
-              </div>
-              <div>
-                <.input field={f[:premiere_price]} type="number" label="Ticket Price ($)" step="0.01" min="0" />
-              </div>
+              <.input field={f[:status]} type="select" label="Stream Status" options={[
+                {"Draft", "draft"},
+                {"Scheduled", "scheduled"},
+                {"Live", "live"},
+                {"Ended", "ended"}
+              ]} />
+              <p class="mt-2 text-sm text-gray-600">
+                Control the current status of your live stream.
+              </p>
             </div>
 
             <%= if @editing do %>
@@ -546,12 +618,12 @@ defmodule WindowpaneWeb.LiveStreamSetupComponent do
           </div>
 
           <h3 class="text-2xl font-bold text-gray-900 mb-4">
-            Live Streaming Setup
+            Advanced Live Streaming Features
           </h3>
 
           <p class="text-lg text-gray-600 mb-6 max-w-2xl mx-auto">
-            Complete live streaming functionality is coming soon! This will include stream configuration,
-            RTMP settings, stream keys, and real-time viewer management.
+            Advanced live streaming functionality is coming soon! This will include RTMP configuration,
+            stream keys, real-time analytics, and viewer management tools.
           </p>
 
           <div class="flex items-center justify-center space-x-8 text-sm text-gray-500">
