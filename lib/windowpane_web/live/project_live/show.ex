@@ -70,6 +70,14 @@ defmodule WindowpaneWeb.ProjectLive.Show do
   end
 
   @impl true
+  def handle_info({:project_deleted}, socket) do
+    {:noreply,
+     socket
+     |> put_flash(:info, "Project deleted successfully")
+     |> redirect(to: ~p"/")}
+  end
+
+  @impl true
   def handle_event("close_film_modal", _params, socket) do
     {:noreply, assign(socket, :show_film_modal, false)}
   end

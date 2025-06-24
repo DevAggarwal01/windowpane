@@ -652,6 +652,24 @@ defmodule Windowpane.Projects do
   end
 
   @doc """
+  Updates a live stream with Mux integration data.
+
+  ## Examples
+
+      iex> update_live_stream_with_mux(live_stream, %{mux_stream_id: "stream_123"})
+      {:ok, %LiveStream{}}
+
+      iex> update_live_stream_with_mux(live_stream, %{field: bad_value})
+      {:error, %Ecto.Changeset{}}
+
+  """
+  def update_live_stream_with_mux(%LiveStream{} = live_stream, attrs) do
+    live_stream
+    |> LiveStream.mux_changeset(attrs)
+    |> Repo.update()
+  end
+
+  @doc """
   Updates a live stream.
 
   ## Examples

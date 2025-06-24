@@ -46,6 +46,26 @@ Hooks.UpdatePrice = {
   }
 }
 
+Hooks.UpdateRentalPrice = {
+  mounted() {
+    this.el.addEventListener('click', (e) => {
+      e.preventDefault();
+      const rentalPriceInput = document.getElementById('rental-price-input');
+      if (rentalPriceInput) {
+        const price = rentalPriceInput.value;
+        console.log('Sending rental price update with value:', price);
+        // Use pushEventTo to target the component that has the phx-target
+        const target = this.el.getAttribute('phx-target');
+        if (target) {
+          this.pushEventTo(target, 'update_rental_price', { price: price });
+        } else {
+          this.pushEvent('update_rental_price', { price: price });
+        }
+      }
+    });
+  }
+}
+
 Hooks.ImageCropper = {
   mounted() {
     this.cropper = null;

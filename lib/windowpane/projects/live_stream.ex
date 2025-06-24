@@ -29,10 +29,32 @@ defmodule Windowpane.Projects.LiveStream do
       :status,
       :project_id
     ])
-    |> validate_required([:mux_stream_id, :stream_key, :playback_id, :project_id])
+    |> validate_required([:status, :project_id, :expected_duration_minutes, :recording])
     |> validate_inclusion(:status, ["idle", "active", "ended", "errored"])
     |> validate_number(:expected_duration_minutes, greater_than: 0, message: "must be greater than 0")
     |> foreign_key_constraint(:project_id)
+    |> unique_constraint(:mux_stream_id)
+    |> unique_constraint(:stream_key)
+    |> unique_constraint(:playback_id)
+  end
+
+  @doc """
+  Changeset for updating with Mux integration data.
+  Use this when adding Mux stream details to an existing live stream.
+  """
+  def mux_changeset(live_stream, attrs) do
+    live_stream
+    |> cast(attrs, [
+      :mux_stream_id,
+      :stream_key,
+      :playback_id,
+      :expected_duration_minutes,
+      :recording,
+      :status
+    ])
+    |> validate_required([:mux_stream_id, :stream_key, :playback_id])
+    |> validate_inclusion(:status, ["idle", "active", "ended", "errored"])
+    |> validate_number(:expected_duration_minutes, greater_than: 0, message: "must be greater than 0")
     |> unique_constraint(:mux_stream_id)
     |> unique_constraint(:stream_key)
     |> unique_constraint(:playback_id)

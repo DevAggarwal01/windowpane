@@ -3,6 +3,8 @@ defmodule WindowpaneWeb.HomeLive do
 
   import WindowpaneWeb.NavComponents
 
+  alias Windowpane.PricingCalculator
+
   @impl true
   def mount(_params, _session, socket) do
     user = socket.assigns[:current_user] || socket.assigns[:current_creator]
@@ -92,6 +94,13 @@ defmodule WindowpaneWeb.HomeLive do
         end
 
       "live_event" ->
+        # Calculate initial creator cuts using pricing calculator
+        premiere_price = 1.00
+        rental_price = 5.00
+
+        premiere_creator_cut = PricingCalculator.calculate_creator_cut(premiere_price)
+        rental_creator_cut = PricingCalculator.calculate_creator_cut(rental_price)
+
         project_params = %{
           "title" => "New Live Stream",
           "description" => "A new live stream project",
@@ -99,17 +108,38 @@ defmodule WindowpaneWeb.HomeLive do
           "creator_id" => socket.assigns.current_creator.id,
           "status" => "draft",
           "premiere_date" => DateTime.utc_now() |> DateTime.add(7, :day),
-          "premiere_price" => Decimal.new("0.00"),
+          "premiere_price" => Decimal.new("1.00"),
+          "premiere_creator_cut" => Decimal.new(to_string(premiere_creator_cut)),
           "rental_price" => Decimal.new("5.00"),
+          "rental_creator_cut" => Decimal.new(to_string(rental_creator_cut)),
           "rental_window_hours" => 24
         }
 
         case Windowpane.Projects.create_project(project_params) do
           {:ok, project} ->
-            {:noreply,
-             socket
-             |> put_flash(:info, "Live stream project created successfully!")
-             |> redirect(to: ~p"/#{project.id}")}
+            # Also create the live stream record with recording enabled by default
+            live_stream_params = %{
+              "project_id" => project.id,
+              "status" => "idle",
+              "recording" => true,  # Enable recording by default for live streams
+              "expected_duration_minutes" => 60
+            }
+
+            case Windowpane.Projects.create_live_stream(live_stream_params) do
+              {:ok, _live_stream} ->
+                {:noreply,
+                 socket
+                 |> put_flash(:info, "Live stream project created successfully!")
+                 |> redirect(to: ~p"/#{project.id}")}
+
+              {:error, _changeset} ->
+                # If live stream creation fails, we should probably delete the project
+                # or at least show an error, but for now just show error
+                {:noreply,
+                 socket
+                 |> put_flash(:error, "Error creating live stream. Please try again.")
+                 |> assign(show_project_dropdown: false)}
+            end
 
           {:error, _changeset} ->
             {:noreply,
@@ -221,6 +251,14 @@ defmodule WindowpaneWeb.HomeLive do
 
   def handle_event("upload_error", _params, socket) do
     {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:project_deleted}, socket) do
+    {:noreply,
+     socket
+     |> put_flash(:info, "Project deleted successfully")
+     |> redirect(to: ~p"/")}
   end
 
   @impl true
