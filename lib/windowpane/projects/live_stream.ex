@@ -7,6 +7,7 @@ defmodule Windowpane.Projects.LiveStream do
     field :stream_key, :string              # Mux stream key
     field :playback_id, :string             # Used to embed/serve the live stream
     field :expected_duration_minutes, :integer # Expected duration of the live stream in minutes
+    field :recording, :boolean, default: true # Whether recording is enabled for this stream
     # Note: The asset ID of the recording will be stored in film entry which is connected through project
     field :status, :string, default: "idle" # idle | active | ended | errored
 
@@ -24,6 +25,7 @@ defmodule Windowpane.Projects.LiveStream do
       :stream_key,
       :playback_id,
       :expected_duration_minutes,
+      :recording,
       :status,
       :project_id
     ])

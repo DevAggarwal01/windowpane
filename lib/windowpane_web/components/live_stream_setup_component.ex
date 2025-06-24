@@ -532,6 +532,20 @@ defmodule WindowpaneWeb.LiveStreamSetupComponent do
             >
               Pricing Details
             </button>
+            <button
+              phx-click="switch_tab"
+              phx-value-tab="recording"
+              phx-target={@myself}
+              class={[
+                "py-4 px-6 text-sm font-medium border-b-2 transition-colors",
+                if(@active_tab == "recording",
+                  do: "border-blue-500 text-blue-600 bg-blue-50",
+                  else: "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                )
+              ]}
+            >
+              Recording & Library
+            </button>
           </nav>
         </div>
       </div>
@@ -712,6 +726,188 @@ defmodule WindowpaneWeb.LiveStreamSetupComponent do
         </div>
       <% end %>
 
+      <%= if @active_tab == "recording" do %>
+        <!-- Recording & Library Tab -->
+        <div class="bg-white shadow rounded-lg p-6 mb-8">
+          <h2 class="text-2xl font-bold mb-6">Recording & Video Library</h2>
+
+          <div class="space-y-8">
+            <!-- Recording Settings -->
+            <div class="border-b border-gray-200 pb-6">
+              <h3 class="text-lg font-semibold mb-4 flex items-center">
+                <svg class="w-5 h-5 mr-2 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
+                </svg>
+                Recording Settings
+              </h3>
+
+              <!-- Recording Toggle -->
+              <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center">
+                  <span class="text-sm font-medium text-gray-900 mr-3">Enable Recording</span>
+                  <button
+                    type="button"
+                    phx-click="toggle_recording"
+                    phx-target={@myself}
+                    class={[
+                      "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2",
+                      if(@project.live_stream && @project.live_stream.recording, do: "bg-blue-600", else: "bg-gray-200")
+                    ]}
+                    role="switch"
+                    aria-checked={@project.live_stream && @project.live_stream.recording}
+                  >
+                    <span
+                      aria-hidden="true"
+                      class={[
+                        "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
+                        if(@project.live_stream && @project.live_stream.recording, do: "translate-x-5", else: "translate-x-0")
+                      ]}
+                    ></span>
+                  </button>
+                </div>
+                <span class="text-sm text-gray-500">
+                  <%= if @project.live_stream && @project.live_stream.recording do %>
+                    Recording Enabled
+                  <% else %>
+                    Recording Disabled
+                  <% end %>
+                </span>
+              </div>
+
+              <%= if @project.live_stream && @project.live_stream.recording do %>
+                <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                  <div class="flex items-center">
+                    <svg class="w-5 h-5 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                    </svg>
+                    <span class="font-medium text-green-800">Recording Enabled</span>
+                  </div>
+                  <p class="text-green-700 mt-2 text-sm">
+                    Your live stream will be automatically recorded and available immediately after it ends.
+                  </p>
+                </div>
+                <div class="text-sm text-gray-600 space-y-2">
+                  <p>• High-quality recording (1080p) included with your stream</p>
+                  <p>• Recording starts automatically when you go live</p>
+                  <p>• Video is processed and ready within minutes of ending your stream</p>
+                </div>
+              <% else %>
+                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                  <div class="flex items-center">
+                    <svg class="w-5 h-5 text-yellow-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                    </svg>
+                    <span class="font-medium text-yellow-800">Recording Disabled</span>
+                  </div>
+                  <p class="text-yellow-700 mt-2 text-sm">
+                    Your live stream will not be recorded. You won't be able to monetize the recording or add it to the public library.
+                  </p>
+                </div>
+              <% end %>
+            </div>
+
+            <!-- Monetization Options -->
+            <%= if @project.live_stream && @project.live_stream.recording do %>
+              <div class="border-b border-gray-200 pb-6">
+                <h3 class="text-lg font-semibold mb-4 flex items-center">
+                  <svg class="w-5 h-5 mr-2 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z" />
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z" clip-rule="evenodd" />
+                  </svg>
+                  Monetize Your Recording
+                </h3>
+                <div class="border border-gray-200 rounded-lg p-4">
+                  <h4 class="font-medium text-gray-900 mb-2">Rental Access</h4>
+                  <p class="text-sm text-gray-600 mb-3">
+                    Allow viewers to rent your recorded stream for a specified time period.
+                  </p>
+                  <div class="space-y-2 text-sm">
+                    <div class="flex justify-between">
+                      <span class="text-gray-500">Rental Price:</span>
+                      <span class="font-medium">${@project.rental_price || "5.00"}</span>
+                    </div>
+                    <div class="flex justify-between">
+                      <span class="text-gray-500">Rental Window:</span>
+                      <span class="font-medium">{@project.rental_window_hours || 24} hours</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Public Library -->
+              <div>
+                <h3 class="text-lg font-semibold mb-4 flex items-center">
+                  <svg class="w-5 h-5 mr-2 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Add to Public Video Library
+                </h3>
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                  <p class="text-blue-800 text-sm">
+                    Your recorded stream can be added to our public video library, making it discoverable to new viewers and potentially increasing your earnings.
+                  </p>
+                </div>
+
+                <div class="space-y-4">
+                  <div class="flex items-start space-x-3">
+                    <svg class="w-5 h-5 text-green-500 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                    </svg>
+                    <div>
+                      <h4 class="font-medium text-gray-900">Increased Discoverability</h4>
+                      <p class="text-sm text-gray-600">Your content appears in search results and category browsing</p>
+                    </div>
+                  </div>
+
+                  <div class="flex items-start space-x-3">
+                    <svg class="w-5 h-5 text-green-500 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                    </svg>
+                    <div>
+                      <h4 class="font-medium text-gray-900">Passive Income</h4>
+                      <p class="text-sm text-gray-600">Earn from rentals long after your live stream ends</p>
+                    </div>
+                  </div>
+
+                  <div class="flex items-start space-x-3">
+                    <svg class="w-5 h-5 text-green-500 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                    </svg>
+                    <div>
+                      <h4 class="font-medium text-gray-900">Professional Showcase</h4>
+                      <p class="text-sm text-gray-600">Build your portfolio with high-quality recorded content</p>
+                    </div>
+                  </div>
+
+                  <div class="flex items-start space-x-3">
+                    <svg class="w-5 h-5 text-green-500 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                    </svg>
+                    <div>
+                      <h4 class="font-medium text-gray-900">Quality Control</h4>
+                      <p class="text-sm text-gray-600">We maintain high standards to ensure the best viewer experience</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <div class="flex items-center">
+                    <svg class="w-5 h-5 text-yellow-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                    </svg>
+                    <span class="font-medium text-yellow-800">Note</span>
+                  </div>
+                  <p class="text-yellow-700 mt-2 text-sm">
+                    After your stream ends, you'll have the option to submit your recording for inclusion in our public library.
+                    Our content team will review it within 24-48 hours and notify you of the decision.
+                  </p>
+                </div>
+              </div>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
+
       <%= if @active_tab == "ui_setup" do %>
         <!-- Cover Image Section -->
         <div class="bg-white shadow rounded-lg p-6 mt-8">
@@ -813,84 +1009,33 @@ defmodule WindowpaneWeb.LiveStreamSetupComponent do
   end
 
   @impl true
-  def handle_event(event, params, socket) do
+  def handle_event("toggle_recording", _params, socket) do
     require Logger
-    Logger.info("Event received: #{event}, params: #{inspect(params)}, assigns: #{inspect(socket.assigns)}")
+    Logger.info("Toggling recording for live stream")
 
-    case event do
-      "price_changed" ->
-        handle_price_changed(params, socket)
-      "update_price" ->
-        handle_update_price(params, socket)
-      _ ->
-        Logger.warning("Unhandled event: #{event}")
-        {:noreply, socket}
-    end
-  end
-
-  defp handle_price_changed(%{"value" => price}, socket) do
-    require Logger
-    Logger.info("Price changed to: #{inspect(price)}")
-    {:noreply, socket}
-  end
-
-  defp handle_update_price(_params, socket) do
-    require Logger
-    Logger.info("Starting price update...")
-
-    # Get the temporary price from the socket assigns
-    case socket.assigns.temp_price do
+    case socket.assigns.project.live_stream do
       nil ->
-        Logger.info("No temporary price found, keeping current price")
-        {:noreply, socket}
+        Logger.warning("No live stream found for project")
+        {:noreply, put_flash(socket, :error, "No live stream found for this project")}
 
-      temp_price ->
-        Logger.info("Using temporary price for update: #{inspect(temp_price)}")
+      live_stream ->
+        new_recording_value = !live_stream.recording
+        Logger.info("Updating recording from #{live_stream.recording} to #{new_recording_value}")
 
-        case Float.parse(to_string(temp_price)) do
-          {price_float, _} when price_float >= 1.0 ->
-            Logger.info("Valid price float: #{price_float}")
-            case Projects.update_project(socket.assigns.project, %{"premiere_price" => price_float}) do
-              {:ok, project} ->
-                Logger.info("Project updated successfully")
-                updated_project = Projects.get_project_with_live_stream_and_reviews!(project.id)
+        case Projects.update_live_stream(live_stream, %{"recording" => new_recording_value}) do
+          {:ok, _updated_live_stream} ->
+            Logger.info("Recording setting updated successfully")
+            updated_project = Projects.get_project_with_live_stream_and_reviews!(socket.assigns.project.id)
 
-                socket = socket
-                  |> assign(:project, updated_project)
-                  |> assign(:temp_price, nil)
-
-                socket = calculate_revenue_breakdown(socket)
-
-                Logger.info("New project price: #{inspect(updated_project.premiere_price)}")
-                {:noreply,
-                 socket
-                 |> put_flash(:info, "Ticket price updated successfully")}
-
-              {:error, changeset} ->
-                Logger.error("Failed to update project: #{inspect(changeset.errors)}")
-                {:noreply,
-                 socket
-                 |> put_flash(:error, "Failed to update ticket price: #{inspect(changeset.errors)}")}
-            end
-
-          {price_float, _} ->
-            Logger.info("Price too low: #{price_float}")
             {:noreply,
              socket
-             |> put_flash(:error, "Ticket price must be at least $1.00")}
+             |> assign(:project, updated_project)
+             |> put_flash(:info, "Recording setting updated successfully")}
 
-          :error ->
-            Logger.error("Invalid price format: #{inspect(temp_price)}")
-            {:noreply,
-             socket
-             |> put_flash(:error, "Invalid price format")}
+          {:error, changeset} ->
+            Logger.error("Failed to update recording setting: #{inspect(changeset.errors)}")
+            {:noreply, put_flash(socket, :error, "Failed to update recording setting")}
         end
     end
-  end
-
-  @impl true
-  def handle_event("validate", params, socket) do
-    Logger.info("Validating form with params: #{inspect(params)}")
-    {:noreply, assign(socket, :live_action_form, params)}
   end
 end
