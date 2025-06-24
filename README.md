@@ -2,6 +2,7 @@
 # TODO list after getting domain
 1. After deploying, the webhook url registered in Mux settings needs to be changed
 2. the webhook for stripe also needs to be changed
+3. Consider premium or plus video quality (it will be needed for quality videos)
 
 to do premieres, premiere date in project table is already indexed so it should be easy to do quick retrieval
 

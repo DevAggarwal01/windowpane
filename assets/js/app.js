@@ -26,6 +26,26 @@ import "../css/app.css"
 // Cropper.js Hook for LiveView
 let Hooks = {}
 
+Hooks.UpdatePrice = {
+  mounted() {
+    this.el.addEventListener('click', (e) => {
+      e.preventDefault();
+      const priceInput = document.getElementById('price-input');
+      if (priceInput) {
+        const price = priceInput.value;
+        console.log('Sending price update with value:', price);
+        // Use pushEventTo to target the component that has the phx-target
+        const target = this.el.getAttribute('phx-target');
+        if (target) {
+          this.pushEventTo(target, 'update_price', { price: price });
+        } else {
+          this.pushEvent('update_price', { price: price });
+        }
+      }
+    });
+  }
+}
+
 Hooks.ImageCropper = {
   mounted() {
     this.cropper = null;

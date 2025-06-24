@@ -54,5 +54,6 @@ defmodule Windowpane.Projects.Project do
     |> validate_number(:rental_window_hours, greater_than: 0)
     |> validate_inclusion(:status, ["draft", "published", "archived", "waiting for approval"])
     |> foreign_key_constraint(:creator_id)
+    |> cast_assoc(:live_stream)
   end
 end

@@ -156,16 +156,29 @@ defmodule WindowpaneWeb.FilmModalComponent do
                     <span class="text-xs opacity-75">You own this film</span>
                   </.link>
                 <% else %>
-                  <!-- User doesn't own - show rent button -->
-                  <button
-                    type="button"
-                    class="inline-flex flex-col items-center px-4 py-3 bg-white text-black font-semibold rounded hover:bg-gray-200 transition-colors"
-                    phx-click="rent_film"
-                    phx-target={@myself}
-                  >
-                    <span class="text-sm">Rent movie</span>
-                    <span class="text-lg font-bold"><%= format_price(@film.rental_price) %></span>
-                  </button>
+                  <!-- User doesn't own - show rent button (disabled in edit mode) -->
+                  <%= if Map.get(assigns, :edit, false) do %>
+                    <!-- Edit mode - show disabled rent button -->
+                    <button
+                      type="button"
+                      class="inline-flex flex-col items-center px-4 py-3 bg-gray-300 text-gray-500 font-semibold rounded cursor-not-allowed opacity-50"
+                      disabled
+                    >
+                      <span class="text-sm">Rent movie</span>
+                      <span class="text-lg font-bold"><%= format_price(@film.rental_price) %></span>
+                    </button>
+                  <% else %>
+                    <!-- Normal mode - show active rent button -->
+                    <button
+                      type="button"
+                      class="inline-flex flex-col items-center px-4 py-3 bg-white text-black font-semibold rounded hover:bg-gray-200 transition-colors"
+                      phx-click="rent_film"
+                      phx-target={@myself}
+                    >
+                      <span class="text-sm">Rent movie</span>
+                      <span class="text-lg font-bold"><%= format_price(@film.rental_price) %></span>
+                    </button>
+                  <% end %>
                 <% end %>
               </div>
             </div>

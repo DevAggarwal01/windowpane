@@ -6,6 +6,7 @@ defmodule Windowpane.Projects.LiveStream do
     field :mux_stream_id, :string           # Mux's unique identifier for the live stream
     field :stream_key, :string              # Mux stream key
     field :playback_id, :string             # Used to embed/serve the live stream
+    field :expected_duration_minutes, :integer # Expected duration of the live stream in minutes
     # Note: The asset ID of the recording will be stored in film entry which is connected through project
     field :status, :string, default: "idle" # idle | active | ended | errored
 
@@ -22,11 +23,13 @@ defmodule Windowpane.Projects.LiveStream do
       :mux_stream_id,
       :stream_key,
       :playback_id,
+      :expected_duration_minutes,
       :status,
       :project_id
     ])
     |> validate_required([:mux_stream_id, :stream_key, :playback_id, :project_id])
     |> validate_inclusion(:status, ["idle", "active", "ended", "errored"])
+    |> validate_number(:expected_duration_minutes, greater_than: 0, message: "must be greater than 0")
     |> foreign_key_constraint(:project_id)
     |> unique_constraint(:mux_stream_id)
     |> unique_constraint(:stream_key)
