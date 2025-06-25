@@ -87,10 +87,9 @@ defmodule WindowpaneWeb.LiveStreamSetupComponent do
           "mux_stream_id" => live_stream["id"],
           "stream_key" => live_stream["stream_key"],
           "playback_id" => live_stream["playback_ids"] |> List.first() |> Map.get("id"),
-          "status" => "idle",
-          "project_id" => socket.assigns.project.id
         }
 
+        # dont create live stream, just update the project with the live stream params
         case Projects.create_live_stream(live_stream_params) do
           {:ok, _live_stream_record} ->
             updated_project = Projects.get_project_with_live_stream_and_reviews!(socket.assigns.project.id)
@@ -599,52 +598,52 @@ defmodule WindowpaneWeb.LiveStreamSetupComponent do
       <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
         <!-- Main Content Area (Left Side) -->
         <div class="lg:col-span-3">
-          <!-- Tab Navigation -->
-          <div class="bg-white shadow rounded-lg mb-8">
-            <div class="border-b border-gray-200">
-              <nav class="-mb-px flex">
-                <button
-                  phx-click="switch_tab"
-                  phx-value-tab="project_details"
-                  phx-target={@myself}
-                  class={[
-                    "py-4 px-6 text-sm font-medium border-b-2 transition-colors",
-                    if(@active_tab == "project_details",
-                      do: "border-blue-500 text-blue-600 bg-blue-50",
-                      else: "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                    )
-                  ]}
-                >
-                  Project Details
-                </button>
-                <button
-                  phx-click="switch_tab"
-                  phx-value-tab="ui_setup"
-                  phx-target={@myself}
-                  class={[
-                    "py-4 px-6 text-sm font-medium border-b-2 transition-colors",
-                    if(@active_tab == "ui_setup",
-                      do: "border-blue-500 text-blue-600 bg-blue-50",
-                      else: "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                    )
-                  ]}
-                >
-                  UI Setup
-                </button>
-                <button
-                  phx-click="switch_tab"
-                  phx-value-tab="pricing_details"
-                  phx-target={@myself}
-                  class={[
-                    "py-4 px-6 text-sm font-medium border-b-2 transition-colors",
-                    if(@active_tab == "pricing_details",
-                      do: "border-blue-500 text-blue-600 bg-blue-50",
-                      else: "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                    )
-                  ]}
-                >
-                  Pricing Details
-                </button>
+      <!-- Tab Navigation -->
+      <div class="bg-white shadow rounded-lg mb-8">
+        <div class="border-b border-gray-200">
+          <nav class="-mb-px flex">
+            <button
+              phx-click="switch_tab"
+              phx-value-tab="project_details"
+              phx-target={@myself}
+              class={[
+                "py-4 px-6 text-sm font-medium border-b-2 transition-colors",
+                if(@active_tab == "project_details",
+                  do: "border-blue-500 text-blue-600 bg-blue-50",
+                  else: "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                )
+              ]}
+            >
+              Project Details
+            </button>
+            <button
+              phx-click="switch_tab"
+              phx-value-tab="ui_setup"
+              phx-target={@myself}
+              class={[
+                "py-4 px-6 text-sm font-medium border-b-2 transition-colors",
+                if(@active_tab == "ui_setup",
+                  do: "border-blue-500 text-blue-600 bg-blue-50",
+                  else: "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                )
+              ]}
+            >
+              UI Setup
+            </button>
+            <button
+              phx-click="switch_tab"
+              phx-value-tab="pricing_details"
+              phx-target={@myself}
+              class={[
+                "py-4 px-6 text-sm font-medium border-b-2 transition-colors",
+                if(@active_tab == "pricing_details",
+                  do: "border-blue-500 text-blue-600 bg-blue-50",
+                  else: "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                )
+              ]}
+            >
+              Pricing Details
+            </button>
                 <button
                   phx-click="switch_tab"
                   phx-value-tab="recording"
@@ -659,93 +658,93 @@ defmodule WindowpaneWeb.LiveStreamSetupComponent do
                 >
                   Recording & Library
                 </button>
-              </nav>
+          </nav>
+        </div>
+      </div>
+
+      <!-- Tab Content -->
+      <%= if @active_tab == "project_details" do %>
+        <!-- Project Details Tab -->
+        <div class="bg-white shadow rounded-lg p-6 mb-8">
+          <h2 class="text-2xl font-bold mb-6">Project Details</h2>
+
+          <.form :let={f} for={@changeset} phx-change="update_project_details" phx-target={@myself} class="space-y-6">
+            <div>
+              <.input field={f[:title]} type="text" label="Stream Title" required />
             </div>
-          </div>
 
-          <!-- Tab Content -->
-          <%= if @active_tab == "project_details" do %>
-            <!-- Project Details Tab -->
-            <div class="bg-white shadow rounded-lg p-6 mb-8">
-              <h2 class="text-2xl font-bold mb-6">Project Details</h2>
+            <div>
+              <.input field={f[:description]} type="textarea" label="Stream Description" rows="4" />
+            </div>
 
-              <.form :let={f} for={@changeset} phx-change="update_project_details" phx-target={@myself} class="space-y-6">
-                <div>
-                  <.input field={f[:title]} type="text" label="Stream Title" required />
-                </div>
+            <div>
+              <.input field={f[:premiere_date]} type="datetime-local" label="Scheduled Start Time" />
+            </div>
 
-                <div>
-                  <.input field={f[:description]} type="textarea" label="Stream Description" rows="4" />
-                </div>
-
-                <div>
-                  <.input field={f[:premiere_date]} type="datetime-local" label="Scheduled Start Time" />
-                </div>
-
-                <div>
-                  <div class="flex items-center gap-2 mb-2">
-                    <label class="block text-sm font-medium leading-6 text-gray-900">
-                      Expected Duration (minutes)
-                    </label>
-                    <div class="relative group">
-                      <svg class="w-4 h-4 text-gray-400 hover:text-gray-600 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <div class="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-xs rounded py-2 px-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10 whitespace-nowrap">
-                        ⚠️ Stream will automatically end when expected duration is reached
-                      </div>
-                    </div>
+            <div>
+              <div class="flex items-center gap-2 mb-2">
+                <label class="block text-sm font-medium leading-6 text-gray-900">
+                  Expected Duration (minutes)
+                </label>
+                <div class="relative group">
+                  <svg class="w-4 h-4 text-gray-400 hover:text-gray-600 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div class="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-xs rounded py-2 px-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10 whitespace-nowrap">
+                    ⚠️ Stream will automatically end when expected duration is reached
                   </div>
-                  <%= if @project.live_stream do %>
-                    <.inputs_for :let={ls_f} field={f[:live_stream]}>
-                      <.input
-                        field={ls_f[:expected_duration_minutes]}
-                        type="number"
-                        min="1"
-                        step="1"
-                        placeholder="e.g., 60 for 1 hour"
-                      />
-                    </.inputs_for>
-                  <% else %>
-                    <input
-                      type="number"
-                      min="1"
-                      step="1"
-                      placeholder="e.g., 60 for 1 hour"
-                      class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-zinc-900 sm:text-sm sm:leading-6"
-                      disabled
-                    />
-                  <% end %>
-                  <p class="mt-2 text-sm text-gray-600">
-                    How long do you expect this live stream to run? This helps with planning and will automatically end the stream when reached.
-                  </p>
                 </div>
-
-                <div class="flex items-center justify-end">
-                  <%= if @saving do %>
-                    <div class="flex items-center gap-2">
-                      <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                      <span class="text-sm text-gray-500">Saving...</span>
-                    </div>
-                  <% else %>
-                    <div class="flex items-center gap-2">
-                      <div class="w-2 h-2 bg-green-500 rounded-full"></div>
-                      <span class="text-sm text-gray-500">All changes saved</span>
-                    </div>
-                  <% end %>
-                </div>
-              </.form>
+              </div>
+              <%= if @project.live_stream do %>
+                <.inputs_for :let={ls_f} field={f[:live_stream]}>
+                  <.input
+                    field={ls_f[:expected_duration_minutes]}
+                    type="number"
+                    min="1"
+                    step="1"
+                    placeholder="e.g., 60 for 1 hour"
+                  />
+                </.inputs_for>
+              <% else %>
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  placeholder="e.g., 60 for 1 hour"
+                  class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-zinc-900 sm:text-sm sm:leading-6"
+                  disabled
+                />
+              <% end %>
+              <p class="mt-2 text-sm text-gray-600">
+                How long do you expect this live stream to run? This helps with planning and will automatically end the stream when reached.
+              </p>
             </div>
-          <% end %>
 
-          <%= if @active_tab == "pricing_details" do %>
-            <!-- Pricing Details Tab -->
-            <div class="bg-white shadow rounded-lg p-6 mb-8">
-              <h2 class="text-2xl font-bold mb-6">Pricing Details</h2>
+            <div class="flex items-center justify-end">
+              <%= if @saving do %>
+                <div class="flex items-center gap-2">
+                  <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                  <span class="text-sm text-gray-500">Saving...</span>
+                </div>
+              <% else %>
+                <div class="flex items-center gap-2">
+                  <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span class="text-sm text-gray-500">All changes saved</span>
+                </div>
+              <% end %>
+            </div>
+          </.form>
+        </div>
+      <% end %>
+
+      <%= if @active_tab == "pricing_details" do %>
+        <!-- Pricing Details Tab -->
+        <div class="bg-white shadow rounded-lg p-6 mb-8">
+          <h2 class="text-2xl font-bold mb-6">Pricing Details</h2>
 
               <div class="space-y-6">
                 <!-- Price Input Section -->
-                <div>
+            <div>
                   <div class="flex items-center gap-2 mb-6">
                     <div class="flex-grow">
                       <label class="block text-sm font-medium text-gray-700 mb-1">
@@ -783,7 +782,7 @@ defmodule WindowpaneWeb.LiveStreamSetupComponent do
                       </p>
                     </div>
                   </div>
-                </div>
+            </div>
 
                 <!-- Rental Price Input Section -->
                 <%= if @project.live_stream && @project.live_stream.recording do %>
@@ -808,7 +807,7 @@ defmodule WindowpaneWeb.LiveStreamSetupComponent do
                               phx-target={@myself}
                             />
                           </div>
-                          <button
+                <button
                             type="button"
                             id="update-rental-price-button"
                             phx-hook="UpdateRentalPrice"
@@ -818,15 +817,15 @@ defmodule WindowpaneWeb.LiveStreamSetupComponent do
                             <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                               <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
                             </svg>
-                          </button>
+                </button>
                         </div>
                         <p class="mt-1 text-sm text-gray-500">
                           Minimum ticket price is $1.00. Click checkmark to update.
                         </p>
                       </div>
                     </div>
-                  </div>
-                <% end %>
+              </div>
+            <% end %>
 
                 <!-- Revenue Breakdown Section -->
                 <%= if @revenue_breakdown && @project.live_stream do %>
@@ -1098,76 +1097,76 @@ defmodule WindowpaneWeb.LiveStreamSetupComponent do
                   </div>
                 <% end %>
               </div>
-            </div>
-          <% end %>
+        </div>
+      <% end %>
 
-          <%= if @active_tab == "ui_setup" do %>
-            <!-- Cover Image Section -->
-            <div class="bg-white shadow rounded-lg p-6 mt-8">
-              <h3 class="text-xl font-bold mb-4">User Interface Setup</h3>
+      <%= if @active_tab == "ui_setup" do %>
+        <!-- Cover Image Section -->
+        <div class="bg-white shadow rounded-lg p-6 mt-8">
+          <h3 class="text-xl font-bold mb-4">User Interface Setup</h3>
 
-              <div class="flex justify-center">
-                <!-- Container for cover and edit button -->
-                <div class="relative flex flex-col items-center">
-                  <!-- Film Cover Placeholder with Dashed Border -->
-                  <div
-                    class="w-64 h-96 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center bg-gray-50 hover:border-gray-400 hover:bg-gray-100 transition-colors cursor-pointer"
-                    phx-click="show_film_modal"
-                    phx-target={@myself}
-                  >
-                    <!-- Include Cropper.js CDN -->
-                    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
-                    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+          <div class="flex justify-center">
+            <!-- Container for cover and edit button -->
+            <div class="relative flex flex-col items-center">
+              <!-- Film Cover Placeholder with Dashed Border -->
+              <div
+                class="w-64 h-96 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center bg-gray-50 hover:border-gray-400 hover:bg-gray-100 transition-colors cursor-pointer"
+                phx-click="show_film_modal"
+                phx-target={@myself}
+              >
+                <!-- Include Cropper.js CDN -->
+                <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
+                <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
 
-                    <%= if Windowpane.Uploaders.CoverUploader.cover_exists?(@project) do %>
-                      <!-- Show uploaded cover image -->
-                      <img
-                        src={cover_url_with_cache_bust(@project, @cover_updated_at)}
-                        alt={"Cover for #{@project.title}"}
-                        class="w-full h-full object-cover rounded-lg"
-                      />
-                    <% else %>
-                      <!-- Show placeholder when no cover exists -->
-                      <div class="text-center">
-                        <svg class="mx-auto h-16 w-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        <span class="text-xs text-gray-500">JPG, PNG, WEBP accepted</span>
-                      </div>
-                    <% end %>
-                  </div>
-
-                  <!-- Pencil Edit Icon (positioned absolutely over the cover but outside its div) -->
-                  <button
-                    type="button"
-                    class="absolute top-0 right-0 -mt-2 -mr-2 w-8 h-8 bg-white rounded-full shadow-md flex items-center justify-center border border-gray-200 hover:bg-gray-50 cursor-pointer z-10"
-                    onclick="document.getElementById('cover-file-input').click();"
-                  >
-                    <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
-                  </button>
-
-                  <!-- Hidden file input (outside the clickable area) -->
-                  <input
-                    type="file"
-                    id="cover-file-input"
-                    accept=".jpg,.jpeg,.png,.webp"
-                    style="display: none;"
-                    id="image-cropper-hook"
-                    phx-hook="ImageCropper"
-                    data-project-id={@project.id}
-                    phx-target={@myself}
+                <%= if Windowpane.Uploaders.CoverUploader.cover_exists?(@project) do %>
+                  <!-- Show uploaded cover image -->
+                  <img
+                    src={cover_url_with_cache_bust(@project, @cover_updated_at)}
+                    alt={"Cover for #{@project.title}"}
+                    class="w-full h-full object-cover rounded-lg"
                   />
-                </div>
+                <% else %>
+                  <!-- Show placeholder when no cover exists -->
+                  <div class="text-center">
+                    <svg class="mx-auto h-16 w-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <span class="text-xs text-gray-500">JPG, PNG, WEBP accepted</span>
+                  </div>
+                <% end %>
               </div>
 
-              <!-- Instructions text (separate from cover) -->
-              <p class="text-sm text-gray-600 text-center mt-4">
-                Click cover for additional configuration
-              </p>
+              <!-- Pencil Edit Icon (positioned absolutely over the cover but outside its div) -->
+              <button
+                type="button"
+                class="absolute top-0 right-0 -mt-2 -mr-2 w-8 h-8 bg-white rounded-full shadow-md flex items-center justify-center border border-gray-200 hover:bg-gray-50 cursor-pointer z-10"
+                onclick="document.getElementById('cover-file-input').click();"
+              >
+                <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              </button>
+
+              <!-- Hidden file input (outside the clickable area) -->
+              <input
+                type="file"
+                id="cover-file-input"
+                accept=".jpg,.jpeg,.png,.webp"
+                style="display: none;"
+                id="image-cropper-hook"
+                phx-hook="ImageCropper"
+                data-project-id={@project.id}
+                phx-target={@myself}
+              />
             </div>
-          <% end %>
+          </div>
+
+          <!-- Instructions text (separate from cover) -->
+          <p class="text-sm text-gray-600 text-center mt-4">
+            Click cover for additional configuration
+          </p>
+        </div>
+      <% end %>
         </div>
 
         <!-- Project Actions Section (Right Side) -->
@@ -1219,18 +1218,26 @@ defmodule WindowpaneWeb.LiveStreamSetupComponent do
 
               <!-- Action Buttons (Stacked) -->
               <div class="space-y-3">
-                <%= if @project.status == "draft" do %>
+                <%= if @project.status == "draft" or @project.status == "waiting for approval" do %>
                   <!-- Deploy Button -->
                   <button
                     type="button"
-                    phx-click="deploy_project"
+                    phx-click="deploy"
                     phx-target={@myself}
-                    class="w-full inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                    class="w-full inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    disabled={@project.status == "waiting for approval" or Projects.in_approval_queue?(@project)}
                   >
                     <svg class="mr-2 -ml-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                     </svg>
-                    Deploy Project
+                    <%= cond do %>
+                      <% @project.status == "waiting for approval" -> %>
+                        Pending Approval
+                      <% Projects.in_approval_queue?(@project) -> %>
+                        Pending Approval
+                      <% true -> %>
+                        Deploy Project
+                    <% end %>
                   </button>
                 <% else %>
                   <!-- Project is already deployed -->
@@ -1300,8 +1307,54 @@ defmodule WindowpaneWeb.LiveStreamSetupComponent do
                   </div>
                 </div>
               <% end %>
+
+              <%= if @project.status == "waiting for approval" do %>
+                <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                  <div class="flex">
+                    <div class="flex-shrink-0">
+                      <svg class="h-4 w-4 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                      </svg>
+                    </div>
+                    <div class="ml-2">
+                      <h4 class="text-xs font-medium text-blue-800">
+                        Under Review
+                      </h4>
+                      <div class="mt-1 text-xs text-blue-700">
+                        <p>
+                          Your live stream is being reviewed for approval.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              <% end %>
             </div>
           </div>
+
+          <!-- Feedback Section -->
+          <%= if @project.reviews && length(@project.reviews) > 0 do %>
+            <div class="bg-white shadow rounded-lg p-6">
+              <h3 class="text-lg font-semibold text-gray-900 mb-4">Feedback</h3>
+              <div class="space-y-4">
+                <%= for review <- @project.reviews do %>
+                  <div class={["border-l-4 pl-4", if(review.status == "approved", do: "border-green-500", else: "border-red-500")]}>
+                    <div class="flex items-center justify-between mb-2">
+                      <span class={["inline-flex items-center rounded-md px-2 py-1 text-xs font-medium", if(review.status == "approved", do: "bg-green-50 text-green-700", else: "bg-red-50 text-red-700")]}>
+                        <%= String.capitalize(review.status) %>
+                      </span>
+                      <span class="text-sm text-gray-500">
+                        <%= Calendar.strftime(review.inserted_at, "%B %d, %Y at %I:%M %p") %>
+                      </span>
+                    </div>
+                    <%= if review.feedback do %>
+                      <p class="text-sm text-gray-700"><%= review.feedback %></p>
+                    <% end %>
+                  </div>
+                <% end %>
+              </div>
+            </div>
+          <% end %>
         </div>
       </div>
     </div>
@@ -1369,23 +1422,59 @@ defmodule WindowpaneWeb.LiveStreamSetupComponent do
   end
 
   @impl true
-  def handle_event("deploy_project", _params, socket) do
-    require Logger
-    Logger.info("Deploying project: #{socket.assigns.project.id}")
+  def handle_event("deploy", _, socket) do
+    project = socket.assigns.project
+    Logger.warning("DEPLOY: Starting deployment for Live Stream Project ID: #{project.id}")
 
-    case Projects.update_project(socket.assigns.project, %{"status" => "published"}) do
-      {:ok, project} ->
-        Logger.info("Project deployed successfully")
-        updated_project = Projects.get_project_with_live_stream_and_reviews!(project.id)
+    IO.puts("=== LIVE STREAM DEPLOY DEBUG ===")
+    IO.puts("Project ID: #{project.id}")
+    IO.puts("Project status: #{project.status}")
+    IO.puts("In approval queue: #{Projects.in_approval_queue?(project)}")
+    IO.puts("Ready for deployment: #{Projects.ready_for_live_stream_deployment?(project)}")
 
-        {:noreply,
-         socket
-         |> assign(:project, updated_project)
-         |> put_flash(:info, "Project deployed successfully! Your live stream is now public.")}
+    # Check if project is ready for deployment first
+    if Projects.ready_for_live_stream_deployment?(project) do
+      Logger.warning("DEPLOY: Live stream project is ready for deployment")
+      case Projects.add_to_approval_queue(project) do
+        {:ok, _queue_entry} ->
+          # Update project status to waiting for approval
+          IO.puts("📝 Updating project status from '#{project.status}' to 'waiting for approval'")
+          Logger.warning("DEPLOY: Adding live stream project to approval queue")
+          case Projects.update_project(project, %{status: "waiting for approval"}) do
+            {:ok, updated_project} ->
+              IO.puts("✅ Project status updated successfully to '#{updated_project.status}'")
+              updated_project_with_live_stream = Projects.get_project_with_live_stream_and_reviews!(updated_project.id)
+              IO.puts("🔄 Reloaded project with live stream, status: '#{updated_project_with_live_stream.status}'")
 
-      {:error, changeset} ->
-        Logger.error("Failed to deploy project: #{inspect(changeset.errors)}")
-        {:noreply, put_flash(socket, :error, "Failed to deploy project")}
+              IO.puts("✅ Live stream project added to approval queue")
+              Logger.warning("DEPLOY: Live stream project successfully deployed and status updated")
+              {:noreply,
+               socket
+               |> put_flash(:info, "Live stream project submitted for approval")
+               |> assign(:project, updated_project_with_live_stream)}
+
+            {:error, changeset} ->
+              IO.puts("❌ Failed to update project status: #{inspect(changeset.errors)}")
+              Logger.error("DEPLOY: Failed to update project status: #{inspect(changeset.errors)}")
+              {:noreply,
+               socket
+               |> put_flash(:error, "Project submitted but status update failed")
+               |> assign(:project, project)}
+          end
+        {:error, _changeset} ->
+          IO.puts("❌ Project already in approval queue")
+          Logger.warning("DEPLOY: Project already in approval queue")
+          {:noreply,
+           socket
+           |> put_flash(:error, "Project is already in the approval queue")}
+      end
+    else
+      # Show simple error message
+      IO.puts("❌ Live stream project not ready for deployment")
+      Logger.warning("DEPLOY: Live stream project not ready for deployment")
+      {:noreply,
+       socket
+       |> put_flash(:error, "Cannot deploy live stream project. Please complete all required fields: title, description, cover image, banner image, premiere date (must be in future), premiere price (min $1), and rental price (min $1 if recording enabled).")}
     end
   end
 
@@ -1417,6 +1506,63 @@ defmodule WindowpaneWeb.LiveStreamSetupComponent do
       {:error, changeset} ->
         Logger.error("Failed to delete project: #{inspect(changeset.errors)}")
         {:noreply, put_flash(socket, :error, "Failed to delete project")}
+    end
+  end
+
+  @impl true
+  def handle_event("deploy", _, socket) do
+    project = socket.assigns.project
+    Logger.warning("DEPLOY: Starting deployment for Live Stream Project ID: #{project.id}")
+
+    IO.puts("=== LIVE STREAM DEPLOY DEBUG ===")
+    IO.puts("Project ID: #{project.id}")
+    IO.puts("Project status: #{project.status}")
+    IO.puts("In approval queue: #{Projects.in_approval_queue?(project)}")
+    IO.puts("Ready for deployment: #{Projects.ready_for_live_stream_deployment?(project)}")
+
+    # Check if project is ready for deployment first
+    if Projects.ready_for_live_stream_deployment?(project) do
+      Logger.warning("DEPLOY: Live stream project is ready for deployment")
+      case Projects.add_to_approval_queue(project) do
+        {:ok, _queue_entry} ->
+          # Update project status to waiting for approval
+          IO.puts("📝 Updating project status from '#{project.status}' to 'waiting for approval'")
+          Logger.warning("DEPLOY: Adding live stream project to approval queue")
+          case Projects.update_project(project, %{status: "waiting for approval"}) do
+            {:ok, updated_project} ->
+              IO.puts("✅ Project status updated successfully to '#{updated_project.status}'")
+              updated_project_with_live_stream = Projects.get_project_with_live_stream_and_reviews!(updated_project.id)
+              IO.puts("🔄 Reloaded project with live stream, status: '#{updated_project_with_live_stream.status}'")
+
+              IO.puts("✅ Live stream project added to approval queue")
+              Logger.warning("DEPLOY: Live stream project successfully deployed and status updated")
+              {:noreply,
+               socket
+               |> put_flash(:info, "Live stream project submitted for approval")
+               |> assign(:project, updated_project_with_live_stream)}
+
+            {:error, changeset} ->
+              IO.puts("❌ Failed to update project status: #{inspect(changeset.errors)}")
+              Logger.error("DEPLOY: Failed to update project status: #{inspect(changeset.errors)}")
+              {:noreply,
+               socket
+               |> put_flash(:error, "Project submitted but status update failed")
+               |> assign(:project, project)}
+          end
+        {:error, _changeset} ->
+          IO.puts("❌ Project already in approval queue")
+          Logger.warning("DEPLOY: Project already in approval queue")
+          {:noreply,
+           socket
+           |> put_flash(:error, "Project is already in the approval queue")}
+      end
+    else
+      # Show simple error message
+      IO.puts("❌ Live stream project not ready for deployment")
+      Logger.warning("DEPLOY: Live stream project not ready for deployment")
+      {:noreply,
+       socket
+       |> put_flash(:error, "Cannot deploy live stream project. Please complete all required fields: title, description, cover image, banner image, premiere date (must be in future), premiere price (min $1), and rental price (min $1 if recording enabled).")}
     end
   end
 end

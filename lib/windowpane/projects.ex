@@ -705,4 +705,68 @@ defmodule Windowpane.Projects do
         live_stream
     end
   end
+
+  @doc """
+  Validates if a live stream project is ready for deployment.
+
+  Checks that all required fields are filled and uploads (cover, banner) exist.
+  Also validates that premiere/rental prices are at least $1 and premiere date is in the future.
+
+  ## Examples
+
+      iex> ready_for_live_stream_deployment?(live_stream_project)
+      true
+
+      iex> ready_for_live_stream_deployment?(incomplete_project)
+      false
+  """
+  def ready_for_live_stream_deployment?(project) do
+    # Check required fields are not nil or empty
+    required_fields_valid = [
+      field_valid?(project.title),
+      field_valid?(project.description),
+      field_valid?(project.type),
+      field_valid?(project.premiere_date),
+      premiere_price_valid?(project.premiere_price),
+      premiere_date_in_future?(project.premiere_date)
+    ]
+
+    # Check uploads exist (only cover and banner for live streams)
+    uploads_valid = [
+      cover_uploaded?(project),
+      banner_uploaded?(project)
+    ]
+
+    # Check recording-specific validations
+    recording_validations = if project.live_stream && project.live_stream.recording do
+      [rental_price_valid?(project.rental_price)]
+    else
+      [true] # Recording disabled, so rental price validation passes
+    end
+
+    # All validations must pass
+    Enum.all?(required_fields_valid ++ uploads_valid ++ recording_validations)
+  end
+
+  # Helper function to check if premiere date is in the future
+  defp premiere_date_in_future?(nil), do: false
+  defp premiere_date_in_future?(premiere_date) do
+    DateTime.compare(premiere_date, DateTime.utc_now()) == :gt
+  end
+
+  # Helper function to check if premiere price is at least $1
+  defp premiere_price_valid?(nil), do: false
+  defp premiere_price_valid?(price) when is_number(price), do: price >= 1.0
+  defp premiere_price_valid?(price) when is_struct(price, Decimal) do
+    Decimal.compare(price, Decimal.new("1.0")) != :lt
+  end
+  defp premiere_price_valid?(_), do: false
+
+  # Helper function to check if rental price is at least $1 (only when recording is enabled)
+  defp rental_price_valid?(nil), do: false
+  defp rental_price_valid?(price) when is_number(price), do: price >= 1.0
+  defp rental_price_valid?(price) when is_struct(price, Decimal) do
+    Decimal.compare(price, Decimal.new("1.0")) != :lt
+  end
+  defp rental_price_valid?(_), do: false
 end
