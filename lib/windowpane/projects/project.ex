@@ -25,6 +25,7 @@ defmodule Windowpane.Projects.Project do
     has_one :live_stream, Windowpane.Projects.LiveStream
     has_many :reviews, Windowpane.Projects.ProjectReview
     has_many :ownership_records, Windowpane.OwnershipRecord
+    has_one :premiere, Windowpane.Projects.Premiere
 
     timestamps()
   end
