@@ -3,6 +3,9 @@ defmodule WindowpaneWeb.Plugs.RawBodyPlug do
   A plug to preserve the raw request body for webhook verification.
   This is needed for Stripe webhooks which require the original raw body
   for signature verification.
+
+  This plug is intentionally ONLY applied to Stripe webhooks to avoid
+  interfering with other webhook systems like Mux that need normal JSON parsing.
   """
 
   import Plug.Conn
@@ -10,8 +13,8 @@ defmodule WindowpaneWeb.Plugs.RawBodyPlug do
   def init(opts), do: opts
 
   def call(conn, _opts) do
-    # Only read the body for webhook endpoints
-    if webhook_endpoint?(conn) do
+    # Only read the body for Stripe webhook endpoints
+    if stripe_webhook_endpoint?(conn) do
       case read_body(conn) do
         {:ok, body, conn} ->
           conn
@@ -31,7 +34,7 @@ defmodule WindowpaneWeb.Plugs.RawBodyPlug do
     {:ok, body, conn}
   end
 
-  defp webhook_endpoint?(conn) do
-    conn.request_path in ["/stripe/webhook", "/mux/webhook"]
+  defp stripe_webhook_endpoint?(conn) do
+    conn.request_path == "/stripe/webhook"
   end
 end

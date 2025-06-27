@@ -447,6 +447,17 @@ defmodule WindowpaneWeb.Admin.ProjectDetailsLive do
             # Remove from approval queue
             Projects.remove_from_approval_queue(updated_project)
 
+            # Create premiere entry with calculated end_time based on duration (only for films and live streams)
+            if project.type in ["film", "live_event"] do
+              case Projects.create_premiere(project) do
+                {:ok, _premiere} ->
+                  Logger.info("Premiere created successfully for project #{project.id}")
+                {:error, premiere_error} ->
+                  Logger.error("Failed to create premiere for project #{project.id}: #{inspect(premiere_error)}")
+                  # Continue with approval even if premiere creation fails
+              end
+            end
+
             # Create project review
             Projects.create_project_review(%{
               status: "approved",

@@ -10,6 +10,7 @@ defmodule Windowpane.Projects do
   alias Windowpane.Projects.ProjectApprovalQueue
   alias Windowpane.Projects.ProjectReview
   alias Windowpane.Projects.LiveStream
+  alias Windowpane.Projects.Premiere
 
   @doc """
   Returns the list of projects for a creator.
@@ -704,6 +705,63 @@ defmodule Windowpane.Projects do
       live_stream ->
         live_stream
     end
+  end
+
+  # Premiere functions
+
+  @doc """
+  Creates a premiere for a project.
+  Uses the project's premiere_date as start_time and calculates end_time based on duration.
+  Only creates premieres for film and live_event project types.
+
+  For films: uses the film's duration field (defaults to 120 minutes if not set)
+  For live_events: uses the live_stream's expected_duration_minutes field (defaults to 60 minutes if not set)
+
+  ## Examples
+
+      iex> create_premiere(film_project)
+      {:ok, %Premiere{}}
+
+      iex> create_premiere(live_event_project)
+      {:ok, %Premiere{}}
+
+      iex> create_premiere(other_project_type)
+      {:error, "Premieres can only be created for film and live_event projects, got: book"}
+
+  """
+  def create_premiere(%Project{type: type} = project) when type in ["film", "live_event"] do
+    # Get duration in minutes based on project type
+    duration_minutes = get_project_duration_minutes(project)
+
+    # Calculate end_time = start_time + duration
+    start_time = project.premiere_date
+    end_time = DateTime.add(start_time, duration_minutes * 60, :second)
+
+    attrs = %{
+      project_id: project.id,
+      start_time: start_time,
+      end_time: end_time
+    }
+
+    %Premiere{}
+    |> Premiere.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  def create_premiere(%Project{type: type}) do
+    {:error, "Premieres can only be created for film and live_event projects, got: #{type}"}
+  end
+
+  defp get_project_duration_minutes(%Project{type: "film", film: film}) when not is_nil(film) do
+    film.duration || 120  # Default to 2 hours if duration not set
+  end
+
+  defp get_project_duration_minutes(%Project{type: "live_event", live_stream: live_stream}) when not is_nil(live_stream) do
+    live_stream.expected_duration_minutes || 60  # Default to 1 hour if not set
+  end
+
+  defp get_project_duration_minutes(_project) do
+    120  # Default to 2 hours for other project types
   end
 
   @doc """

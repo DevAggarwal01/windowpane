@@ -157,8 +157,14 @@ defmodule WindowpaneWeb.MuxWebhookController do
       with project when not is_nil(project) <- Projects.get_project_with_film!(project_id),
            film <- project.film || Projects.get_or_create_film(project),
            update when update != %{} <- get_asset_and_playback_update_by_type(type, asset_id, playback_id),
-           {:ok, _film} <- Projects.update_film(film, update) do
+           {:ok, updated_film} <- Projects.update_film(film, update) do
         Logger.info("Successfully updated film with asset_id and playback_id for project #{project_id}")
+
+        # If this is a film asset, also update the duration
+        if type == "film" do
+          update_film_duration(updated_film, asset_id)
+        end
+
         :ok
       else
         nil ->
@@ -216,6 +222,40 @@ defmodule WindowpaneWeb.MuxWebhookController do
       "trailer" -> %{trailer_playback_id: playback_id}
       "film" -> %{film_playback_id: playback_id}
       _ -> %{}
+    end
+  end
+
+  defp update_film_duration(film, asset_id) do
+    try do
+      client = Mux.Base.new(System.get_env("MUX_TOKEN_ID"), System.get_env("MUX_SECRET_KEY"))
+
+      case Mux.Video.Assets.get(client, asset_id) do
+        {:ok, asset, _tesla_env} ->
+          duration = asset["duration"]
+          rounded_duration = if duration, do: Float.ceil(duration), else: nil
+
+          if rounded_duration do
+            case Projects.update_film(film, %{duration: round(rounded_duration)}) do
+              {:ok, _updated_film} ->
+                Logger.info("Successfully updated film duration to #{round(rounded_duration)} minutes")
+                :ok
+              {:error, reason} ->
+                Logger.error("Failed to update film duration: #{inspect(reason)}")
+                {:error, reason}
+            end
+          else
+            Logger.warning("Duration not found in asset response for asset_id: #{asset_id}")
+            :ok
+          end
+
+        {:error, reason} ->
+          Logger.error("Failed to fetch asset from Mux: #{inspect(reason)}")
+          {:error, reason}
+      end
+    rescue
+      e ->
+        Logger.error("Error updating film duration: #{inspect(e)}")
+        {:error, :unexpected_error}
     end
   end
 end
