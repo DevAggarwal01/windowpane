@@ -4,7 +4,7 @@ defmodule WindowpaneWeb.LandingLive do
   alias Windowpane.Projects
   alias Windowpane.MuxToken
   alias Windowpane.Ownership
-  alias WindowpaneWeb.LandingRowComponent
+  alias WindowpaneWeb.{LandingRowComponent, FilmModalComponent}
 
   @impl true
   def mount(_params, _session, socket) do
@@ -12,6 +12,7 @@ defmodule WindowpaneWeb.LandingLive do
       socket
       |> assign(:page_title, "Discover Amazing Content")
       |> assign(:selected_film, nil)
+      |> assign(:is_premiere, false)
 
     {:ok, socket}
   end
@@ -46,12 +47,16 @@ defmodule WindowpaneWeb.LandingLive do
       nil
     end
 
+    # Determine if this is a premiere based on the source
+    is_premiere = params["source"] == "premieres"
+
     socket =
       socket
       |> assign(:selected_film, selected_film)
       |> assign(:trailer_token, trailer_token)
       |> assign(:user_owns_film, user_owns_film)
       |> assign(:ownership_id, ownership_id)
+      |> assign(:is_premiere, is_premiere)
 
     {:noreply, socket}
   end
@@ -76,6 +81,30 @@ defmodule WindowpaneWeb.LandingLive do
     ~H"""
     <!-- Main Content -->
     <main class="max-w-7xl mx-auto px-4 py-6">
+      <!-- Film Modal Component -->
+      <%= if @selected_film do %>
+        <.live_component
+          module={FilmModalComponent}
+          id="film-modal"
+          film={@selected_film}
+          trailer_token={@trailer_token}
+          current_user={@current_user}
+          user_owns_film={@user_owns_film}
+          ownership_id={@ownership_id}
+          is_premiere={@is_premiere}
+        />
+      <% end %>
+      <!-- Current Premieres Row -->
+      <.live_component
+        module={LandingRowComponent}
+        id="current-premieres"
+        title="Watch Now: Live Premieres"
+        query_module={Projects}
+        query_function={:list_minimal_current_premieres}
+        query_params={6}
+        show_more_path={~p"/premieres"}
+        is_premiere={true}
+      />
       <!-- Upcoming Premieres Row -->
       <.live_component
         module={LandingRowComponent}
@@ -85,7 +114,10 @@ defmodule WindowpaneWeb.LandingLive do
         query_function={:list_minimal_upcoming_premieres}
         query_params={6}
         show_more_path={~p"/premieres"}
+        is_premiere={true}
       />
+
+
 
       <!-- Films Row -->
       <.live_component
@@ -96,6 +128,7 @@ defmodule WindowpaneWeb.LandingLive do
         query_function={:list_minimal_published_films}
         query_params={6}
         show_more_path={~p"/browse"}
+        is_premiere={false}
       />
 
       <!-- Additional Content Sections -->
@@ -143,19 +176,6 @@ defmodule WindowpaneWeb.LandingLive do
         </div>
       </div>
     </main>
-
-    <!-- Film Modal -->
-    <%= if @selected_film do %>
-      <.live_component
-        module={WindowpaneWeb.FilmModalComponent}
-        id="film-modal"
-        film={@selected_film}
-        trailer_token={@trailer_token}
-        current_user={@current_user}
-        user_owns_film={@user_owns_film}
-        ownership_id={@ownership_id}
-      />
-    <% end %>
     """
   end
 end

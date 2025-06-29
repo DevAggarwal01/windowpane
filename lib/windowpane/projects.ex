@@ -911,4 +911,39 @@ defmodule Windowpane.Projects do
     })
     |> Repo.all()
   end
+
+  @doc """
+  Returns a list of minimal premiere data for landing page rows.
+  Only includes premieres that are currently happening (started but not ended).
+
+  ## Examples
+
+      iex> list_minimal_current_premieres(6)
+      [%{id: 123, title: "Film Title", creator_name: "Creator Name", start_time: ~U[2024-03-20 10:00:00Z]}, ...]
+
+  """
+  def list_minimal_current_premieres(limit \\ 6) do
+    now = DateTime.utc_now()
+
+    # Debug: Log the current time being used
+    IO.puts("Checking current premieres at: #{DateTime.to_string(now)}")
+
+    results = Premiere
+    |> where([p], p.start_time <= ^now and p.end_time > ^now)
+    |> order_by([p], asc: p.start_time)
+    |> limit(^limit)
+    |> join(:inner, [p], proj in Project, on: p.project_id == proj.id)
+    |> join(:inner, [p, proj], c in Windowpane.Creators.Creator, on: proj.creator_id == c.id)
+    |> select([p, proj, c], %{
+      id: proj.id,
+      creator_name: c.name,
+      start_time: p.start_time
+    })
+    |> Repo.all()
+
+    # Debug: Log the results
+    IO.puts("Current premieres found: #{inspect(results, pretty: true)}")
+
+    results
+  end
 end

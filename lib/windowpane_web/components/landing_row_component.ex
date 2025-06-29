@@ -10,8 +10,14 @@ defmodule WindowpaneWeb.LandingRowComponent do
 
   @impl true
   def update(assigns, socket) do
+    # Debug: Log the incoming assigns
+    IO.puts("LandingRowComponent update for #{assigns.id} with query: #{inspect(assigns.query_function)}")
+
     # Fetch items using the provided query function
     items = apply(assigns.query_module, assigns.query_function, [assigns.query_params])
+
+    # Debug: Log the items received
+    IO.puts("Items received for #{assigns.id}: #{inspect(items, pretty: true)}")
 
     {:ok, assign(socket, assigns) |> assign(:items, items)}
   end
@@ -47,7 +53,7 @@ defmodule WindowpaneWeb.LandingRowComponent do
         <!-- Grid -->
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
           <%= for item <- @items do %>
-            <.link patch={~p"/?id=#{item.id}"} class="group">
+            <.link patch={~p"/?id=#{item.id}&source=#{if @is_premiere, do: "premieres", else: "films"}"} class="group">
               <div class="bg-gray-800 rounded-lg overflow-hidden transition-transform hover:scale-105">
                 <!-- Cover -->
                 <div class="aspect-[3/4] relative overflow-hidden bg-gray-700">

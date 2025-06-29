@@ -26,7 +26,8 @@ defmodule WindowpaneWeb.FilmModalComponent do
       edit: false,  # Default value for edit parameter
       show_banner_upload_modal: false,
       banner_uploading: false,
-      banner_updated_at: System.system_time(:second)
+      banner_updated_at: System.system_time(:second),
+      is_premiere: false  # Default value for is_premiere
     )}
   end
 
@@ -37,6 +38,7 @@ defmodule WindowpaneWeb.FilmModalComponent do
      |> assign(assigns)
      |> assign(:banner_uploading, false)
      |> assign(:banner_updated_at, System.system_time(:second))
+     |> assign_new(:is_premiere, fn -> false end)  # Ensure is_premiere has a default value
     }
   end
 
@@ -187,9 +189,16 @@ defmodule WindowpaneWeb.FilmModalComponent do
             <!-- Title and Actions Row -->
             <div class="flex items-start justify-between mb-4">
               <div class="flex-1">
-                <h1 class="text-2xl font-bold text-white mb-2">
-                  <%= @film.title %>
-                </h1>
+                <div class="flex items-center gap-3 mb-2">
+                  <%= if @is_premiere do %>
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                      Premiere
+                    </span>
+                  <% end %>
+                  <h1 class="text-2xl font-bold text-white">
+                    <%= @film.title %>
+                  </h1>
+                </div>
                 <p class="text-gray-300 mb-4">
                   By <%= if is_map(@film.creator) && !match?(%Ecto.Association.NotLoaded{}, @film.creator), do: @film.creator.name, else: "Unknown Creator" %>
                 </p>
@@ -207,27 +216,27 @@ defmodule WindowpaneWeb.FilmModalComponent do
                     <span class="text-xs opacity-75">You own this film</span>
                   </.link>
                 <% else %>
-                  <!-- User doesn't own - show rent button (disabled in edit mode) -->
+                  <!-- User doesn't own - show rent/premiere button (disabled in edit mode) -->
                   <%= if Map.get(assigns, :edit, false) do %>
-                    <!-- Edit mode - show disabled rent button -->
+                    <!-- Edit mode - show disabled button -->
                     <button
                       type="button"
                       class="inline-flex flex-col items-center px-4 py-3 bg-gray-300 text-gray-500 font-semibold rounded cursor-not-allowed opacity-50"
                       disabled
                     >
-                      <span class="text-sm">Rent movie</span>
-                      <span class="text-lg font-bold"><%= format_price(@film.rental_price) %></span>
+                      <span class="text-sm"><%= if @is_premiere, do: "Join Premiere", else: "Rent" %></span>
+                      <span class="text-lg font-bold"><%= format_price(if @is_premiere, do: @film.premiere_price, else: @film.rental_price) %></span>
                     </button>
                   <% else %>
-                    <!-- Normal mode - show active rent button -->
+                    <!-- Normal mode - show active button -->
                     <button
                       type="button"
                       class="inline-flex flex-col items-center px-4 py-3 bg-white text-black font-semibold rounded hover:bg-gray-200 transition-colors"
                       phx-click="rent_film"
                       phx-target={@myself}
                     >
-                      <span class="text-sm">Rent movie</span>
-                      <span class="text-lg font-bold"><%= format_price(@film.rental_price) %></span>
+                      <span class="text-sm"><%= if @is_premiere, do: "Join Premiere", else: "Rent" %></span>
+                      <span class="text-lg font-bold"><%= format_price(if @is_premiere, do: @film.premiere_price, else: @film.rental_price) %></span>
                     </button>
                   <% end %>
                 <% end %>
@@ -244,6 +253,16 @@ defmodule WindowpaneWeb.FilmModalComponent do
                 <% end %>
               </p>
             </div>
+
+            <%= if @is_premiere && @film.premiere_date do %>
+              <!-- Premiere Date -->
+              <div class="mt-4 p-4 bg-gray-800 rounded-lg">
+                <h3 class="text-lg font-semibold text-white mb-2">Premiere Details</h3>
+                <p class="text-gray-300">
+                  Premiering on <%= Calendar.strftime(@film.premiere_date, "%B %d, %Y at %I:%M %p UTC") %>
+                </p>
+              </div>
+            <% end %>
           </div>
         </div>
       </div>
@@ -393,7 +412,7 @@ defmodule WindowpaneWeb.FilmModalComponent do
               <div class="text-center">
                 <h3 class="text-lg font-medium text-gray-900 mb-4">Are you sure?</h3>
                 <p class="text-gray-600 mb-6">
-                  Do you want to rent "<%= @film.title %>" for <%= format_price(@film.rental_price) %>?
+                  Do you want to rent "<%= @film.title %>" for <%= format_price(if @is_premiere, do: @film.premiere_price, else: @film.rental_price) %>?
                 </p>
                 <div class="flex space-x-3 justify-center">
                   <button
@@ -433,7 +452,7 @@ defmodule WindowpaneWeb.FilmModalComponent do
                 </div>
                 <h3 class="text-lg font-medium text-gray-900 mb-4">Insufficient Funds</h3>
                 <p class="text-gray-600 mb-6">
-                  You don't have enough funds in your wallet to rent "<%= @film.title %>" for <%= format_price(@film.rental_price) %>.
+                  You don't have enough funds in your wallet to rent "<%= @film.title %>" for <%= format_price(if @is_premiere, do: @film.premiere_price, else: @film.rental_price) %>.
                   <br><br>
                   Would you like to add funds to your wallet?
                 </p>
