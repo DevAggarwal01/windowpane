@@ -827,4 +827,88 @@ defmodule Windowpane.Projects do
     Decimal.compare(price, Decimal.new("1.0")) != :lt
   end
   defp rental_price_valid?(_), do: false
+
+  @doc """
+  Returns a list of upcoming premieres ordered by start time.
+  Includes the associated project and creator name for display.
+  Only returns premieres that haven't started yet.
+  Limits to 6 results by default.
+
+  ## Examples
+
+      iex> list_upcoming_premieres()
+      [%Premiere{project: %Project{}, ...}, ...]
+
+  """
+  def list_upcoming_premieres(limit \\ 6) do
+    now = DateTime.utc_now()
+
+    Premiere
+    |> where([p], p.start_time > ^now)
+    |> order_by([p], asc: p.start_time)
+    |> limit(^limit)
+    |> preload(:project)
+    |> Repo.all()
+    |> Enum.map(fn premiere ->
+      # Get creator name separately for security
+      creator_name = from(c in Windowpane.Creators.Creator,
+        where: c.id == ^premiere.project.creator_id,
+        select: c.name
+      ) |> Repo.one()
+
+      # Add creator name to project
+      project = Map.put(premiere.project, :creator, %{name: creator_name})
+      %{premiere | project: project}
+    end)
+  end
+
+  @doc """
+  Returns a list of minimal project data for landing page rows.
+  Only returns id, cover_url, and creator name for performance.
+
+  ## Examples
+
+      iex> list_minimal_published_films(6)
+      [%{id: 1, cover_url: "...", creator_name: "..."}, ...]
+
+  """
+  def list_minimal_published_films(limit \\ 6) do
+    Project
+    |> where([p], p.type == "film" and p.status == "published")
+    |> limit(^limit)
+    |> join(:inner, [p], c in Windowpane.Creators.Creator, on: p.creator_id == c.id)
+    |> select([p, c], %{
+      id: p.id,
+      creator_name: c.name
+    })
+    |> order_by([p], desc: p.premiere_date)
+    |> Repo.all()
+  end
+
+  @doc """
+  Returns a list of minimal premiere data for landing page rows.
+  Only returns id, cover_url, creator name, and start_time for performance.
+
+  ## Examples
+
+      iex> list_minimal_upcoming_premieres(6)
+      [%{id: 1, cover_url: "...", creator_name: "...", start_time: ~U[2024-03-20 10:00:00Z]}, ...]
+
+  """
+  def list_minimal_upcoming_premieres(limit \\ 6) do
+    now = DateTime.utc_now()
+
+    Premiere
+    |> where([p], p.start_time > ^now)
+    |> order_by([p], asc: p.start_time)
+    |> limit(^limit)
+    |> join(:inner, [p], proj in Project, on: p.project_id == proj.id)
+    |> join(:inner, [p, proj], c in Windowpane.Creators.Creator, on: proj.creator_id == c.id)
+    |> select([p, proj, c], %{
+      id: proj.id,
+      creator_name: c.name,
+      start_time: p.start_time
+    })
+    |> Repo.all()
+  end
 end
