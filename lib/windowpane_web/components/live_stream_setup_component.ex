@@ -20,6 +20,7 @@ defmodule WindowpaneWeb.LiveStreamSetupComponent do
      |> assign(:banner_uploading, false)
      |> assign(:active_tab, "project_details")
      |> assign(:cover_updated_at, System.system_time(:second))
+     |> assign(:banner_updated_at, System.system_time(:second))
      |> assign(:revenue_breakdown, nil)
      |> assign(:saving, false)
      |> assign(:current_price_input, nil)
@@ -121,7 +122,7 @@ defmodule WindowpaneWeb.LiveStreamSetupComponent do
     {:noreply, put_flash(socket, :info, "Stream stopping functionality coming soon!")}
   end
 
-  # Cover upload event handlers (similar to FilmSetupComponent)
+  # Cover upload event handlers
   @impl true
   def handle_event("show_cover_modal", _params, socket) do
     {:noreply, assign(socket, :show_cover_modal, true)}
@@ -130,16 +131,6 @@ defmodule WindowpaneWeb.LiveStreamSetupComponent do
   @impl true
   def handle_event("hide_cover_modal", _params, socket) do
     {:noreply, assign(socket, :show_cover_modal, false)}
-  end
-
-  @impl true
-  def handle_event("show_cropper_modal", _params, socket) do
-    {:noreply, assign(socket, :show_cropper_modal, true)}
-  end
-
-  @impl true
-  def handle_event("hide_cropper_modal", _params, socket) do
-    {:noreply, assign(socket, :show_cropper_modal, false)}
   end
 
   @impl true
@@ -153,7 +144,7 @@ defmodule WindowpaneWeb.LiveStreamSetupComponent do
     {:noreply,
      socket
      |> assign(:project, updated_project)
-     |> assign(:show_cropper_modal, false)
+     |> assign(:show_cover_modal, false)
      |> assign(:cover_uploading, false)
      |> assign(:cover_updated_at, System.system_time(:second))
      |> put_flash(:info, "Cover image uploaded successfully!")}
@@ -371,6 +362,13 @@ defmodule WindowpaneWeb.LiveStreamSetupComponent do
     "#{base_url}?t=#{cover_updated_at}"
   end
 
+  # Helper function to generate cache-busting banner URL
+  defp banner_url_with_cache_bust(project, banner_updated_at) do
+    alias Windowpane.Uploaders.BannerUploader
+    base_url = BannerUploader.banner_url(project)
+    "#{base_url}?t=#{banner_updated_at}"
+  end
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -394,83 +392,180 @@ defmodule WindowpaneWeb.LiveStreamSetupComponent do
                     </svg>
                   </button>
                 </div>
+
                 <div class="mt-3 text-center sm:mt-5">
                   <h3 class="text-lg font-semibold leading-6 text-gray-900">Upload Cover Image</h3>
-                  <div class="mt-4">
-                    <form phx-submit="upload_cover" phx-target={@myself} phx-change="validate_cover" class="space-y-4">
-                      <div class="flex justify-center">
-                        <!-- Container for cover and edit button -->
-                        <div class="relative flex flex-col items-center">
-                          <!-- Film Cover Placeholder with Dashed Border -->
-                          <div
-                            class="w-64 h-96 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center bg-gray-50 hover:border-gray-400 hover:bg-gray-100 transition-colors cursor-pointer"
-                            phx-click="show_film_modal"
-                            phx-target={@myself}
-                          >
-                            <!-- Include Cropper.js CDN -->
-                            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
-                            <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+                  <p class="mt-2 text-sm text-gray-500">
+                    Upload a cover image with a 2:3 aspect ratio (e.g., 400x600 pixels)
+                  </p>
+                  <p class="mt-1 text-xs text-blue-600">
+                    Need to adjust your image? Use this free
+                    <a href="https://imagy.app/image-aspect-ratio-changer/" target="_blank" rel="noopener noreferrer" class="underline hover:text-blue-800">
+                      aspect ratio changer tool
+                    </a>
+                  </p>
 
+                  <div class="mt-6" id="cover-upload-hook" phx-hook="CoverUpload" data-project-id={@project.id} phx-target={@myself}>
+                    <!-- Cover Preview Area -->
+                    <div class="flex justify-center mb-6">
+                      <div class="w-48 h-72 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center bg-gray-50">
                             <%= if Windowpane.Uploaders.CoverUploader.cover_exists?(@project) do %>
-                              <!-- Show uploaded cover image -->
                               <img
                                 src={cover_url_with_cache_bust(@project, @cover_updated_at)}
                                 alt={"Cover for #{@project.title}"}
                                 class="w-full h-full object-cover rounded-lg"
                               />
                             <% else %>
-                              <!-- Show placeholder when no cover exists -->
                               <div class="text-center">
-                                <svg class="mx-auto h-16 w-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg class="mx-auto h-12 w-12 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                 </svg>
-                                <span class="text-xs text-gray-500">JPG, PNG, WEBP accepted</span>
+                            <p class="text-xs text-gray-500">2:3 Aspect Ratio</p>
+                            <p class="text-xs text-gray-400">JPG, PNG, WEBP</p>
                               </div>
                             <% end %>
+                      </div>
                           </div>
 
-                          <!-- Pencil Edit Icon (positioned absolutely over the cover but outside its div) -->
-                          <button
-                            type="button"
-                            class="absolute top-0 right-0 -mt-2 -mr-2 w-8 h-8 bg-white rounded-full shadow-md flex items-center justify-center border border-gray-200 hover:bg-gray-50 cursor-pointer z-10"
-                            onclick="document.getElementById('cover-file-input').click();"
-                          >
-                            <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
-                          </button>
-
-                          <!-- Hidden file input (outside the clickable area) -->
+                    <!-- Hidden file input -->
                           <input
                             type="file"
                             id="cover-file-input"
                             accept=".jpg,.jpeg,.png,.webp"
                             style="display: none;"
-                            id="image-cropper-hook"
-                            phx-hook="ImageCropper"
-                            data-project-id={@project.id}
-                            phx-target={@myself}
                           />
-                        </div>
-                      </div>
 
-                      <div class="mt-5 sm:mt-6 sm:grid sm:grid-flow-row-dense sm:grid-cols-2 sm:gap-3">
-                        <button
-                          type="submit"
-                          class="inline-flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 sm:col-start-2"
-                        >
-                          Upload
-                        </button>
+                    <!-- Action Buttons -->
+                    <div class="flex justify-center gap-3">
                         <button
                           type="button"
                           phx-click="hide_cover_modal"
                           phx-target={@myself}
-                          class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:col-start-1 sm:mt-0"
+                        class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                         >
                           Cancel
                         </button>
+                      <button
+                        type="button"
+                        onclick="document.dispatchEvent(new CustomEvent('cover-upload:choose-file'))"
+                        class={[
+                          "px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500",
+                          @cover_uploading && "opacity-50 cursor-not-allowed"
+                        ]}
+                        disabled={@cover_uploading}
+                      >
+                        <%= if @cover_uploading do %>
+                          <svg class="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Uploading...
+                        <% else %>
+                          Choose File
+                        <% end %>
+                      </button>
                       </div>
-                    </form>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      <% end %>
+
+      <!-- Banner Upload Modal -->
+      <%= if @show_banner_modal do %>
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity z-50">
+          <div class="fixed inset-0 z-50 overflow-y-auto">
+            <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+              <div class="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6">
+                <div class="absolute right-0 top-0 pr-4 pt-4">
+                  <button
+                    phx-click="hide_banner_modal"
+                    phx-target={@myself}
+                    type="button"
+                    class="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none"
+                  >
+                    <span class="sr-only">Close</span>
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+
+                <div class="mt-3 text-center sm:mt-5">
+                  <h3 class="text-lg font-semibold leading-6 text-gray-900">Upload Banner Image</h3>
+                  <p class="mt-2 text-sm text-gray-500">
+                    Upload a banner image with a 16:9 aspect ratio
+                  </p>
+                  <p class="mt-1 text-xs text-blue-600">
+                    Need to adjust your image? Use this free
+                    <a href="https://imagy.app/image-aspect-ratio-changer/" target="_blank" rel="noopener noreferrer" class="underline hover:text-blue-800">
+                      aspect ratio changer tool
+                    </a>
+                  </p>
+
+                  <div class="mt-6" id="banner-upload-hook" phx-hook="BannerUpload" data-project-id={@project.id} phx-target={@myself}>
+                    <!-- Banner Preview Area -->
+                    <div class="flex justify-center mb-6">
+                      <div class="w-full aspect-video border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center bg-gray-50">
+                        <%= if BannerUploader.banner_exists?(@project) do %>
+                          <img
+                            src={banner_url_with_cache_bust(@project, @banner_updated_at)}
+                            alt={"Banner for #{@project.title}"}
+                            class="w-full h-full object-cover rounded-lg"
+                          />
+                        <% else %>
+                          <!-- Show placeholder when no banner exists -->
+                          <div class="text-center">
+                            <svg class="mx-auto h-12 w-12 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <p class="text-xs text-gray-500">16:9 Aspect Ratio</p>
+                            <p class="text-xs text-gray-400">JPG, PNG, WEBP</p>
+                          </div>
+                        <% end %>
+                      </div>
+                    </div>
+
+                    <!-- Hidden file input -->
+                    <input
+                      type="file"
+                      id="banner-file-input"
+                      accept=".jpg,.jpeg,.png,.webp"
+                      style="display: none;"
+                    />
+
+                    <!-- Action Buttons -->
+                    <div class="flex justify-center gap-3">
+                      <button
+                        type="button"
+                        phx-click="hide_banner_modal"
+                        phx-target={@myself}
+                        class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onclick="document.dispatchEvent(new CustomEvent('banner-upload:choose-file'))"
+                        class={[
+                          "px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500",
+                          @banner_uploading && "opacity-50 cursor-not-allowed"
+                        ]}
+                        disabled={@banner_uploading}
+                      >
+                        <%= if @banner_uploading do %>
+                          <svg class="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Uploading...
+                        <% else %>
+                          Choose File
+                        <% end %>
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1105,66 +1200,101 @@ defmodule WindowpaneWeb.LiveStreamSetupComponent do
         <div class="bg-white shadow rounded-lg p-6 mt-8">
           <h3 class="text-xl font-bold mb-4">User Interface Setup</h3>
 
-          <div class="flex justify-center">
-            <!-- Container for cover and edit button -->
-            <div class="relative flex flex-col items-center">
-              <!-- Film Cover Placeholder with Dashed Border -->
-              <div
-                class="w-64 h-96 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center bg-gray-50 hover:border-gray-400 hover:bg-gray-100 transition-colors cursor-pointer"
-                phx-click="show_film_modal"
-                phx-target={@myself}
-              >
-                <!-- Include Cropper.js CDN -->
-                <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
-                <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
-
-                <%= if Windowpane.Uploaders.CoverUploader.cover_exists?(@project) do %>
-                  <!-- Show uploaded cover image -->
-                  <img
-                    src={cover_url_with_cache_bust(@project, @cover_updated_at)}
-                    alt={"Cover for #{@project.title}"}
-                    class="w-full h-full object-cover rounded-lg"
-                  />
-                <% else %>
-                  <!-- Show placeholder when no cover exists -->
-                  <div class="text-center">
-                    <svg class="mx-auto h-16 w-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    <span class="text-xs text-gray-500">JPG, PNG, WEBP accepted</span>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <!-- Cover Upload Section -->
+            <div>
+              <h4 class="text-lg font-semibold mb-4">Cover Image</h4>
+              <div class="flex justify-center">
+                <!-- Container for cover and edit button -->
+                <div class="relative flex flex-col items-center">
+                  <!-- Film Cover Placeholder with Dashed Border -->
+                  <div
+                    class="w-64 h-96 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center bg-gray-50 hover:border-gray-400 hover:bg-gray-100 transition-colors cursor-pointer"
+                  >
+                    <%= if Windowpane.Uploaders.CoverUploader.cover_exists?(@project) do %>
+                      <!-- Show uploaded cover image -->
+                      <img
+                        src={cover_url_with_cache_bust(@project, @cover_updated_at)}
+                        alt={"Cover for #{@project.title}"}
+                        class="w-full h-full object-cover rounded-lg"
+                      />
+                    <% else %>
+                      <!-- Show placeholder when no cover exists -->
+                      <div class="text-center">
+                        <svg class="mx-auto h-12 w-12 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <p class="text-xs text-gray-500">2:3 Aspect Ratio</p>
+                        <p class="text-xs text-gray-400">JPG, PNG, WEBP</p>
+                      </div>
+                    <% end %>
                   </div>
-                <% end %>
+
+                  <!-- Pencil Edit Icon -->
+                  <button
+                    type="button"
+                    class="absolute top-0 right-0 -mt-2 -mr-2 w-8 h-8 bg-white rounded-full shadow-md flex items-center justify-center border border-gray-200 hover:bg-gray-50 cursor-pointer z-10"
+                    phx-click="show_cover_modal"
+                    phx-target={@myself}
+                  >
+                    <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  </button>
+                </div>
               </div>
+              <p class="text-sm text-gray-600 text-center mt-4">
+                Cover image for your live stream (2:3 aspect ratio)
+              </p>
+            </div>
 
-              <!-- Pencil Edit Icon (positioned absolutely over the cover but outside its div) -->
-              <button
-                type="button"
-                class="absolute top-0 right-0 -mt-2 -mr-2 w-8 h-8 bg-white rounded-full shadow-md flex items-center justify-center border border-gray-200 hover:bg-gray-50 cursor-pointer z-10"
-                onclick="document.getElementById('cover-file-input').click();"
-              >
-                <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                </svg>
-              </button>
+            <!-- Banner Upload Section -->
+            <div>
+              <h4 class="text-lg font-semibold mb-4">Banner Image</h4>
+              <div class="flex justify-center">
+                <!-- Container for banner and edit button -->
+                <div class="relative flex flex-col items-center">
+                  <!-- Banner Placeholder with Dashed Border -->
+                  <div
+                    class="w-full h-48 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center bg-gray-50 hover:border-gray-400 hover:bg-gray-100 transition-colors cursor-pointer"
+                  >
+                    <%= if BannerUploader.banner_exists?(@project) do %>
+                      <!-- Show uploaded banner image -->
+                      <img
+                        src={banner_url_with_cache_bust(@project, @banner_updated_at)}
+                        alt={"Banner for #{@project.title}"}
+                        class="w-full h-full object-cover rounded-lg"
+                      />
+                    <% else %>
+                      <!-- Show placeholder when no banner exists -->
+                      <div class="text-center">
+                        <svg class="mx-auto h-12 w-12 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <p class="text-xs text-gray-500">16:9 Aspect Ratio</p>
+                        <p class="text-xs text-gray-400">JPG, PNG, WEBP</p>
+                      </div>
+                    <% end %>
+                  </div>
 
-              <!-- Hidden file input (outside the clickable area) -->
-              <input
-                type="file"
-                id="cover-file-input"
-                accept=".jpg,.jpeg,.png,.webp"
-                style="display: none;"
-                id="image-cropper-hook"
-                phx-hook="ImageCropper"
-                data-project-id={@project.id}
-                phx-target={@myself}
-              />
+                  <!-- Pencil Edit Icon -->
+                  <button
+                    type="button"
+                    class="absolute top-0 right-0 -mt-2 -mr-2 w-8 h-8 bg-white rounded-full shadow-md flex items-center justify-center border border-gray-200 hover:bg-gray-50 cursor-pointer z-10"
+                    phx-click="show_banner_modal"
+                    phx-target={@myself}
+                  >
+                    <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <p class="text-sm text-gray-600 text-center mt-4">
+                Banner image for your live stream (16:9 aspect ratio)
+              </p>
             </div>
           </div>
-
-          <!-- Instructions text (separate from cover) -->
-          <p class="text-sm text-gray-600 text-center mt-4">
-            Click cover for additional configuration
-          </p>
         </div>
       <% end %>
         </div>
@@ -1564,5 +1694,30 @@ defmodule WindowpaneWeb.LiveStreamSetupComponent do
        socket
        |> put_flash(:error, "Cannot deploy live stream project. Please complete all required fields: title, description, cover image, banner image, premiere date (must be in future), premiere price (min $1), and rental price (min $1 if recording enabled).")}
     end
+  end
+
+  @impl true
+  def handle_event("set_banner_uploading", %{"uploading" => uploading}, socket) do
+    {:noreply, assign(socket, :banner_uploading, uploading)}
+  end
+
+  @impl true
+  def handle_event("banner_upload_success", _params, socket) do
+    updated_project = Projects.get_project_with_live_stream_and_reviews!(socket.assigns.project.id)
+    {:noreply,
+     socket
+     |> assign(:project, updated_project)
+     |> assign(:show_banner_modal, false)
+     |> assign(:banner_uploading, false)
+     |> assign(:banner_updated_at, System.system_time(:second))
+     |> put_flash(:info, "Banner image uploaded successfully!")}
+  end
+
+  @impl true
+  def handle_event("banner_upload_error", %{"error" => error}, socket) do
+    {:noreply,
+     socket
+     |> assign(:banner_uploading, false)
+     |> put_flash(:error, "Upload failed: #{error}")}
   end
 end

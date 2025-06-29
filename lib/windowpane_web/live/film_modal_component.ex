@@ -2,6 +2,7 @@ defmodule WindowpaneWeb.FilmModalComponent do
   use WindowpaneWeb, :live_component
 
   alias Windowpane.{Repo, Ownership, Accounts, MuxToken}
+  alias Windowpane.Uploaders.BannerUploader
 
   # Helper function to format price
   defp format_price(nil), do: "Free"
@@ -9,7 +10,6 @@ defmodule WindowpaneWeb.FilmModalComponent do
 
   # Helper function to generate cache-busting banner URL
   defp banner_url_with_cache_bust(film, banner_updated_at) do
-    alias Windowpane.Uploaders.BannerUploader
     base_url = BannerUploader.banner_url(film)
     "#{base_url}?t=#{banner_updated_at}"
   end
@@ -24,7 +24,7 @@ defmodule WindowpaneWeb.FilmModalComponent do
       user_owns_film: false,  # Default value
       ownership_id: nil,  # Default value for ownership ID
       edit: false,  # Default value for edit parameter
-      show_banner_cropper_modal: false,
+      show_banner_upload_modal: false,
       banner_uploading: false,
       banner_updated_at: System.system_time(:second)
     )}
@@ -35,7 +35,69 @@ defmodule WindowpaneWeb.FilmModalComponent do
     {:ok,
      socket
      |> assign(assigns)
-     |> allow_upload(:banner, accept: ~w(.jpg .jpeg .png .webp), max_entries: 1)}
+     |> assign(:banner_uploading, false)
+     |> assign(:banner_updated_at, System.system_time(:second))
+    }
+  end
+
+  @impl true
+  def handle_event("banner_upload_complete", _params, socket) do
+    {:noreply,
+     socket
+     |> put_flash(:info, "Banner uploaded successfully!")
+     |> assign(:banner_updated_at, System.system_time(:second))
+     |> assign(:banner_uploading, false)
+     |> assign(:show_banner_upload_modal, false)}
+  end
+
+  @impl true
+  def handle_event("banner_upload_error", %{"error" => error}, socket) do
+    {:noreply,
+     socket
+     |> put_flash(:error, error)
+     |> assign(:banner_uploading, false)}
+  end
+
+  @impl true
+  def handle_event("set_banner_uploading", %{"uploading" => uploading}, socket) do
+    {:noreply, assign(socket, :banner_uploading, uploading)}
+  end
+
+  @impl true
+  def handle_event("validate", _params, socket) do
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("save", _params, socket) do
+    film = socket.assigns.film
+
+    case consume_uploaded_entries(socket, :banner, fn %{path: path} ->
+      case BannerUploader.store({path, film}) do
+        {:ok, _filename} -> {:ok, :banner_uploaded}
+        {:error, reason} -> {:error, reason}
+      end
+    end) do
+      [{:ok, :banner_uploaded}] ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "Banner uploaded successfully!")
+         |> assign(:banner_updated_at, System.system_time(:second))
+         |> assign(:banner_uploading, false)
+         |> assign(:show_banner_upload_modal, false)}
+
+      [{:error, reason}] ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "Failed to upload banner: #{reason}")
+         |> assign(:banner_uploading, false)}
+
+      [] ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "No file was uploaded")
+         |> assign(:banner_uploading, false)}
+    end
   end
 
   @impl true
@@ -67,7 +129,7 @@ defmodule WindowpaneWeb.FilmModalComponent do
             <%= if @film.film && Map.get(@film.film, :trailer_playback_id) && @trailer_token do %>
               <mux-player
                 playback-id={@film.film.trailer_playback_id}
-                poster={if Windowpane.Uploaders.BannerUploader.banner_exists?(@film), do: banner_url_with_cache_bust(@film, @banner_updated_at), else: nil}
+                poster={if BannerUploader.banner_exists?(@film), do: banner_url_with_cache_bust(@film, @banner_updated_at), else: nil}
                 playback-token={@trailer_token}
                 stream-type="on-demand"
                 style="--bottom-controls: none;"
@@ -77,56 +139,45 @@ defmodule WindowpaneWeb.FilmModalComponent do
             <% else %>
               <!-- Static image fallback -->
               <%= cond do %>
-                <% Windowpane.Uploaders.BannerUploader.banner_exists?(@film) -> %>
-                  <img
-                    src={banner_url_with_cache_bust(@film, @banner_updated_at)}
-                    alt={"Banner for #{@film.title}"}
-                    class="w-full h-full object-cover"
-                  />
-                <% Windowpane.Uploaders.CoverUploader.cover_exists?(@film) -> %>
-                  <img
-                    src={Windowpane.Uploaders.CoverUploader.cover_url(@film)}
-                    alt={"Cover for #{@film.title}"}
-                    class="w-full h-full object-cover"
-                  />
+                <% BannerUploader.banner_exists?(@film) -> %>
+                  <div class="relative w-full aspect-video">
+                    <img
+                      src={banner_url_with_cache_bust(@film, @banner_updated_at)}
+                      alt={"Banner for #{@film.title}"}
+                      class="w-full h-full object-cover"
+                    />
+                    <%= if Map.get(assigns, :edit, false) do %>
+                      <button
+                        type="button"
+                        class="absolute top-4 left-4 w-10 h-10 bg-white bg-opacity-80 rounded-full shadow-md flex items-center justify-center border border-gray-200 hover:bg-opacity-100 cursor-pointer z-10 transition-all duration-200 hover:scale-105"
+                        phx-click="show_banner_upload_modal"
+                        phx-target={@myself}
+                      >
+                        <svg class="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </button>
+                    <% end %>
+                  </div>
                 <% true -> %>
-                  <div class="w-full h-full flex items-center justify-center text-gray-400">
+                  <div class="w-full aspect-video flex items-center justify-center text-gray-400">
                     <div class="text-center">
-                    <svg class="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                    </svg>
-                      <p>No image available</p>
+                      <svg class="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                      <p>No banner available</p>
+                      <%= if Map.get(assigns, :edit, false) do %>
+                        <button
+                          type="button"
+                          class="mt-4 px-4 py-2 bg-white rounded-md shadow text-sm font-medium text-gray-700 hover:bg-gray-50"
+                          phx-click="show_banner_upload_modal"
+                          phx-target={@myself}
+                        >
+                          Upload Banner
+                        </button>
+                      <% end %>
                     </div>
                   </div>
-                <% end %>
-
-              <!-- Watch Film Button (only if no trailer but has full film) -->
-              <%= if @film.film && !Map.get(@film.film, :trailer_playback_id) && Map.get(@film.film, :film_playback_id) do %>
-                <.link
-                  navigate={~p"/watch?id=#{@film.id}"}
-                  class="absolute bottom-4 right-4 bg-black bg-opacity-70 hover:bg-opacity-90 px-3 py-2 rounded cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-lg"
-                >
-                  <div class="flex items-center text-white text-sm font-medium">
-                    <svg class="w-4 h-4 mr-1 transition-transform duration-300 group-hover:scale-110" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M8 5v10l8-5-8-5z"/>
-                    </svg>
-                    Watch Film
-              </div>
-                </.link>
-              <% end %>
-
-              <!-- Banner Edit Pencil Icon (only when edit=true) -->
-              <%= if Map.get(assigns, :edit, false) do %>
-                <button
-                  type="button"
-                  class="absolute top-4 left-4 w-10 h-10 bg-white bg-opacity-80 rounded-full shadow-md flex items-center justify-center border border-gray-200 hover:bg-opacity-100 cursor-pointer z-10 transition-all duration-200 hover:scale-105"
-                  onclick="document.getElementById('banner-file-input').click();"
-                  title="Edit banner image"
-                >
-                  <svg class="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                </button>
               <% end %>
             <% end %>
           </div>
@@ -196,6 +247,105 @@ defmodule WindowpaneWeb.FilmModalComponent do
           </div>
         </div>
       </div>
+
+      <!-- Banner Upload Modal -->
+      <%= if @show_banner_upload_modal do %>
+        <div class="fixed inset-0 z-60 overflow-y-auto">
+          <div class="fixed inset-0 bg-black bg-opacity-50"></div>
+          <div class="flex min-h-full items-center justify-center p-4">
+            <div class="relative bg-white rounded-lg p-6 max-w-md w-full">
+              <div class="absolute right-0 top-0 pr-4 pt-4">
+                <button
+                  phx-click="hide_banner_upload_modal"
+                  phx-target={@myself}
+                  type="button"
+                  class="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none"
+                >
+                  <span class="sr-only">Close</span>
+                  <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div class="text-center">
+                <div class="mb-4">
+                  <h3 class="text-lg font-medium text-gray-900">Upload Banner Image</h3>
+                  <p class="text-sm text-gray-500 mt-1">Upload a banner image with a 16:9 aspect ratio</p>
+                  <p class="mt-1 text-xs text-blue-600">
+                    Need to adjust your image? Use this free
+                    <a href="https://imagy.app/image-aspect-ratio-changer/" target="_blank" rel="noopener noreferrer" class="underline hover:text-blue-800">
+                      aspect ratio changer tool
+                    </a>
+                  </p>
+                </div>
+
+                <div class="mt-6" id="banner-upload-hook" phx-hook="BannerUpload" data-project-id={@film.id} phx-target={@myself}>
+                  <!-- Banner Preview Area -->
+                  <div class="flex justify-center mb-6">
+                    <div class="w-full aspect-video border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center bg-gray-50">
+                      <%= if BannerUploader.banner_exists?(@film) do %>
+                        <img
+                          src={banner_url_with_cache_bust(@film, @banner_updated_at)}
+                          alt={"Banner for #{@film.title}"}
+                          class="w-full h-full object-cover rounded-lg"
+                        />
+                      <% else %>
+                        <div class="text-center">
+                          <svg class="mx-auto h-12 w-12 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          <p class="text-xs text-gray-500">16:9 Aspect Ratio</p>
+                          <p class="text-xs text-gray-400">JPG, PNG, WEBP</p>
+                        </div>
+                      <% end %>
+                    </div>
+                  </div>
+
+                  <!-- Hidden file input -->
+                  <input
+                    type="file"
+                    id="banner-file-input"
+                    accept=".jpg,.jpeg,.png,.webp"
+                    style="display: none;"
+                  />
+
+                  <!-- Action Buttons -->
+                  <div class="flex justify-center gap-3">
+                    <button
+                      type="button"
+                      phx-click="hide_banner_upload_modal"
+                      phx-target={@myself}
+                      class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onclick="document.dispatchEvent(new CustomEvent('banner-upload:choose-file'))"
+                      class={[
+                        "px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500",
+                        @banner_uploading && "opacity-50 cursor-not-allowed"
+                      ]}
+                      disabled={@banner_uploading}
+                    >
+                      <%= if @banner_uploading do %>
+                        <svg class="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                          <path class="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Uploading...
+                      <% else %>
+                        Choose File
+                      <% end %>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      <% end %>
 
       <!-- Login Message Modal -->
       <%= if @show_login_message do %>
@@ -355,92 +505,12 @@ defmodule WindowpaneWeb.FilmModalComponent do
           </div>
         </div>
       <% end %>
-
-      <!-- Banner Cropper Modal -->
-      <%= if @show_banner_cropper_modal do %>
-        <div class="fixed inset-0 z-70 overflow-y-auto">
-          <div class="fixed inset-0 bg-black bg-opacity-50"></div>
-          <div class="flex min-h-full items-center justify-center p-4">
-            <div class="relative bg-white rounded-lg p-6 max-w-4xl w-full transform transition-all duration-300 ease-in-out scale-100">
-              <div class="absolute right-0 top-0 pr-4 pt-4">
-                <button
-                  phx-click="hide_banner_cropper_modal"
-                  phx-target={@myself}
-                  type="button"
-                  class="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none"
-                >
-                  <span class="sr-only">Close</span>
-                  <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-
-              <div class="text-center">
-                <div class="mb-4">
-                  <h3 class="text-lg font-medium text-gray-900">Crop Banner Image</h3>
-                  <p class="text-sm text-gray-500 mt-1">Adjust the crop area to fit your banner image (16:9 aspect ratio)</p>
-                </div>
-
-                <div class="cropper-container mb-6" style="max-height: 500px;">
-                  <img
-                    id="banner-cropper-image"
-                    src=""
-                    alt="Banner image to crop"
-                    style="max-width: 100%; display: block;"
-                  />
-                </div>
-
-                <div class="flex justify-center gap-3">
-                  <button
-                    type="button"
-                    onclick="document.dispatchEvent(new CustomEvent('banner-cropper:close'))"
-                    class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onclick="document.dispatchEvent(new CustomEvent('banner-cropper:crop-and-upload'))"
-                    class={[
-                      "px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500",
-                      @banner_uploading && "opacity-50 cursor-not-allowed"
-                    ]}
-                    disabled={@banner_uploading}
-                  >
-                    <%= if @banner_uploading do %>
-                      <svg class="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Uploading...
-                    <% else %>
-                      Crop & Upload
-                    <% end %>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      <% end %>
-
-      <!-- Hidden Banner File Input with BannerCropper Hook -->
-      <div id="banner-cropper-hook" phx-hook="BannerCropper" data-project-id={@film.id} phx-target={@myself} style="display: none;">
-        <input
-          type="file"
-          id="banner-file-input"
-          accept=".jpg,.jpeg,.png,.webp"
-          style="display: none;"
-        />
-      </div>
     </div>
     """
   end
 
   @impl true
   def handle_event("close_modal", _params, socket) do
-    # Send message to parent LiveView to handle modal closing
     send(self(), :close_film_modal)
     {:noreply, socket}
   end
@@ -583,44 +653,12 @@ defmodule WindowpaneWeb.FilmModalComponent do
   end
 
   @impl true
-  def handle_event("show_banner_cropper_modal", _params, socket) do
-    {:noreply, assign(socket, :show_banner_cropper_modal, true)}
+  def handle_event("show_banner_upload_modal", _params, socket) do
+    {:noreply, assign(socket, :show_banner_upload_modal, true)}
   end
 
   @impl true
-  def handle_event("hide_banner_cropper_modal", _params, socket) do
-    {:noreply, assign(socket, :show_banner_cropper_modal, false)}
-  end
-
-  @impl true
-  def handle_event("set_banner_uploading", %{"uploading" => uploading}, socket) do
-    {:noreply, assign(socket, :banner_uploading, uploading)}
-  end
-
-  @impl true
-  def handle_event("banner_upload_success", _params, socket) do
-    # Close the modal and show uploading state first
-    socket = socket
-      |> assign(:show_banner_cropper_modal, false)
-      |> assign(:banner_uploading, false)
-      |> assign(:banner_updated_at, System.system_time(:second))
-      |> put_flash(:info, "Banner image uploaded successfully!")
-
-    # Schedule a second update to ensure the image is processed and available
-    # This will create a new timestamp to force cache refresh
-    spawn(fn ->
-      Process.sleep(2000)
-      send_update(__MODULE__, id: "film-modal", banner_updated_at: System.system_time(:second))
-    end)
-
-    {:noreply, socket}
-  end
-
-  @impl true
-  def handle_event("banner_upload_error", %{"error" => error}, socket) do
-    {:noreply,
-     socket
-     |> assign(:banner_uploading, false)
-     |> put_flash(:error, "Banner upload failed: #{error}")}
+  def handle_event("hide_banner_upload_modal", _params, socket) do
+    {:noreply, assign(socket, :show_banner_upload_modal, false)}
   end
 end

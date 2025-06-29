@@ -68,7 +68,8 @@ defmodule Windowpane.MixProject do
       {:ex_aws_s3, "~> 2.0"},
       {:hackney, "~> 1.9"},
       {:sweet_xml, "~> 0.6"},
-      {:joken, "~> 2.6"}
+      {:joken, "~> 2.6"},
+      {:image, "~> 0.59.3"}
     ]
   end
 
