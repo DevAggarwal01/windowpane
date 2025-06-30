@@ -4,6 +4,7 @@ defmodule WindowpaneWeb.ProjectLive.Show do
   alias Windowpane.Projects
   alias WindowpaneWeb.FilmSetupComponent
   alias WindowpaneWeb.LiveStreamSetupComponent
+  alias WindowpaneWeb.LiveStreamInfoComponent
   alias WindowpaneWeb.FilmModalComponent
 
   @impl true
@@ -166,12 +167,20 @@ defmodule WindowpaneWeb.ProjectLive.Show do
             editing={@editing}
           />
         <% "live_event" -> %>
-          <.live_component
-            module={LiveStreamSetupComponent}
-            id="live-stream-setup"
-            project={@project}
-            editing={@editing}
-          />
+          <%= if @project.status == "published" do %>
+            <.live_component
+              module={LiveStreamInfoComponent}
+              id="live-stream-info"
+              project={@project}
+            />
+          <% else %>
+            <.live_component
+              module={LiveStreamSetupComponent}
+              id="live-stream-setup"
+              project={@project}
+              editing={@editing}
+            />
+          <% end %>
         <% _ -> %>
           <div class="bg-white shadow rounded-lg p-6">
             <div class="text-center py-8">
