@@ -611,15 +611,8 @@ defmodule Windowpane.Projects do
 
   """
   def get_project_with_associations_and_creator_name!(id) do
-    # Load project first to determine type
+    # Load basic project info
     project = Project |> Repo.get!(id)
-
-    # Preload appropriate associations based on project type
-    project = case project.type do
-      "film" -> Repo.preload(project, :film)
-      "live_event" -> Repo.preload(project, :live_stream)
-      _ -> project
-    end
 
     # Get only the creator's name
     creator_name = from(c in Windowpane.Creators.Creator,
@@ -945,5 +938,48 @@ defmodule Windowpane.Projects do
     IO.puts("Current premieres found: #{inspect(results, pretty: true)}")
 
     results
+  end
+
+  @doc """
+  Gets the playback ID for a project based on the specified type.
+
+  ## Examples
+
+      iex> get_playback_id(project, "film")
+      "abc123..."
+
+      iex> get_playback_id(project, "trailer")
+      "xyz789..."
+
+      iex> get_playback_id(project, "livestream")
+      "live456..."
+
+  """
+  def get_playback_id(project, type) do
+    case type do
+      "film" ->
+        Repo.one(
+          from f in Film,
+          where: f.project_id == ^project.id,
+          select: f.film_playback_id
+        )
+
+      "trailer" ->
+        Repo.one(
+          from f in Film,
+          where: f.project_id == ^project.id,
+          select: f.trailer_playback_id
+        )
+
+      "livestream" ->
+        Repo.one(
+          from ls in LiveStream,
+          where: ls.project_id == ^project.id,
+          select: ls.playback_id
+        )
+
+      _ ->
+        nil
+    end
   end
 end

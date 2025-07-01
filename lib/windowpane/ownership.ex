@@ -11,44 +11,76 @@ defmodule Windowpane.Ownership do
   Creates an ownership record for a rental.
   If an ownership record already exists but is expired, it will be updated with new JWT token and expiration.
   """
-  def create_rental(user_id, project_id, jwt_token \\ nil) do
+  def create_rental(user_id, project_id, jwt_token \\ nil, expires_at \\ nil) do
     case get_ownership_record(user_id, project_id) do
       nil ->
         # No existing record, create a new one
-        create_new_rental(user_id, project_id, jwt_token)
+        create_new_rental(user_id, project_id, jwt_token, expires_at)
 
       existing_record ->
         # Record exists, check if it's expired
         if OwnershipRecord.valid?(existing_record) do
-          # Record is still active, return error
+          # Record is still active
           {:error, :already_owns}
         else
-          # Record is expired, update it with new JWT token and expiration
-          update_expired_rental(existing_record, jwt_token)
+          # Record is expired, update it
+          update_expired_rental(existing_record, jwt_token, expires_at)
         end
     end
   end
 
-  # Creates a new ownership record for a rental.
-  defp create_new_rental(user_id, project_id, jwt_token) do
-    attrs = %{
+  @doc """
+  Creates a new ownership record.
+  """
+  defp create_new_rental(user_id, project_id, jwt_token, expires_at) do
+    %OwnershipRecord{}
+    |> OwnershipRecord.new_rental_changeset(%{
       user_id: user_id,
       project_id: project_id,
-      jwt_token: jwt_token
-    }
-
-    %OwnershipRecord{}
-    |> OwnershipRecord.new_rental_changeset(attrs)
+      jwt_token: jwt_token,
+      expires_at: expires_at
+    })
     |> Repo.insert()
   end
 
-  # Updates an expired ownership record with new JWT token and expiration.
-  defp update_expired_rental(ownership_record, jwt_token) do
-    attrs = %{jwt_token: jwt_token}
-
+  @doc """
+  Updates an expired ownership record with a new JWT token and expiration.
+  """
+  defp update_expired_rental(ownership_record, jwt_token, expires_at) do
     ownership_record
-    |> OwnershipRecord.renewal_changeset(attrs)
+    |> OwnershipRecord.renewal_changeset(%{
+      jwt_token: jwt_token,
+      expires_at: expires_at
+    })
     |> Repo.update()
+  end
+
+  @doc """
+  Gets a single ownership record by user_id and project_id.
+  """
+  def get_ownership_record(user_id, project_id) do
+    Repo.get_by(OwnershipRecord, user_id: user_id, project_id: project_id)
+  end
+
+  @doc """
+  Gets an active ownership record by user_id and project_id.
+  Returns nil if no record exists or if the record is expired.
+  """
+  def get_active_ownership_record(user_id, project_id) do
+    case get_ownership_record(user_id, project_id) do
+      nil -> nil
+      record -> if OwnershipRecord.valid?(record), do: record, else: nil
+    end
+  end
+
+  @doc """
+  Checks if a user owns (has active access to) a project.
+  """
+  def user_owns_project?(user_id, project_id) do
+    case get_ownership_record(user_id, project_id) do
+      nil -> false
+      record -> OwnershipRecord.valid?(record)
+    end
   end
 
   @doc """
@@ -62,44 +94,6 @@ defmodule Windowpane.Ownership do
       preload: [:project]
     )
     |> Repo.all()
-  end
-
-  @doc """
-  Checks if a user owns or has rented a specific project.
-  """
-  def user_owns_project?(user_id, project_id) do
-    now = DateTime.utc_now()
-
-    from(ownership in OwnershipRecord,
-      where: ownership.user_id == ^user_id and ownership.project_id == ^project_id and ownership.expires_at > ^now
-    )
-    |> Repo.exists?()
-  end
-
-  @doc """
-  Gets a specific ownership record.
-  """
-  def get_ownership_record(user_id, project_id) do
-    from(ownership in OwnershipRecord,
-      where: ownership.user_id == ^user_id and ownership.project_id == ^project_id,
-      preload: [:user, :project]
-    )
-    |> Repo.one()
-  end
-
-  @doc """
-  Gets the active ownership record for a user and project.
-  Returns nil if the user doesn't have an active (non-expired) ownership.
-  """
-  def get_active_ownership_record(user_id, project_id) do
-    now = DateTime.utc_now()
-
-    from(ownership in OwnershipRecord,
-      where: ownership.user_id == ^user_id and ownership.project_id == ^project_id and ownership.expires_at > ^now,
-      order_by: [desc: ownership.expires_at],
-      limit: 1
-    )
-    |> Repo.one()
   end
 
   @doc """

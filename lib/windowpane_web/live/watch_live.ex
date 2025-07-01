@@ -1,5 +1,6 @@
 defmodule WindowpaneWeb.WatchLive do
   use WindowpaneWeb, :live_view
+  require Logger
 
   alias Windowpane.OwnershipRecord
   alias Windowpane.Repo
@@ -12,54 +13,78 @@ defmodule WindowpaneWeb.WatchLive do
   @impl true
   def handle_params(%{"id" => id}, _url, socket) do
     current_user = socket.assigns[:current_user]
+    Logger.info("WatchLive: Starting handle_params with id=#{id}, user_id=#{current_user && current_user.id || "not_logged_in"}")
 
-    # Redirect to home if no user is logged in
-    unless current_user do
-      {:noreply, push_navigate(socket, to: ~p"/")}
-    else
-      try do
-        ownership_id = String.to_integer(id)
+    try do
+      ownership_id = String.to_integer(id)
+      Logger.info("WatchLive: Parsed ownership_id=#{ownership_id}")
 
-        # Get the ownership record with project preloaded
-        ownership_record = OwnershipRecord
-        |> Repo.get(ownership_id)
-        |> Repo.preload([project: [:film, :creator]])
+      # Get the ownership record with basic project info to check type
+      ownership_record = OwnershipRecord
+      |> Repo.get(ownership_id)
+      |> Repo.preload([:project])
 
-        case ownership_record do
-          nil ->
-            # Ownership record not found
-            redirect_to_home(socket)
+      case ownership_record do
+        nil ->
+          # Ownership record not found
+          Logger.warning("WatchLive: Ownership record not found for id=#{ownership_id}")
+          redirect_to_home(socket)
 
-          ownership_record ->
-            # Check 1: Verify current user owns this record
-            if ownership_record.user_id != current_user.id do
-              # User doesn't own this ownership record - redirect to film page
+        ownership_record ->
+          # Preload the appropriate associations based on project type
+          ownership_record = case ownership_record.project.type do
+            "film" ->
+              Logger.info("WatchLive: Preloading film data for project type: film")
+              Repo.preload(ownership_record, [project: [:film, :creator]], force: true)
+            "live_event" ->
+              Logger.info("WatchLive: Preloading live_stream data for project type: live_event")
+              Repo.preload(ownership_record, [project: [:live_stream, :creator]], force: true)
+            _ ->
+              Logger.info("WatchLive: Unknown project type '#{ownership_record.project.type}', using basic preload")
+              ownership_record
+          end
+
+          Logger.info("WatchLive: Found ownership record id=#{ownership_record.id}, user_id=#{ownership_record.user_id}, project_id=#{ownership_record.project.id}")
+
+          # Check 1: Verify user is logged in AND owns this record
+          if !current_user || ownership_record.user_id != current_user.id do
+            Logger.info("WatchLive: Check 1 failed - User not logged in (#{!current_user}) or doesn't own record (ownership.user_id=#{ownership_record.user_id}, current_user.id=#{current_user && current_user.id})")
+            # User not logged in or doesn't own this ownership record - redirect to film page
+            redirect_to_film_page(socket, ownership_record.project.id)
+          else
+            Logger.info("WatchLive: Check 1 passed - User is logged in and owns the record")
+
+            # Check 2: Verify project type is film or live_event
+            if ownership_record.project.type not in ["film", "live_event"] do
+              Logger.info("WatchLive: Check 2 failed - Project type is '#{ownership_record.project.type}', not 'film' or 'live_event'")
+              # Not a supported type - redirect to film page
               redirect_to_film_page(socket, ownership_record.project.id)
             else
-              # Check 2: Verify project type is film
-              if ownership_record.project.type != "film" do
-                # Not a film - redirect to film page
+              Logger.info("WatchLive: Check 2 passed - Project type is #{ownership_record.project.type}")
+
+              # Check 3: Verify ownership is still active (not expired)
+              if is_expired?(ownership_record) do
+                Logger.info("WatchLive: Check 3 failed - Ownership expired (expires_at=#{ownership_record.expires_at})")
+                # Ownership expired - redirect to film page
                 redirect_to_film_page(socket, ownership_record.project.id)
               else
-                # Check 3: Verify ownership is still active (not expired)
-                if is_expired?(ownership_record) do
-                  # Ownership expired - redirect to film page
-                  redirect_to_film_page(socket, ownership_record.project.id)
-                else
-                  # All checks passed - set up the watch page
-                  setup_watch_page(socket, ownership_record)
-                end
+                Logger.info("WatchLive: Check 3 passed - Ownership is still active (expires_at=#{ownership_record.expires_at})")
+                Logger.info("WatchLive: All checks passed - Setting up watch page")
+                # All checks passed - set up the watch page
+                setup_watch_page(socket, ownership_record)
               end
             end
-        end
-      rescue
-        ArgumentError ->
-          # Invalid ID format
-          redirect_to_home(socket)
-        Ecto.NoResultsError ->
-          # Database error
-          redirect_to_home(socket)
+          end
       end
+    rescue
+      ArgumentError ->
+        # Invalid ID format
+        Logger.error("WatchLive: Invalid ID format for id=#{id}")
+        redirect_to_home(socket)
+      Ecto.NoResultsError ->
+        # Database error
+        Logger.error("WatchLive: Database error while fetching ownership record for id=#{id}")
+        redirect_to_home(socket)
     end
   end
 
@@ -71,45 +96,51 @@ defmodule WindowpaneWeb.WatchLive do
   # Helper function to check if ownership record is expired
   defp is_expired?(ownership_record) do
     now = DateTime.utc_now()
-    DateTime.compare(ownership_record.expires_at, now) == :lt
+    expired = DateTime.compare(ownership_record.expires_at, now) == :lt
+    Logger.info("WatchLive: Checking expiration - expires_at=#{ownership_record.expires_at}, now=#{now}, expired=#{expired}")
+    expired
   end
 
   # Helper function to redirect to home page
   defp redirect_to_home(socket) do
+    Logger.info("WatchLive: Redirecting to home page")
     {:noreply, push_navigate(socket, to: ~p"/")}
   end
 
   # Helper function to redirect to film page
   defp redirect_to_film_page(socket, film_id) do
+    Logger.info("WatchLive: Redirecting to film page for film_id=#{film_id}")
     {:noreply, push_navigate(socket, to: ~p"/?id=#{film_id}")}
   end
 
   # Helper function to set up the watch page with valid ownership
   defp setup_watch_page(socket, ownership_record) do
     project = ownership_record.project
+    Logger.info("WatchLive: Setting up watch page for project '#{project.title}' (id=#{project.id}, type=#{project.type})")
 
-    # Determine what to play - prefer full film, fallback to trailer
-    {playback_id, content_type, playback_token} =
+    # Determine what to play based on project type
+    {playback_id, content_type} =
       cond do
-        project.film && project.film.film_playback_id && ownership_record.jwt_token ->
-          # User owns the film and has JWT token - play full film
-          {project.film.film_playback_id, "full", ownership_record.jwt_token}
+        project.type == "film" && project.film && project.film.film_playback_id ->
+          Logger.info("WatchLive: Playing film (playback_id=#{project.film.film_playback_id})")
+          {project.film.film_playback_id, "film"}
 
-        project.film && project.film.trailer_playback_id ->
-          # Fallback to trailer (no JWT needed for trailers)
-          trailer_token = Windowpane.MuxToken.generate_playback_token(project.film.trailer_playback_id)
-          {project.film.trailer_playback_id, "trailer", trailer_token}
+        project.type == "live_event" && project.live_stream && project.live_stream.playback_id ->
+          Logger.info("WatchLive: Playing live event (playback_id=#{project.live_stream.playback_id})")
+          {project.live_stream.playback_id, "live_event"}
 
         true ->
-          # No playable content
-          {nil, "unavailable", nil}
+          Logger.warning("WatchLive: No playable content available for project id=#{project.id}, type=#{project.type}")
+          {nil, "unavailable"}
       end
+
+    Logger.info("WatchLive: Final setup - content_type=#{content_type}, playback_id=#{playback_id}, jwt_token=#{ownership_record.jwt_token}")
 
     socket =
       socket
       |> assign(:project, project)
       |> assign(:ownership_record, ownership_record)
-      |> assign(:playback_token, playback_token)
+      |> assign(:playback_token, ownership_record.jwt_token)
       |> assign(:content_type, content_type)
       |> assign(:playback_id, playback_id)
       |> assign(:page_title, project.title)
@@ -134,8 +165,7 @@ defmodule WindowpaneWeb.WatchLive do
                 <mux-player
                   playback-id={@playback_id}
                   playback-token={@playback_token}
-                  stream-type="on-demand"
-                  title={@project.title}
+                  stream-type={if @content_type == "live_event", do: "live", else: "on-demand"}
                   class="w-full h-full"
                 ></mux-player>
               </div>
@@ -146,26 +176,6 @@ defmodule WindowpaneWeb.WatchLive do
                   CREATOR INFO HERE - <%= @project.creator.name %>
                 </p>
               </div>
-
-              <!-- Additional Actions -->
-              <%= if @content_type == "trailer" do %>
-                <div class="mt-6">
-                  <div class="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                    <div class="flex items-center justify-between">
-                      <div>
-                        <h3 class="text-lg font-medium text-blue-900">Want to watch the full film?</h3>
-                        <p class="text-blue-700">This is just the trailer. Rent to watch the complete film.</p>
-                      </div>
-                      <.link
-                        navigate={~p"/?id=#{@project.id}"}
-                        class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 transition-colors"
-                      >
-                        View Film Details
-                      </.link>
-                    </div>
-                  </div>
-                </div>
-              <% end %>
             </div>
 
             <!-- Right Side - Film Details Card -->
@@ -197,7 +207,7 @@ defmodule WindowpaneWeb.WatchLive do
                   <!-- Status Badge -->
                   <div class="flex items-center gap-2 mb-4">
                     <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                      ✓ MOVIE
+                      ✓ <%= String.upcase(@project.type) %>
                     </span>
                   </div>
 
@@ -225,7 +235,7 @@ defmodule WindowpaneWeb.WatchLive do
                             </span>
                           </div>
                         <% end %>
-                        <%= if @content_type == "full" do %>
+                        <%= if @content_type == "film" do %>
                           <div class="flex justify-between">
                             <span class="text-gray-500">Status:</span>
                             <span class="text-green-600 font-medium">
@@ -234,6 +244,14 @@ defmodule WindowpaneWeb.WatchLive do
                               <% else %>
                                 Expires <%= format_expires_at(@ownership_record.expires_at) %>
                               <% end %>
+                            </span>
+                          </div>
+                        <% end %>
+                        <%= if @content_type == "live_event" do %>
+                          <div class="flex justify-between">
+                            <span class="text-gray-500">Status:</span>
+                            <span class="text-blue-600 font-medium">
+                              Live Event
                             </span>
                           </div>
                         <% end %>

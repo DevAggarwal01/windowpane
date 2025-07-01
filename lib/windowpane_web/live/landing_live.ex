@@ -23,7 +23,7 @@ defmodule WindowpaneWeb.LandingLive do
       case params["id"] do
         nil -> nil
         id ->
-          # Fetch the film with all necessary associations for the modal
+          # Fetch just the basic project info for the modal
           Projects.get_project_with_associations_and_creator_name!(String.to_integer(id))
       end
 
@@ -40,9 +40,12 @@ defmodule WindowpaneWeb.LandingLive do
       {false, nil}
     end
 
-    # Generate trailer token if film has trailer playback ID
-    trailer_token = if has_trailer?(selected_film) do
-      MuxToken.generate_playback_token(selected_film.film.trailer_playback_id)
+    # Generate trailer token efficiently using Projects.get_playback_id
+    trailer_token = if selected_film && selected_film.type == "film" do
+      case Projects.get_playback_id(selected_film, "trailer") do
+        nil -> nil
+        playback_id -> MuxToken.generate_playback_token(playback_id)
+      end
     else
       nil
     end
@@ -63,18 +66,10 @@ defmodule WindowpaneWeb.LandingLive do
 
   @impl true
   def handle_info(:close_film_modal, socket) do
+    IO.puts("DEBUG: close_film_modal message received in LandingLive")
     # Close the modal by removing the id parameter from the URL
     {:noreply, push_patch(socket, to: ~p"/")}
   end
-
-  # Helper function to safely check if a film has a trailer
-  defp has_trailer?(nil), do: false
-  defp has_trailer?(%{film: nil}), do: false
-  defp has_trailer?(%{film: %{trailer_playback_id: nil}}), do: false
-  defp has_trailer?(%{film: %{trailer_playback_id: ""}}), do: false
-  defp has_trailer?(%{film: film}) when is_struct(film, Ecto.Association.NotLoaded), do: false
-  defp has_trailer?(%{film: %{trailer_playback_id: _id}}), do: true
-  defp has_trailer?(_), do: false
 
   @impl true
   def render(assigns) do

@@ -23,10 +23,12 @@ defmodule Windowpane.OwnershipRecord do
   end
 
   @doc """
-  Creates a new ownership record with expiration set to 48 hours from now.
+  Creates a new ownership record with expiration set to 48 hours from now,
+  or uses the provided expiration time.
   """
   def new_rental_changeset(ownership_record, attrs) do
-    expires_at = DateTime.utc_now() |> DateTime.add(48, :hour)
+    expires_at = Map.get(attrs, :expires_at) ||
+                 (DateTime.utc_now() |> DateTime.add(48, :hour) |> DateTime.truncate(:second))
 
     ownership_record
     |> changeset(Map.put(attrs, :expires_at, expires_at))
@@ -34,10 +36,12 @@ defmodule Windowpane.OwnershipRecord do
 
   @doc """
   Updates an existing ownership record for a rental renewal.
-  Sets expiration to 48 hours from now and updates the JWT token.
+  Sets expiration to 48 hours from now or uses the provided expiration time,
+  and updates the JWT token.
   """
   def renewal_changeset(ownership_record, attrs) do
-    expires_at = DateTime.utc_now() |> DateTime.add(48, :hour)
+    expires_at = Map.get(attrs, :expires_at) ||
+                 (DateTime.utc_now() |> DateTime.add(48, :hour) |> DateTime.truncate(:second))
 
     ownership_record
     |> cast(attrs, [:jwt_token])

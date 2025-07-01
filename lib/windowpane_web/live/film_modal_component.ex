@@ -1,7 +1,7 @@
 defmodule WindowpaneWeb.FilmModalComponent do
   use WindowpaneWeb, :live_component
 
-  alias Windowpane.{Repo, Ownership, Accounts, MuxToken}
+  alias Windowpane.{Repo, Ownership, Accounts, MuxToken, Projects}
   alias Windowpane.Uploaders.BannerUploader
 
   # Helper function to format price
@@ -116,7 +116,7 @@ defmodule WindowpaneWeb.FilmModalComponent do
           <!-- Close Button -->
           <button
             type="button"
-            class="absolute top-4 right-4 z-10 rounded-full bg-black bg-opacity-50 p-2 text-white hover:bg-opacity-75 focus:outline-none focus:ring-2 focus:ring-white"
+            class="absolute top-4 right-4 z-50 rounded-full bg-black bg-opacity-50 p-2 text-white hover:bg-opacity-75 focus:outline-none focus:ring-2 focus:ring-white"
             phx-click="close_modal"
             phx-target={@myself}
           >
@@ -128,9 +128,9 @@ defmodule WindowpaneWeb.FilmModalComponent do
 
           <!-- Trailer Player -->
           <div class="relative w-full aspect-video bg-gray-800">
-            <%= if @film.film && Map.get(@film.film, :trailer_playback_id) && @trailer_token do %>
+            <%= if @trailer_token do %>
               <mux-player
-                playback-id={@film.film.trailer_playback_id}
+                playback-id={Projects.get_playback_id(@film, "trailer")}
                 poster={if BannerUploader.banner_exists?(@film), do: banner_url_with_cache_bust(@film, @banner_updated_at), else: nil}
                 playback-token={@trailer_token}
                 stream-type="on-demand"
@@ -530,6 +530,7 @@ defmodule WindowpaneWeb.FilmModalComponent do
 
   @impl true
   def handle_event("close_modal", _params, socket) do
+    IO.puts("DEBUG: close_modal event received in FilmModalComponent")
     send(self(), :close_film_modal)
     {:noreply, socket}
   end
@@ -552,6 +553,7 @@ defmodule WindowpaneWeb.FilmModalComponent do
   def handle_event("confirm_rent", _params, socket) do
     user = socket.assigns.current_user
     film = socket.assigns.film
+    is_premiere = socket.assigns.is_premiere
 
     # Convert rental price from Decimal to cents for comparison
     rental_price_cents = if film.rental_price do
@@ -563,7 +565,7 @@ defmodule WindowpaneWeb.FilmModalComponent do
     # Check if user has sufficient wallet balance
     if user.wallet_balance >= rental_price_cents do
       # User has sufficient balance - process the rental
-      case process_rental(user, film, rental_price_cents) do
+      case process_rental(user, film, rental_price_cents, is_premiere) do
         {:ok, _ownership_record} ->
           # Get the updated user to reflect the new wallet balance
           updated_user = Accounts.get_user!(user.id)
@@ -592,19 +594,42 @@ defmodule WindowpaneWeb.FilmModalComponent do
   end
 
   # Helper function to process the rental
-  defp process_rental(user, film, rental_price_cents) do
+  defp process_rental(user, film, rental_price_cents, is_premiere) do
     # Start a database transaction to ensure all operations succeed or fail together
     Repo.transaction(fn ->
-      # 1. Generate JWT token for the film's playback
-      playback_id = get_film_playback_id(film)
+      # 1. Get playback ID and determine expiration time
+      playback_id = case film.type do
+        "film" -> Windowpane.Projects.get_playback_id(film, "film")
+        "live_event" -> Windowpane.Projects.get_playback_id(film, "livestream")
+        _ -> nil
+      end
+
+      # Get expiration time based on whether this is a premiere or regular rental
+      expires_at = if is_premiere do
+        # For premieres, get the premiere's end_time
+        case Repo.get_by(Windowpane.Projects.Premiere, project_id: film.id) do
+          nil ->
+            # Fallback to regular rental window if no premiere found
+            DateTime.utc_now() |> DateTime.add(48, :hour) |> DateTime.truncate(:second)
+          premiere ->
+            premiere.end_time
+        end
+      else
+        # Regular rental - use standard 48 hour window
+        DateTime.utc_now() |> DateTime.add(48, :hour) |> DateTime.truncate(:second)
+      end
+
+      # Calculate seconds until expiration for the JWT token
+      seconds_until_expiration = DateTime.diff(expires_at, DateTime.utc_now())
+
       jwt_token = if playback_id do
-        MuxToken.generate_playback_token(playback_id)
+        MuxToken.generate_playback_token(playback_id, seconds_until_expiration)
       else
         nil
       end
 
-      # 2. Create or update ownership record
-      case Ownership.create_rental(user.id, film.id, jwt_token) do
+      # 2. Create or update ownership record with the calculated expiration
+      case Ownership.create_rental(user.id, film.id, jwt_token, expires_at) do
         {:ok, ownership_record} ->
           # 3. Deduct funds from user's wallet
           case Accounts.deduct_wallet_funds(user.id, rental_price_cents) do
@@ -622,20 +647,6 @@ defmodule WindowpaneWeb.FilmModalComponent do
           Repo.rollback("Failed to create rental record: #{inspect(changeset.errors)}")
       end
     end)
-  end
-
-  # Helper function to get the playback ID from a film
-  defp get_film_playback_id(film) do
-    cond do
-      film.film && Map.get(film.film, :film_playback_id) ->
-        film.film.film_playback_id
-
-      film.film && Map.get(film.film, :trailer_playback_id) ->
-        film.film.trailer_playback_id
-
-      true ->
-        nil
-    end
   end
 
   @impl true

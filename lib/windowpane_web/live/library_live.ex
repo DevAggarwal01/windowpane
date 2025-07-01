@@ -36,8 +36,8 @@ defmodule WindowpaneWeb.LibraryLive do
             ownership.id == ownership_id
           end)
 
-          if ownership_record && !is_expired?(ownership_record) do
-            # Load the project with film data for the modal
+          if ownership_record do
+            # Load the project with film data for the modal (even if expired)
             project = get_project_with_film(ownership_record.project.id)
             {project, ownership_id}
           else
@@ -53,12 +53,29 @@ defmodule WindowpaneWeb.LibraryLive do
       nil
     end
 
+    # Determine if user currently owns (has active access to) the film
+    user_owns_film = if selected_project && ownership_id do
+      ownership_record = Enum.find(socket.assigns.ownership_records, fn ownership ->
+        ownership.id == ownership_id
+      end)
+      ownership_record && !is_expired?(ownership_record)
+    else
+      false
+    end
+
     {:noreply, assign(socket,
       selected_project: selected_project,
       ownership_id: ownership_id,
       trailer_token: trailer_token,
-      user_owns_film: selected_project != nil  # If we got a project, user owns it
+      user_owns_film: user_owns_film
     )}
+  end
+
+  @impl true
+  def handle_info(:close_film_modal, socket) do
+    IO.puts("DEBUG: close_film_modal message received in LibraryLive")
+    # Close the modal by removing the id parameter from the URL
+    {:noreply, push_patch(socket, to: ~p"/library")}
   end
 
   @impl true
@@ -91,8 +108,8 @@ defmodule WindowpaneWeb.LibraryLive do
           <%= for ownership <- @ownership_records do %>
             <div class="bg-gray-800 rounded-lg overflow-hidden hover:bg-gray-700 transition-colors">
               <%= if is_expired?(ownership) do %>
-                <!-- Expired - navigate to project page -->
-                <.link navigate={~p"/#{ownership.project.id}"} class="block">
+                <!-- Expired - open film modal to allow re-renting -->
+                <.link patch={~p"/library?id=#{ownership.id}"} class="block cursor-pointer">
                   <div class="aspect-[2/3] bg-gray-700 overflow-hidden relative">
                     <%= if CoverUploader.cover_exists?(ownership.project) do %>
                       <img
