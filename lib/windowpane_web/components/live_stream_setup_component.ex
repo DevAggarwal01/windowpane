@@ -508,8 +508,9 @@ defmodule WindowpaneWeb.LiveStreamSetupComponent do
                   <div class="mt-6" id="banner-upload-hook" phx-hook="BannerUpload" data-project-id={@project.id} phx-target={@myself}>
                     <!-- Banner Preview Area -->
                     <div class="flex justify-center mb-6">
-                      <div class="w-full aspect-video border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center bg-gray-50">
+                      <div class="w-80 aspect-video border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center bg-gray-50 hover:border-gray-400 hover:bg-gray-100 transition-colors cursor-pointer">
                         <%= if BannerUploader.banner_exists?(@project) do %>
+                          <!-- Show uploaded banner image -->
                           <img
                             src={banner_url_with_cache_bust(@project, @banner_updated_at)}
                             alt={"Banner for #{@project.title}"}
@@ -773,7 +774,7 @@ defmodule WindowpaneWeb.LiveStreamSetupComponent do
             </div>
 
             <div>
-              <.input field={f[:premiere_date]} type="datetime-local" label="Scheduled Start Time" />
+              <.input field={f[:premiere_date]} type="datetime-local" label="Scheduled Start Time (UTC)" />
             </div>
 
             <div>
@@ -1256,7 +1257,7 @@ defmodule WindowpaneWeb.LiveStreamSetupComponent do
                 <div class="relative flex flex-col items-center">
                   <!-- Banner Placeholder with Dashed Border -->
                   <div
-                    class="w-full h-48 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center bg-gray-50 hover:border-gray-400 hover:bg-gray-100 transition-colors cursor-pointer"
+                    class="w-80 aspect-video border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center bg-gray-50 hover:border-gray-400 hover:bg-gray-100 transition-colors cursor-pointer"
                   >
                     <%= if BannerUploader.banner_exists?(@project) do %>
                       <!-- Show uploaded banner image -->
@@ -1504,19 +1505,24 @@ defmodule WindowpaneWeb.LiveStreamSetupComponent do
     case Projects.update_project(socket.assigns.project, project_params) do
       {:ok, project} ->
         updated_project = Projects.get_project_with_live_stream_and_reviews!(project.id)
+
+        # Send success message to parent
+        send(self(), {:flash_message, :info, "Project details updated"})
+
         {:noreply,
          socket
          |> assign(:project, updated_project)
          |> assign(:changeset, Projects.change_project(updated_project))
-         |> assign(:saving, false)
-         |> put_flash(:info, "Project details updated")}
+         |> assign(:saving, false)}
 
       {:error, %Ecto.Changeset{} = changeset} ->
+        # Send error message to parent
+        send(self(), {:flash_message, :error, "Error updating project details"})
+
         {:noreply,
          socket
          |> assign(:changeset, changeset)
-         |> assign(:saving, false)
-         |> put_flash(:error, "Error updating project details")}
+         |> assign(:saving, false)}
     end
   end
 
@@ -1528,7 +1534,11 @@ defmodule WindowpaneWeb.LiveStreamSetupComponent do
     case socket.assigns.project.live_stream do
       nil ->
         Logger.warning("No live stream found for project")
-        {:noreply, put_flash(socket, :error, "No live stream found for this project")}
+
+        # Send error message to parent
+        send(self(), {:flash_message, :error, "No live stream found for this project"})
+
+        {:noreply, socket}
 
       live_stream ->
         new_recording_value = !live_stream.recording
@@ -1539,14 +1549,18 @@ defmodule WindowpaneWeb.LiveStreamSetupComponent do
             Logger.info("Recording setting updated successfully")
             updated_project = Projects.get_project_with_live_stream_and_reviews!(socket.assigns.project.id)
 
-            {:noreply,
-             socket
-             |> assign(:project, updated_project)
-             |> put_flash(:info, "Recording setting updated successfully")}
+            # Send success message to parent
+            send(self(), {:flash_message, :info, "Recording setting updated successfully"})
+
+            {:noreply, assign(socket, :project, updated_project)}
 
           {:error, changeset} ->
             Logger.error("Failed to update recording setting: #{inspect(changeset.errors)}")
-            {:noreply, put_flash(socket, :error, "Failed to update recording setting")}
+
+            # Send error message to parent
+            send(self(), {:flash_message, :error, "Failed to update recording setting"})
+
+            {:noreply, socket}
         end
     end
   end
@@ -1578,35 +1592,116 @@ defmodule WindowpaneWeb.LiveStreamSetupComponent do
 
               IO.puts("✅ Live stream project added to approval queue")
               Logger.warning("DEPLOY: Live stream project successfully deployed and status updated")
-              {:noreply,
-               socket
-               |> put_flash(:info, "Live stream project submitted for approval")
-               |> assign(:project, updated_project_with_live_stream)}
+
+              # Send success message to parent
+              send(self(), {:flash_message, :info, "Live stream project submitted for approval"})
+
+              {:noreply, assign(socket, :project, updated_project_with_live_stream)}
 
             {:error, changeset} ->
               IO.puts("❌ Failed to update project status: #{inspect(changeset.errors)}")
               Logger.error("DEPLOY: Failed to update project status: #{inspect(changeset.errors)}")
-              {:noreply,
-               socket
-               |> put_flash(:error, "Project submitted but status update failed")
-               |> assign(:project, project)}
+
+              # Send error message to parent
+              send(self(), {:flash_message, :error, "Project submitted but status update failed"})
+
+              {:noreply, assign(socket, :project, project)}
           end
         {:error, _changeset} ->
           IO.puts("❌ Project already in approval queue")
           Logger.warning("DEPLOY: Project already in approval queue")
-          {:noreply,
-           socket
-           |> put_flash(:error, "Project is already in the approval queue")}
+
+          # Send error message to parent
+          send(self(), {:flash_message, :error, "Project is already in the approval queue"})
+
+          {:noreply, socket}
       end
     else
-      # Show simple error message
+      # Get specific validation failures
+      missing_items = get_deployment_validation_failures(project)
+
+      error_message = if Enum.empty?(missing_items) do
+        "Cannot deploy live stream project. Please check all requirements are met."
+      else
+        "Cannot deploy live stream project. Missing: #{Enum.join(missing_items, ", ")}"
+      end
+
       IO.puts("❌ Live stream project not ready for deployment")
-      Logger.warning("DEPLOY: Live stream project not ready for deployment")
-      {:noreply,
-       socket
-       |> put_flash(:error, "Cannot deploy live stream project. Please complete all required fields: title, description, cover image, banner image, premiere date (must be in future), premiere price (min $1), and rental price (min $1 if recording enabled).")}
+      IO.puts("Missing items: #{inspect(missing_items)}")
+      IO.puts("Error message: #{error_message}")
+      Logger.warning("DEPLOY: Live stream project not ready for deployment - Missing: #{inspect(missing_items)}")
+
+      # Send error message to parent
+      send(self(), {:flash_message, :error, error_message})
+
+      {:noreply, socket}
     end
   end
+
+  # Helper function to get specific validation failures
+  defp get_deployment_validation_failures(project) do
+    missing_items = []
+
+    # Check required fields
+    missing_items = if field_empty?(project.title), do: ["title" | missing_items], else: missing_items
+    missing_items = if field_empty?(project.description), do: ["description" | missing_items], else: missing_items
+    missing_items = if field_empty?(project.premiere_date), do: ["premiere date" | missing_items], else: missing_items
+
+    # Check premiere date is in future (only if premiere_date exists)
+    missing_items = if project.premiere_date && !premiere_date_in_future?(project.premiere_date), do: ["premiere date must be in future" | missing_items], else: missing_items
+
+    # Check premiere price
+    missing_items = if !premiere_price_valid?(project.premiere_price), do: ["premiere price (min $1)" | missing_items], else: missing_items
+
+    # Check uploads
+    missing_items = if !Windowpane.Uploaders.CoverUploader.cover_exists?(project), do: ["cover image" | missing_items], else: missing_items
+    missing_items = if !Windowpane.Uploaders.BannerUploader.banner_exists?(project), do: ["banner image" | missing_items], else: missing_items
+
+    # Check recording-specific validations
+    missing_items = if project.live_stream && project.live_stream.recording && !rental_price_valid?(project.rental_price) do
+      ["rental price (min $1, recording enabled)" | missing_items]
+    else
+      missing_items
+    end
+
+    # Debug logging
+    IO.puts("VALIDATION DEBUG:")
+    IO.puts("- Title empty: #{field_empty?(project.title)}")
+    IO.puts("- Description empty: #{field_empty?(project.description)}")
+    IO.puts("- Premiere date empty: #{field_empty?(project.premiere_date)}")
+    IO.puts("- Premiere date in future: #{if project.premiere_date, do: premiere_date_in_future?(project.premiere_date), else: "N/A"}")
+    IO.puts("- Premiere price valid: #{premiere_price_valid?(project.premiere_price)}")
+    IO.puts("- Cover exists: #{Windowpane.Uploaders.CoverUploader.cover_exists?(project)}")
+    IO.puts("- Banner exists: #{Windowpane.Uploaders.BannerUploader.banner_exists?(project)}")
+    IO.puts("- Recording enabled: #{project.live_stream && project.live_stream.recording}")
+    IO.puts("- Rental price valid: #{if project.live_stream && project.live_stream.recording, do: rental_price_valid?(project.rental_price), else: "N/A"}")
+
+    Enum.reverse(missing_items)
+  end
+
+  # Helper functions for validation
+  defp field_empty?(nil), do: true
+  defp field_empty?(""), do: true
+  defp field_empty?(_), do: false
+
+  defp premiere_date_in_future?(nil), do: false
+  defp premiere_date_in_future?(premiere_date) do
+    DateTime.compare(premiere_date, DateTime.utc_now()) == :gt
+  end
+
+  defp premiere_price_valid?(nil), do: false
+  defp premiere_price_valid?(price) when is_number(price), do: price >= 1.0
+  defp premiere_price_valid?(price) when is_struct(price, Decimal) do
+    Decimal.compare(price, Decimal.new("1.0")) != :lt
+  end
+  defp premiere_price_valid?(_), do: false
+
+  defp rental_price_valid?(nil), do: false
+  defp rental_price_valid?(price) when is_number(price), do: price >= 1.0
+  defp rental_price_valid?(price) when is_struct(price, Decimal) do
+    Decimal.compare(price, Decimal.new("1.0")) != :lt
+  end
+  defp rental_price_valid?(_), do: false
 
   @impl true
   def handle_event("show_delete_modal", _params, socket) do
@@ -1635,64 +1730,11 @@ defmodule WindowpaneWeb.LiveStreamSetupComponent do
 
       {:error, changeset} ->
         Logger.error("Failed to delete project: #{inspect(changeset.errors)}")
-        {:noreply, put_flash(socket, :error, "Failed to delete project")}
-    end
-  end
 
-  @impl true
-  def handle_event("deploy", _, socket) do
-    project = socket.assigns.project
-    Logger.warning("DEPLOY: Starting deployment for Live Stream Project ID: #{project.id}")
+        # Send error message to parent
+        send(self(), {:flash_message, :error, "Failed to delete project"})
 
-    IO.puts("=== LIVE STREAM DEPLOY DEBUG ===")
-    IO.puts("Project ID: #{project.id}")
-    IO.puts("Project status: #{project.status}")
-    IO.puts("In approval queue: #{Projects.in_approval_queue?(project)}")
-    IO.puts("Ready for deployment: #{Projects.ready_for_live_stream_deployment?(project)}")
-
-    # Check if project is ready for deployment first
-    if Projects.ready_for_live_stream_deployment?(project) do
-      Logger.warning("DEPLOY: Live stream project is ready for deployment")
-      case Projects.add_to_approval_queue(project) do
-        {:ok, _queue_entry} ->
-          # Update project status to waiting for approval
-          IO.puts("📝 Updating project status from '#{project.status}' to 'waiting for approval'")
-          Logger.warning("DEPLOY: Adding live stream project to approval queue")
-          case Projects.update_project(project, %{status: "waiting for approval"}) do
-            {:ok, updated_project} ->
-              IO.puts("✅ Project status updated successfully to '#{updated_project.status}'")
-              updated_project_with_live_stream = Projects.get_project_with_live_stream_and_reviews!(updated_project.id)
-              IO.puts("🔄 Reloaded project with live stream, status: '#{updated_project_with_live_stream.status}'")
-
-              IO.puts("✅ Live stream project added to approval queue")
-              Logger.warning("DEPLOY: Live stream project successfully deployed and status updated")
-              {:noreply,
-               socket
-               |> put_flash(:info, "Live stream project submitted for approval")
-               |> assign(:project, updated_project_with_live_stream)}
-
-            {:error, changeset} ->
-              IO.puts("❌ Failed to update project status: #{inspect(changeset.errors)}")
-              Logger.error("DEPLOY: Failed to update project status: #{inspect(changeset.errors)}")
-              {:noreply,
-               socket
-               |> put_flash(:error, "Project submitted but status update failed")
-               |> assign(:project, project)}
-          end
-        {:error, _changeset} ->
-          IO.puts("❌ Project already in approval queue")
-          Logger.warning("DEPLOY: Project already in approval queue")
-          {:noreply,
-           socket
-           |> put_flash(:error, "Project is already in the approval queue")}
-      end
-    else
-      # Show simple error message
-      IO.puts("❌ Live stream project not ready for deployment")
-      Logger.warning("DEPLOY: Live stream project not ready for deployment")
-      {:noreply,
-       socket
-       |> put_flash(:error, "Cannot deploy live stream project. Please complete all required fields: title, description, cover image, banner image, premiere date (must be in future), premiere price (min $1), and rental price (min $1 if recording enabled).")}
+        {:noreply, socket}
     end
   end
 

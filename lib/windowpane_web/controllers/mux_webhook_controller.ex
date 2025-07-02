@@ -25,18 +25,23 @@ defmodule WindowpaneWeb.MuxWebhookController do
     # Extract project_id and type from passthrough
     passthrough = get_in(params, ["data", "passthrough"])
 
-    if is_binary(passthrough) do
-      case parse_passthrough(passthrough) do
-        {:ok, %{"project_id" => project_id, "type" => type}} ->
-          handle_asset_ready_with_project_id(asset_id, playback_id, project_id, type)
-        {:error, reason} ->
-          Logger.error("Failed to parse passthrough in asset ready: #{inspect(reason)}")
-          handle_asset_ready_fallback(asset_id, playback_id)
-      end
+    if is_binary(passthrough) && String.contains?(passthrough, "type:live_stream;") do
+      Logger.info("Asset ready event for live_stream type, skipping processing")
+      :ok
     else
-      # Fallback: find project by asset_id (original logic)
-      Logger.warning("Asset ready event missing passthrough: #{asset_id}, falling back to asset_id lookup")
-      handle_asset_ready_fallback(asset_id, playback_id)
+      if is_binary(passthrough) do
+        case parse_passthrough(passthrough) do
+          {:ok, %{"project_id" => project_id, "type" => type}} ->
+            handle_asset_ready_with_project_id(asset_id, playback_id, project_id, type)
+          {:error, reason} ->
+            Logger.error("Failed to parse passthrough in asset ready: #{inspect(reason)}")
+            handle_asset_ready_fallback(asset_id, playback_id)
+        end
+      else
+        # Fallback: find project by asset_id (original logic)
+        Logger.warning("Asset ready event missing passthrough: #{asset_id}, falling back to asset_id lookup")
+        handle_asset_ready_fallback(asset_id, playback_id)
+      end
     end
   end
 
@@ -58,6 +63,27 @@ defmodule WindowpaneWeb.MuxWebhookController do
     end
 
     :ok
+  end
+
+  defp handle_event("video.live_stream.connected", %{"data" => %{"active_asset_id" => asset_id, "playback_ids" => [%{"id" => playback_id} | _]}} = params) do
+    Logger.info("Live stream connected: #{asset_id}, playback_id: #{playback_id}")
+
+    # Extract project_id and type from passthrough
+    passthrough = get_in(params, ["data", "passthrough"])
+
+    if is_binary(passthrough) do
+      case parse_passthrough(passthrough) do
+        {:ok, %{"project_id" => project_id, "type" => "live_stream"}} ->
+          handle_asset_ready_with_project_id(asset_id, playback_id, project_id, "film", false)
+        {:error, reason} ->
+          Logger.error("Failed to parse passthrough in asset ready: #{inspect(reason)}")
+          handle_asset_ready_fallback(asset_id, playback_id)
+      end
+    else
+      # Fallback: find project by asset_id (original logic)
+      Logger.warning("Asset ready event missing passthrough: #{asset_id}, falling back to asset_id lookup")
+      handle_asset_ready_fallback(asset_id, playback_id)
+    end
   end
 
   defp handle_event("video.asset.errored", %{"data" => %{"id" => asset_id}} = params) do
@@ -85,9 +111,9 @@ defmodule WindowpaneWeb.MuxWebhookController do
         |> Enum.into(%{})
 
       case result do
-        %{"type" => type, "project_id" => project_id} = map when type in ["trailer", "film"] ->
+        %{"type" => type, "project_id" => project_id} = map when type in ["trailer", "film", "live_stream"] ->
           {:ok, map}
-        %{"type" => type} when type in ["trailer", "film"] ->
+        %{"type" => type} when type in ["trailer", "film", "live_stream"] ->
           # Return just the type if project_id is not present (since we get it from external_id now)
           {:ok, %{"type" => type}}
         _ ->
@@ -152,7 +178,7 @@ defmodule WindowpaneWeb.MuxWebhookController do
     end
   end
 
-  defp handle_asset_ready_with_project_id(asset_id, playback_id, project_id, type) do
+  def handle_asset_ready_with_project_id(asset_id, playback_id, project_id, type, update_duration \\ true) do
     try do
       with project when not is_nil(project) <- Projects.get_project_with_film!(project_id),
            film <- project.film || Projects.get_or_create_film(project),
@@ -161,7 +187,7 @@ defmodule WindowpaneWeb.MuxWebhookController do
         Logger.info("Successfully updated film with asset_id and playback_id for project #{project_id}")
 
         # If this is a film asset, also update the duration
-        if type == "film" do
+        if type == "film" and update_duration do
           update_film_duration(updated_film, asset_id)
         end
 

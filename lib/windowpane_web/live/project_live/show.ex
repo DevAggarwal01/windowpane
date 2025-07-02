@@ -79,6 +79,11 @@ defmodule WindowpaneWeb.ProjectLive.Show do
   end
 
   @impl true
+  def handle_info({:flash_message, type, message}, socket) do
+    {:noreply, put_flash(socket, type, message)}
+  end
+
+  @impl true
   def handle_event("close_film_modal", _params, socket) do
     {:noreply, assign(socket, :show_film_modal, false)}
   end

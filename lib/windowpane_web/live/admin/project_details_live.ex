@@ -428,6 +428,14 @@ defmodule WindowpaneWeb.Admin.ProjectDetailsLive do
 
     # Check if this is a live stream project and create Mux live stream if needed
     live_stream_result = if project.type == "live_event" do
+      # Create a film entry for live event projects
+      case Projects.get_or_create_film(project) do
+        film when is_map(film) ->
+          Logger.info("Film entry created/retrieved for live event project #{project.id}")
+        {:error, error} ->
+          Logger.error("Failed to create film entry for live event: #{error}")
+      end
+
       case create_mux_live_stream(project) do
         {:ok, message} ->
           Logger.info("Live stream created during approval: #{message}")
