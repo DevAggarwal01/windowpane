@@ -103,6 +103,43 @@
       </div>
     </div>
 
+    <!-- Payout Information (Creators only) -->
+    <%= if @user_type == :creator do %>
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
+        <div class="flex items-center mb-4">
+          <div class="flex-shrink-0">
+            <svg class="h-8 w-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3a2 2 0 012-2h4a2 2 0 012 2v4m-6 9l6-6m0 6l-6-6" />
+            </svg>
+          </div>
+          <div class="ml-4">
+            <h3 class="text-lg font-medium text-gray-900">Payout Schedule</h3>
+            <p class="text-sm text-gray-600">How and when you receive your earnings</p>
+          </div>
+        </div>
+        <div class="bg-purple-50 border border-purple-200 rounded-lg p-4">
+          <div class="flex">
+            <div class="flex-shrink-0">
+              <svg class="h-5 w-5 text-purple-400" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+              </svg>
+            </div>
+            <div class="ml-3">
+              <h4 class="text-sm font-medium text-purple-800">Monthly Payouts</h4>
+              <div class="mt-2 text-sm text-purple-700">
+                <p class="mb-2">
+                  <strong>When:</strong> Payouts are initiated on the 15th of every month
+                </p>
+                <p>
+                  <strong>Minimum:</strong> Your wallet balance must be at least $50.00 to receive a payout
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    <% end %>
+
     <!-- Account Info -->
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
       <h3 class="text-lg font-medium text-gray-900 mb-4">Account Information</h3>

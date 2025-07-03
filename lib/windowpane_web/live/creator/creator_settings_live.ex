@@ -43,93 +43,95 @@ defmodule WindowpaneWeb.CreatorSettingsLive do
 
         <div class="space-y-12 divide-y max-w-2xl mx-auto">
           <!-- Creator Plans Section -->
-          <div class="pt-8">
-            <h2 class="text-2xl font-semibold mb-6">Billing</h2>
-            <button
-              phx-click="setup_billing"
-              class="w-full sm:w-auto bg-[#0073b1] hover:bg-[#006097] text-white font-medium py-2 px-4 rounded transition-colors"
-            >
-              Setup Billing
-            </button>
+          <%= if !@current_creator.onboarded do %>
+            <div class="pt-8">
+              <h2 class="text-2xl font-semibold mb-6">Billing</h2>
+              <button
+                phx-click="setup_billing"
+                class="w-full sm:w-auto bg-[#0073b1] hover:bg-[#006097] text-white font-medium py-2 px-4 rounded transition-colors"
+              >
+                Setup Billing
+              </button>
 
-            <%!-- Commented out plans section
-            <%= if @selected_plan do %>
-              <div class="mb-6 bg-blue-50 p-4 rounded-lg border border-blue-200">
-                <div class="flex items-center justify-between">
-                  <div>
-                    <p class="text-blue-800 font-medium">
-                      You selected the <%= @selected_plan.name %> plan at $<%= @selected_plan.price %>/month
-                    </p>
-                    <p class="text-blue-600 text-sm mt-1">
-                      Click the button to proceed with billing setup
-                    </p>
-                  </div>
-                  <div class="flex gap-3">
-                    <button
-                      phx-click="cancel_plan_selection"
-                      class="px-3 py-2 text-sm text-blue-700 hover:text-blue-800"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      phx-click="setup_billing"
-                      phx-value-price-id={@selected_price_id}
-                      class="px-4 py-2 bg-[#0073b1] hover:bg-[#006097] text-white font-medium rounded transition-colors"
-                    >
-                      Setup Billing
-                    </button>
-                  </div>
-                </div>
-              </div>
-            <% end %>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <%= for plan <- @creator_plans do %>
-                <div class={[
-                  "bg-white rounded-lg shadow-sm p-6 border transition-colors cursor-pointer",
-                  plan.id == @current_plan && "border-[#0073b1] ring-2 ring-[#0073b1]" || "border-gray-200 hover:border-[#0073b1]"
-                ]}>
-                  <div class="flex justify-between items-start mb-2">
-                    <h3 class="text-xl font-semibold text-gray-900"><%= plan.name %></h3>
-                    <%= if plan.id == @current_plan do %>
-                      <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-[#0073b1] text-white">
-                        Current Plan
-                      </span>
-                    <% end %>
-                  </div>
-                  <p class="text-gray-600 mb-4 min-h-[3rem]"><%= plan.description %></p>
-                  <div class="flex items-baseline">
-                    <span class="text-3xl font-bold text-[#0073b1]">$<%= plan.price %></span>
-                    <span class="text-gray-500 ml-1">/month</span>
-                  </div>
-                  <%= if plan.id != @current_plan do %>
-                    <button
-                      phx-click="select_plan"
-                      phx-value-price-id={plan.price_id}
-                      phx-value-plan-id={plan.id}
-                      class="mt-4 w-full bg-[#0073b1] hover:bg-[#006097] text-white font-medium py-2 px-4 rounded transition-colors"
-                    >
-                      Select Plan
-                    </button>
-                  <% else %>
-                    <div class="mt-4 w-full text-center text-gray-500 font-medium py-2 px-4">
-                      Current Plan
+              <%!-- Commented out plans section
+              <%= if @selected_plan do %>
+                <div class="mb-6 bg-blue-50 p-4 rounded-lg border border-blue-200">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <p class="text-blue-800 font-medium">
+                        You selected the <%= @selected_plan.name %> plan at $<%= @selected_plan.price %>/month
+                      </p>
+                      <p class="text-blue-600 text-sm mt-1">
+                        Click the button to proceed with billing setup
+                      </p>
                     </div>
-                    <%= if plan.id != "free" do %>
+                    <div class="flex gap-3">
                       <button
-                        phx-click="deactivate_plan"
-                        data-confirm="Are you sure you want to deactivate your current plan? This will downgrade you to the free plan."
-                        class="mt-2 w-full bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded transition-colors"
+                        phx-click="cancel_plan_selection"
+                        class="px-3 py-2 text-sm text-blue-700 hover:text-blue-800"
                       >
-                        Deactivate
+                        Cancel
                       </button>
-                    <% end %>
-                  <% end %>
+                      <button
+                        phx-click="setup_billing"
+                        phx-value-price-id={@selected_price_id}
+                        class="px-4 py-2 bg-[#0073b1] hover:bg-[#006097] text-white font-medium rounded transition-colors"
+                      >
+                        Setup Billing
+                      </button>
+                    </div>
+                  </div>
                 </div>
               <% end %>
+
+              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <%= for plan <- @creator_plans do %>
+                  <div class={[
+                    "bg-white rounded-lg shadow-sm p-6 border transition-colors cursor-pointer",
+                    plan.id == @current_plan && "border-[#0073b1] ring-2 ring-[#0073b1]" || "border-gray-200 hover:border-[#0073b1]"
+                  ]}>
+                    <div class="flex justify-between items-start mb-2">
+                      <h3 class="text-xl font-semibold text-gray-900"><%= plan.name %></h3>
+                      <%= if plan.id == @current_plan do %>
+                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-[#0073b1] text-white">
+                          Current Plan
+                        </span>
+                      <% end %>
+                    </div>
+                    <p class="text-gray-600 mb-4 min-h-[3rem]"><%= plan.description %></p>
+                    <div class="flex items-baseline">
+                      <span class="text-3xl font-bold text-[#0073b1]">$<%= plan.price %></span>
+                      <span class="text-gray-500 ml-1">/month</span>
+                    </div>
+                    <%= if plan.id != @current_plan do %>
+                      <button
+                        phx-click="select_plan"
+                        phx-value-price-id={plan.price_id}
+                        phx-value-plan-id={plan.id}
+                        class="mt-4 w-full bg-[#0073b1] hover:bg-[#006097] text-white font-medium py-2 px-4 rounded transition-colors"
+                      >
+                        Select Plan
+                      </button>
+                    <% else %>
+                      <div class="mt-4 w-full text-center text-gray-500 font-medium py-2 px-4">
+                        Current Plan
+                      </div>
+                      <%= if plan.id != "free" do %>
+                        <button
+                          phx-click="deactivate_plan"
+                          data-confirm="Are you sure you want to deactivate your current plan? This will downgrade you to the free plan."
+                          class="mt-2 w-full bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded transition-colors"
+                        >
+                          Deactivate
+                        </button>
+                      <% end %>
+                    <% end %>
+                  </div>
+                <% end %>
+              </div>
+              --%>
             </div>
-            --%>
-          </div>
+          <% end %>
           <div>
             <h2 class="text-2xl font-semibold mb-6">Authentication Settings</h2>
             <.simple_form
