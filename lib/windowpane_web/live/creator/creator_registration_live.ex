@@ -142,13 +142,6 @@ defmodule WindowpaneWeb.CreatorRegistrationLive do
             business_profile: %{
               url: "https://windowpane.tv"
             },
-            settings: %{
-              payouts: %{
-                schedule: %{
-                  interval: "manual"
-                }
-              }
-            }
           }) do
             {:ok, acct} ->
               IO.inspect(acct, label: "Created Stripe account")

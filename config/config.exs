@@ -7,6 +7,19 @@
 # General application configuration
 import Config
 
+config :windowpane, Oban,
+  engine: Oban.Engines.Basic,
+  notifier: Oban.Notifiers.Postgres,
+  queues: [default: 10, payouts: 2],
+  repo: Windowpane.Repo,
+  plugins: [
+    {Oban.Plugins.Cron,
+     crontab: [
+       # Run monthly payout job on the 15th of every month at 6:00 AM UTC
+       {"0 6 15 * *", Windowpane.Creators.MonthlyPayoutJob}
+     ]}
+  ]
+
 config :windowpane,
   ecto_repos: [Windowpane.Repo],
   generators: [timestamp_type: :utc_datetime]

@@ -84,4 +84,22 @@ defmodule WindowpaneWeb.WalletLive do
   end
 
   def format_wallet_balance(nil), do: "$0.00"
+
+  # Helper function to calculate net amount after Stripe fees
+  def calculate_net_amount(wallet_balance_cents) when is_integer(wallet_balance_cents) do
+    stripe_percentage_fee = 0.029  # 2.9%
+    stripe_fixed_fee_cents = 30    # $0.30 in cents
+
+    net_amount = (wallet_balance_cents * (1 - stripe_percentage_fee)) - stripe_fixed_fee_cents
+    max(0, round(net_amount))
+  end
+
+  def calculate_net_amount(nil), do: 0
+
+  # Helper function to calculate Stripe fee
+  def calculate_stripe_fee(wallet_balance_cents) when is_integer(wallet_balance_cents) do
+    wallet_balance_cents - calculate_net_amount(wallet_balance_cents)
+  end
+
+  def calculate_stripe_fee(nil), do: 0
 end

@@ -169,7 +169,7 @@ defmodule Windowpane.Creators.Creator do
   """
   def update_changeset(creator, attrs) do
     creator
-    |> cast(attrs, [:onboarded, :plan])
+    |> cast(attrs, [:onboarded, :plan, :wallet_balance])
     |> validate_required([])
   end
 end

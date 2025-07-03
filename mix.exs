@@ -71,7 +71,7 @@ defmodule Windowpane.MixProject do
       {:joken, "~> 2.6"},
       {:image, "~> 0.59.3"},
       {:oban, "~> 2.19"},
-      {:igniter, "~> 0.5", only: [:dev]},
+      {:igniter, "~> 0.5", only: [:dev]}
     ]
   end
 

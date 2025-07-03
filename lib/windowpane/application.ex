@@ -11,6 +11,7 @@ defmodule Windowpane.Application do
       WindowpaneWeb.Telemetry,
       Windowpane.Repo,
       {DNSCluster, query: Application.get_env(:windowpane, :dns_cluster_query) || :ignore},
+      {Oban, Application.fetch_env!(:windowpane, Oban)},
       {Phoenix.PubSub, name: Windowpane.PubSub},
       # Start the Finch HTTP client for sending emails
       {Finch, name: Windowpane.Finch},

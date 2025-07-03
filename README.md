@@ -5,6 +5,7 @@
 3. Consider premium or plus video quality (it will be needed for quality videos)
 4. Need to change the creator cut algorithm to be affected by duration
 5. need an How-to guide for streamers
+6. i think steam cash formula for estimating tax + fees might be incorrect
 
 to do premieres, premiere date in project table is already indexed so it should be easy to do quick retrieval
 
