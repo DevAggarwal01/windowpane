@@ -65,6 +65,47 @@ defmodule WindowpaneWeb.MuxWebhookController do
     :ok
   end
 
+  defp handle_event("video.asset.live_stream_completed", %{"data" => %{"id" => asset_id}, "passthrough" => passthrough} = params) do
+    Logger.info("Live stream completed: #{asset_id}")
+
+    case parse_passthrough(passthrough) do
+      {:ok, %{"project_id" => project_id, "type" => "live_stream"}} ->
+        Logger.info("Live stream completed for project #{project_id} with type 'live_stream'")
+
+        # Update project type from live_stream to film
+        case Projects.get_project!(project_id) do
+          project when not is_nil(project) ->
+            case Projects.update_project(project, %{type: "film"}) do
+              {:ok, updated_project} ->
+                Logger.info("Successfully updated project #{project_id} type from 'live_stream' to 'film'")
+                :ok
+              {:error, changeset} ->
+                Logger.error("Failed to update project #{project_id} type to 'film': #{inspect(changeset.errors)}")
+                {:error, :project_update_failed}
+            end
+          nil ->
+            Logger.error("Project #{project_id} not found")
+            {:error, :project_not_found}
+        end
+
+      {:ok, %{"project_id" => project_id, "type" => other_type}} ->
+        Logger.info("Live stream completed for project #{project_id} with type '#{other_type}' (not live_stream), skipping type update")
+        :ok
+
+      {:ok, %{"project_id" => project_id}} ->
+        Logger.warning("Live stream completed for project #{project_id} but no type found in passthrough")
+        :ok
+
+      {:error, reason} ->
+        Logger.error("Failed to parse passthrough in live stream completed: #{inspect(reason)}")
+        {:error, reason}
+    end
+  rescue
+    e ->
+      Logger.error("Error handling live stream completed event: #{inspect(e)}")
+      {:error, :unexpected_error}
+  end
+
   defp handle_event("video.live_stream.connected", %{"data" => %{"active_asset_id" => asset_id, "playback_ids" => [%{"id" => playback_id} | _]}} = params) do
     Logger.info("Live stream connected: #{asset_id}, playback_id: #{playback_id}")
 

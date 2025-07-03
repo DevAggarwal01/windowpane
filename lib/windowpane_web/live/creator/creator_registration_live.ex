@@ -51,7 +51,7 @@ defmodule WindowpaneWeb.CreatorRegistrationLive do
                 />
                 <p class="mt-1 text-sm text-gray-500">
                   Need a creator code? Email us at
-                  <a href="mailto:abc@gmail.com" class="text-[#0073b1] hover:underline">abc@gmail.com</a>
+                  <a href="mailto:business@windowpane.tv" class="text-[#0073b1] hover:underline">business@windowpane.tv</a>
                 </p>
               </div>
 
@@ -137,9 +137,18 @@ defmodule WindowpaneWeb.CreatorRegistrationLive do
         true ->
           case Stripe.Account.create(%{
             type: "express",
-            country: "US",
             email: creator_params["email"],
-            capabilities: %{transfers: %{requested: true}}
+            capabilities: %{transfers: %{requested: true}},
+            business_profile: %{
+              url: "https://windowpane.tv"
+            },
+            settings: %{
+              payouts: %{
+                schedule: %{
+                  interval: "manual"
+                }
+              }
+            }
           }) do
             {:ok, acct} ->
               IO.inspect(acct, label: "Created Stripe account")

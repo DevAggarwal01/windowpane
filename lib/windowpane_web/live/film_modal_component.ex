@@ -1,7 +1,8 @@
 defmodule WindowpaneWeb.FilmModalComponent do
   use WindowpaneWeb, :live_component
+  require Logger
 
-  alias Windowpane.{Repo, Ownership, Accounts, MuxToken, Projects}
+  alias Windowpane.{Repo, Ownership, Accounts, MuxToken, Projects, Creators}
   alias Windowpane.Uploaders.BannerUploader
 
   # Helper function to format price
@@ -555,17 +556,20 @@ defmodule WindowpaneWeb.FilmModalComponent do
     film = socket.assigns.film
     is_premiere = socket.assigns.is_premiere
 
-    # Convert rental price from Decimal to cents for comparison
-    rental_price_cents = if film.rental_price do
-      Decimal.to_integer(Decimal.mult(film.rental_price, 100))
+    # Use premiere price if it's a premiere, otherwise use rental price
+    price = if is_premiere, do: film.premiere_price, else: film.rental_price
+
+    # Convert price from Decimal to cents for comparison
+    price_cents = if price do
+      Decimal.to_integer(Decimal.mult(price, 100))
     else
       0
     end
 
     # Check if user has sufficient wallet balance
-    if user.wallet_balance >= rental_price_cents do
+    if user.wallet_balance >= price_cents do
       # User has sufficient balance - process the rental
-      case process_rental(user, film, rental_price_cents, is_premiere) do
+      case process_rental(user, film, price_cents, is_premiere) do
         {:ok, _ownership_record} ->
           # Get the updated user to reflect the new wallet balance
           updated_user = Accounts.get_user!(user.id)
@@ -594,7 +598,7 @@ defmodule WindowpaneWeb.FilmModalComponent do
   end
 
   # Helper function to process the rental
-  defp process_rental(user, film, rental_price_cents, is_premiere) do
+  defp process_rental(user, film, price_cents, is_premiere) do
     # Start a database transaction to ensure all operations succeed or fail together
     Repo.transaction(fn ->
       # 1. Get playback ID and determine expiration time
@@ -632,8 +636,10 @@ defmodule WindowpaneWeb.FilmModalComponent do
       case Ownership.create_rental(user.id, film.id, jwt_token, expires_at) do
         {:ok, ownership_record} ->
           # 3. Deduct funds from user's wallet
-          case Accounts.deduct_wallet_funds(user.id, rental_price_cents) do
+          case Accounts.deduct_wallet_funds(user.id, price_cents) do
             {:ok, _updated_user} ->
+              # 4. Process creator payment based on premiere vs rental
+              process_creator_payment(film, price_cents, is_premiere)
               ownership_record
 
             {:error, reason} ->
@@ -647,6 +653,35 @@ defmodule WindowpaneWeb.FilmModalComponent do
           Repo.rollback("Failed to create rental record: #{inspect(changeset.errors)}")
       end
     end)
+  end
+
+  # Helper function to process creator payment with appropriate cut
+  defp process_creator_payment(project, price_cents, is_premiere) do
+    # Get the appropriate creator cut based on premiere vs rental
+    creator_cut = if is_premiere do
+      project.premiere_creator_cut || Decimal.new("0")
+    else
+      project.rental_creator_cut || Decimal.new("0")
+    end
+
+    # Convert creator cut to cents
+    creator_cut_cents = Decimal.to_integer(Decimal.mult(creator_cut, 100))
+
+    # Log the payment for tracking purposes
+    Logger.info("Processing creator payment for project #{project.id}: #{if is_premiere, do: "premiere", else: "rental"} - Creator cut: $#{Decimal.to_string(creator_cut)}")
+
+    # Add creator cut to creator's wallet balance
+    case Creators.add_wallet_funds(project.creator_id, creator_cut_cents) do
+      {:ok, updated_creator} ->
+        Logger.info("Successfully added $#{Decimal.to_string(creator_cut)} to creator #{project.creator_id} wallet. New balance: $#{updated_creator.wallet_balance / 100}")
+        :ok
+
+      {:error, reason} ->
+        Logger.error("Failed to add creator payment to wallet for creator #{project.creator_id}: #{inspect(reason)}")
+        # Don't fail the entire transaction, just log the error
+        # The user's rental should still go through even if creator payment fails
+        :ok
+    end
   end
 
   @impl true

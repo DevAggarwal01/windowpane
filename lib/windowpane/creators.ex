@@ -435,6 +435,7 @@ defmodule Windowpane.Creators do
           |> Enum.filter(&String.starts_with?(&1.name, "Add $"))
           |> Enum.map(fn product ->
             {:ok, prices} = Stripe.Price.list(%{product: product.id, active: true})
+            
             price = List.first(prices.data)
             %{
               id: product.id,
@@ -518,4 +519,89 @@ defmodule Windowpane.Creators do
   end
 
   def delete_creator(_), do: {:error, :invalid_creator}
+
+  ## Wallet functions
+
+  @doc """
+  Adds funds to a creator's wallet balance.
+
+  ## Examples
+
+      iex> add_wallet_funds(123, 1000)
+      {:ok, %Creator{}}
+
+      iex> add_wallet_funds(999, 1000)
+      {:error, :creator_not_found}
+
+  """
+  def add_wallet_funds(creator_id, amount_cents) when is_integer(amount_cents) and amount_cents > 0 do
+    case get_creator!(creator_id) do
+      %Creator{} = creator ->
+        creator
+        |> Ecto.Changeset.change(wallet_balance: creator.wallet_balance + amount_cents)
+        |> Repo.update()
+
+      nil ->
+        {:error, :creator_not_found}
+    end
+  rescue
+    Ecto.NoResultsError ->
+      {:error, :creator_not_found}
+  end
+
+  def add_wallet_funds(creator_id, amount_cents) when is_binary(creator_id) do
+    add_wallet_funds(String.to_integer(creator_id), amount_cents)
+  end
+
+  @doc """
+  Gets a creator's current wallet balance.
+
+  ## Examples
+
+      iex> get_wallet_balance(123)
+      1500
+
+      iex> get_wallet_balance(999)
+      {:error, :creator_not_found}
+
+  """
+  def get_wallet_balance(creator_id) do
+    case get_creator!(creator_id) do
+      %Creator{wallet_balance: balance} -> balance
+      nil -> {:error, :creator_not_found}
+    end
+  rescue
+    Ecto.NoResultsError ->
+      {:error, :creator_not_found}
+  end
+
+  @doc """
+  Deducts funds from a creator's wallet balance.
+
+  ## Examples
+
+      iex> deduct_wallet_funds(123, 500)
+      {:ok, %Creator{}}
+
+      iex> deduct_wallet_funds(123, 999999)
+      {:error, :insufficient_funds}
+
+  """
+  def deduct_wallet_funds(creator_id, amount_cents) when is_integer(amount_cents) and amount_cents > 0 do
+    case get_creator!(creator_id) do
+      %Creator{wallet_balance: current_balance} = creator when current_balance >= amount_cents ->
+        creator
+        |> Ecto.Changeset.change(wallet_balance: current_balance - amount_cents)
+        |> Repo.update()
+
+      %Creator{} ->
+        {:error, :insufficient_funds}
+
+      nil ->
+        {:error, :creator_not_found}
+    end
+  rescue
+    Ecto.NoResultsError ->
+      {:error, :creator_not_found}
+  end
 end

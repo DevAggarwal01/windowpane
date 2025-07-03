@@ -55,6 +55,12 @@ defmodule WindowpaneWeb.Router do
       on_mount: [{WindowpaneWeb.UserAuth, :mount_current_user}] do
       live "/watch", WatchLive, :watch
     end
+
+    live_session :browse_page,
+      layout: {WindowpaneWeb.Layouts, :browse},
+      on_mount: [{WindowpaneWeb.UserAuth, :mount_current_user}] do
+      live "/browse", BrowseLive, :index
+    end
   end
 
   # User authentication routes (windowpane.tv)
@@ -81,6 +87,7 @@ defmodule WindowpaneWeb.Router do
       live "/library", LibraryLive, :index
       live "/shop", ShopLive, :index
       live "/social", SocialLive, :index
+      live "/wallet", WalletLive, :index
       live "/users/settings", UserSettingsLive, :edit
       live "/users/settings/confirm_email/:token", UserSettingsLive, :confirm_email
     end
@@ -131,9 +138,10 @@ defmodule WindowpaneWeb.Router do
       live "/projects", ProjectLive.Index, :index
       live "/projects/new", ProjectLive.New, :new
       live "/social", SocialLive, :index
-      live "/:id", ProjectLive.Show, :show
+      live "/wallet", WalletLive, :index
       live "/creators/settings", CreatorSettingsLive, :edit
       live "/creators/settings/confirm_email/:token", CreatorSettingsLive, :confirm_email
+      live "/:id", ProjectLive.Show, :show
     end
   end
 
