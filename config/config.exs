@@ -26,7 +26,6 @@ config :windowpane,
 
 # Configures the endpoint
 config :windowpane, WindowpaneWeb.Endpoint,
-  url: [host: "windowpane.tv", port: 4000],
   adapter: Bandit.PhoenixAdapter,
   render_errors: [
     formats: [html: WindowpaneWeb.ErrorHTML, json: WindowpaneWeb.ErrorJSON],
@@ -89,12 +88,6 @@ config :ex_aws, :s3,
   host: "fly.storage.tigris.dev",
   region: "us-east-1",
   port: 443
-
-# Configure Waffle to use Tigris for file uploads
-config :waffle,
-  storage: Waffle.Storage.S3,
-  asset_host: fn bucket, _version -> "https://#{bucket}.fly.storage.tigris.dev" end,
-  bucket: System.get_env("TIGRIS_BUCKET")
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.

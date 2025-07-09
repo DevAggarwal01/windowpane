@@ -1,1 +1,1 @@
-call "%~dp0\windowpane" eval Windowpane.Release.migrate
+@REM call "%~dp0\windowpane" eval Windowpane.Release.migrate

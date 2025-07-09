@@ -22,7 +22,7 @@ defmodule WindowpaneWeb.Endpoint do
   plug Plug.Static,
     at: "/",
     from: :windowpane,
-    gzip: false,
+    gzip: true,
     only: WindowpaneWeb.static_paths()
 
   # Code reloading can be explicitly enabled under the

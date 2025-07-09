@@ -9,8 +9,11 @@ module.exports = {
   content: [
     "./js/**/*.js",
     "../lib/windowpane_web.ex",
-    "../lib/windowpane_web/**/*.*ex"
-    
+    "../lib/windowpane_web/**/*.{ex,heex}",
+    "../lib/windowpane_web/**/**/*.{ex,heex}",
+    "../lib/windowpane_web/components/**/*.ex",
+    "../lib/windowpane_web/live/**/*.ex",
+    "../lib/windowpane_web/controllers/**/*.ex"
   ],
   theme: {
     extend: {
@@ -74,5 +77,5 @@ module.exports = {
         }
       }, {values})
     })
-  ]
+  ],
 }

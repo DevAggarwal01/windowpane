@@ -32,10 +32,11 @@ if config_env() == :prod do
   maybe_ipv6 = if System.get_env("ECTO_IPV6") in ~w(true 1), do: [:inet6], else: []
 
   config :windowpane, Windowpane.Repo,
-    # ssl: true,
+    ssl: false,
+    ssl_opts: [verify: :verify_none],
     url: database_url,
     pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10"),
-    socket_options: maybe_ipv6
+    socket_options: [:inet6]
 
   # The secret key base is used to sign/encrypt cookies and other secrets.
   # A default value is used in config/dev.exs and config/test.exs but you
@@ -49,8 +50,8 @@ if config_env() == :prod do
       You can generate one by calling: mix phx.gen.secret
       """
 
-  host = System.get_env("PHX_HOST") || "example.com"
-  port = String.to_integer(System.get_env("PORT") || "4000")
+  host = System.get_env("PHX_HOST") || "windowpane.tv"
+  port = String.to_integer(System.get_env("PORT") || "8080")
 
   config :windowpane, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
@@ -64,7 +65,20 @@ if config_env() == :prod do
       ip: {0, 0, 0, 0, 0, 0, 0, 0},
       port: port
     ],
+    check_origin: [
+      "//#{host}",
+      "//windowpane.tv",
+      "//studio.windowpane.tv",
+      "//admin.windowpane.tv",
+      "//windowpane.fly.dev"
+    ],
     secret_key_base: secret_key_base
+
+  # Configure Waffle to use Tigris for file uploads
+  config :waffle,
+    storage: Waffle.Storage.S3,
+    asset_host: fn bucket, _version -> "https://#{bucket}.fly.storage.tigris.dev" end,
+    bucket: System.get_env("TIGRIS_BUCKET")
 
 
 

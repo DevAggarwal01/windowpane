@@ -6,6 +6,11 @@
 4. Need to change the creator cut algorithm to be affected by duration
 5. need an How-to guide for streamers
 6. i think steam cash formula for estimating tax + fees might be incorrect
+7. FUTURE - setting up a staging environment (2 separate fly.tomls for 2 separate apps. codebases for prod and stage running separately but 1 instance is enough for stage app since not meant to have traffic)
+
+
+This command finds all dynamic class names that tailwind tries to purge. must be added to safelist in tailwind.config.js
+grep -roh 'class=["'\''][^"'\''"]*["'\'']' lib/   | sed 's/class=["'\'']//;s/["'\'']$//'   | tr ' ' '\n'   | sort -u   | awk '{printf "\"%s\", ", $0}'   | sed 's/, $/\n/' | xclip -selection clipboard
 
 to do premieres, premiere date in project table is already indexed so it should be easy to do quick retrieval
 
