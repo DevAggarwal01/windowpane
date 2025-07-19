@@ -2,6 +2,7 @@ defmodule WindowpaneWeb.LandingRowComponent do
   use WindowpaneWeb, :live_component
 
   alias Windowpane.Uploaders.CoverUploader
+  alias WindowpaneWeb.DiskCaseComponent
 
   @impl true
   def mount(socket) do
@@ -54,48 +55,12 @@ defmodule WindowpaneWeb.LandingRowComponent do
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
           <%= for item <- @items do %>
             <.link patch={~p"/?id=#{item.id}&source=#{if @is_premiere, do: "premieres", else: "films"}"} class="group">
-              <div class="bg-gray-800 rounded-lg overflow-hidden transition-transform hover:scale-105">
-                <!-- Cover -->
-                <div class="aspect-[3/4] relative overflow-hidden bg-gray-700">
-                  <%= if CoverUploader.cover_exists?(%{id: item.id}) do %>
-                    <img
-                      src={CoverUploader.cover_url(%{id: item.id})}
-                      alt="Cover"
-                      class="w-full h-full object-cover"
-                      loading="lazy"
-                    />
-                  <% else %>
-                    <div class="flex items-center justify-center w-full h-full">
-                      <div class="text-center">
-                        <span class="text-4xl mb-2 block">🎬</span>
-                        <span class="text-xs text-gray-400 font-medium">No Cover</span>
-                      </div>
-                    </div>
-                  <% end %>
-
-                  <!-- Hover overlay with play icon -->
-                  <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all duration-300 flex items-center justify-center">
-                    <div class="opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                      <div class="w-12 h-12 bg-white bg-opacity-90 rounded-full flex items-center justify-center">
-                        <svg class="w-6 h-6 text-gray-900 ml-1" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M8 5v10l8-5-8-5z"/>
-                        </svg>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="p-3">
-                  <p class="text-gray-400 text-xs truncate">
-                    <%= item.creator_name %>
-                  </p>
-                  <%= if Map.has_key?(item, :start_time) do %>
-                    <p class="text-accent text-xs mt-1">
-                      <%= Calendar.strftime(item.start_time, "%B %d, %Y") %>
-                    </p>
-                  <% end %>
-                </div>
-              </div>
+              <!-- Disk Case Component - No wrapper, no styling, just the clickable image -->
+              <.live_component
+                module={DiskCaseComponent}
+                id={"disk-case-#{item.id}"}
+                id={item.id}
+              />
             </.link>
           <% end %>
         </div>

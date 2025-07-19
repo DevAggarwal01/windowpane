@@ -91,3 +91,8 @@ config :stripity_stripe, api_key: System.get_env("STRIPE_SECRET")
 config :mux,
   access_token_id: System.get_env("MUX_TOKEN_ID"),
   access_token_secret: System.get_env("MUX_SECRET_KEY")
+
+# Configure Mux CORS origins for different environments
+config :windowpane, :cors_origin_urls,
+  main_app: "http://windowpane.tv:4000",
+  studio_app: "http://studio.windowpane.tv:4000"

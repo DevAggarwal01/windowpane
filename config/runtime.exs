@@ -80,6 +80,21 @@ if config_env() == :prod do
     asset_host: fn bucket, _version -> "https://#{bucket}.fly.storage.tigris.dev" end,
     bucket: System.get_env("TIGRIS_BUCKET")
 
+  # Configure ExAws to use Tigris credentials explicitly in production
+  config :ex_aws,
+    access_key_id: System.get_env("TIGRIS_ACCESS_KEY_ID"),
+    secret_access_key: System.get_env("TIGRIS_SECRET_KEY")
+
+  config :ex_aws, :s3,
+    scheme: "https://",
+    host: "fly.storage.tigris.dev",
+    region: "auto",
+    port: 443
+
+  # Configure Mux CORS origins for production
+  config :windowpane, :cors_origin_urls,
+    main_app: "https://windowpane.tv",
+    studio_app: "https://studio.windowpane.tv"
 
 
   # ## SSL Support

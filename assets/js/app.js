@@ -21,6 +21,11 @@ import "phoenix_html"
 import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
 import topbar from "../vendor/topbar"
+import * as PIXI from "pixi.js";
+import { Viewport } from "pixi-viewport";
+
+// Create a global PIXI application instance
+let pixiApp = null;
 
 // Cropper.js Hook for LiveView
 let Hooks = {}
@@ -553,7 +558,209 @@ Hooks.BannerUpload = {
   }
 };
 
+Hooks.PixiCanvas = {
+  
+  async mounted() {
+    try {
+      console.log('PixiCanvas mounted');
+      
+      // Wait a bit to ensure PIXI is loaded
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      console.log('PIXI available:', typeof PIXI !== 'undefined');
+      console.log('Viewport available:', typeof Viewport !== 'undefined');
+      
+      if (typeof PIXI === 'undefined') {
+        console.error('PIXI.js is not loaded');
+        return;
+      }
+      
+      const container = this.el;
+
+      // Initialize PIXI application if not already done
+      if (!pixiApp) {
+        pixiApp = new PIXI.Application({
+          backgroundColor: 0x000000,
+          resizeTo: window,
+        });
+        container.appendChild(pixiApp.view);
+      }
+
+      const center = 3000;
+
+      this.viewport = new Viewport({
+        screenWidth: window.innerWidth,
+        screenHeight: window.innerHeight,
+        worldWidth: center * 2,
+        worldHeight: center * 2,
+        events: pixiApp.renderer.events,
+        ticker: pixiApp.ticker,
+        interaction: pixiApp.renderer.events,
+      });
+      const viewport = this.viewport
+
+
+      pixiApp.stage.addChild(viewport);
+
+      viewport.drag().decelerate();
+
+      viewport.moveCenter(center, center);
+
+      this.CELL_SIZE = 400
+      this.RADIUS_IN_CELLS = 5 // adjustable, like 1.5 * viewport width in cells
+      this.BORDER_SIZE = 8
+
+      // Keep a global map of rendered cells
+      this.renderedCells = this.renderedCells || new Map()
+      this.CENTER_CELL_KEY = `${Math.floor(center / this.CELL_SIZE)},${Math.floor(center / this.CELL_SIZE)}`
+
+
+
+      this.renderCellsAround(viewport.center.x, viewport.center.y);
+
+
+      viewport.on('moved-end', () => {
+        this.renderCellsAround(viewport.center.x, viewport.center.y);
+      });
+      
+
+      
+      console.log('PixiCanvas initialized successfully');
+    } catch (error) {
+      console.error('Error initializing PixiCanvas:', error);
+    }
+  },
+
+  renderCellsAround(x, y) {
+    console.log("renderCellsAround", x, y)
+    const CELL_SIZE = this.CELL_SIZE
+    const RADIUS_IN_CELLS = this.RADIUS_IN_CELLS
+    const CENTER_CELL_KEY = this.CENTER_CELL_KEY
+    const viewport = this.viewport
+
+    const cellX = Math.floor(x / CELL_SIZE)
+    const cellY = Math.floor(y / CELL_SIZE)
+
+    const newVisibleCells = new Set()
+
+    for (let dx = -RADIUS_IN_CELLS; dx <= RADIUS_IN_CELLS; dx++) {
+      for (let dy = -RADIUS_IN_CELLS; dy <= RADIUS_IN_CELLS; dy++) {
+        const gx = cellX + dx;
+        const gy = cellY + dy;
+        const cellKey = `${gx},${gy}`
+        newVisibleCells.add(cellKey);
+
+        // if the cell is not in the renderedCells map, add it
+        if (!this.renderedCells.has(cellKey)) { 
+          let sprite;
+          console.log("cellKey", cellKey)
+          if(cellKey == CENTER_CELL_KEY) {
+            console.log("Creating title sprite for cell", cellKey)
+            sprite = this.createTitleSprite();
+          } else {
+            sprite = this.createImageSprite();
+          }
+
+          sprite.x = gx * CELL_SIZE;
+          sprite.y = gy * CELL_SIZE;
+          viewport.addChild(sprite);
+          this.renderedCells.set(cellKey, sprite);
+        }
+      }
+    }
+
+    for (const [key, sprite] of this.renderedCells.entries()) {
+      if (!newVisibleCells.has(key)) {
+        viewport.removeChild(sprite)
+        sprite.destroy()
+        this.renderedCells.delete(key)
+      }
+    }
+  },
+  createTitleSprite() {
+    const CELL_SIZE = this.CELL_SIZE
+    const BORDER_SIZE = this.BORDER_SIZE
+
+    const container = new PIXI.Container();
+
+    const titleText = new PIXI.Text('Windowpane', {
+      fontSize: 48,
+      fill: 0xffffff,
+      align: 'center'
+    })
+    titleText.anchor.set(0.5)
+    titleText.x = CELL_SIZE / 2
+    titleText.y = CELL_SIZE / 2 - 60
+
+    container.addChild(titleText)
+
+    const buttons = [
+      { label: 'Login', url: '/users/log_in' },
+      { label: 'Signup', url: '/users/register' },
+      { label: 'Browse', url: '/browse' }
+    ];
+
+    // Render each as a PIXI.Text link
+  buttons.forEach((btn, index) => {
+    const textBtn = new PIXI.Text(btn.label, {
+      fontSize: 24,
+      fill: 0x00ccff, // light blue for links
+      align: 'center'
+    });
+    textBtn.anchor.set(0.5);
+    textBtn.x = CELL_SIZE / 2;
+    textBtn.y = CELL_SIZE / 2 + index * 35; // vertical spacing
+    textBtn.interactive = true;
+    textBtn.buttonMode = true;
+
+    textBtn.on('pointertap', () => {
+      window.location.href = btn.url;
+    });
+
+    // Optional hover effect
+    textBtn.on('pointerover', () => {
+      textBtn.style.fill = 0xffffff;
+      textBtn.style.fontWeight = 'bold';
+    });
+    textBtn.on('pointerout', () => {
+      textBtn.style.fill = 0x00ccff;
+      textBtn.style.fontWeight = 'normal';
+    });
+
+    container.addChild(textBtn);
+  });
+
+    return container
+  },
+  
+  createImageSprite() {
+    const CELL_SIZE = this.CELL_SIZE
+    const BORDER_SIZE = this.BORDER_SIZE
+
+    const texture = PIXI.Texture.from('https://windowpane-images-v2.t3.storage.dev/1/cover')
+    const sprite = new PIXI.Sprite(texture)
+    sprite.x = BORDER_SIZE
+    sprite.y = BORDER_SIZE
+    sprite.width = CELL_SIZE - BORDER_SIZE * 2
+    sprite.height = CELL_SIZE - BORDER_SIZE * 2
+
+    return sprite
+  },
+  
+  destroyed() {
+    // Clean up PIXI application when hook is destroyed
+    if (pixiApp) {
+      pixiApp.destroy(true);
+      pixiApp = null;
+    }
+  }
+};
+
+// Remove the default export and keep Hooks as a regular object
+// export default Hooks;
+
 let csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
+console.log("Hooks", Hooks);
 let liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},

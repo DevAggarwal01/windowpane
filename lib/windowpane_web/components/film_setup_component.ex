@@ -68,10 +68,10 @@ defmodule WindowpaneWeb.FilmSetupComponent do
     client = Mux.client()
     params = %{
       "new_asset_settings" => %{
-        "playback_policies" => ["signed"],
+        "playback_policies" => ["public"],
         "passthrough" => "type:trailer;project_id:#{socket.assigns.project.id}",
       },
-      "cors_origin" => "http://windowpane.tv:4000", # TODO delete the 4000 localhost
+      "cors_origin" => Application.get_env(:windowpane, :cors_origin_urls)[:main_app],
     }
 
     case Mux.Video.Uploads.create(client, params) do
@@ -113,7 +113,7 @@ defmodule WindowpaneWeb.FilmSetupComponent do
         "playback_policies" => ["signed"],
         "passthrough" => "type:film;project_id:#{socket.assigns.project.id}",
       },
-      "cors_origin" => "http://studio.windowpane.tv:4000",
+      "cors_origin" => Application.get_env(:windowpane, :cors_origin_urls)[:studio_app],
     }
 
     case Mux.Video.Uploads.create(client, params) do

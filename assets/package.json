@@ -12,6 +12,8 @@
     "node-releases": "^2.0.19",
     "normalize-range": "^0.1.2",
     "picocolors": "^1.1.1",
+    "pixi-viewport": "^6.0.3",
+    "pixi.js": "^7.4.3",
     "postcss-value-parser": "^4.2.0",
     "source-map-js": "^1.2.1",
     "update-browserslist-db": "^1.1.3"

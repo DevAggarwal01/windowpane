@@ -857,12 +857,12 @@ defmodule Windowpane.Projects do
 
   @doc """
   Returns a list of minimal project data for landing page rows.
-  Only returns id, cover_url, and creator name for performance.
+  Only returns id, title, and creator name for performance.
 
   ## Examples
 
       iex> list_minimal_published_films(6)
-      [%{id: 1, cover_url: "...", creator_name: "..."}, ...]
+      [%{id: 1, title: "Film Title", creator_name: "..."}, ...]
 
   """
   def list_minimal_published_films(limit \\ 6) do
@@ -872,6 +872,7 @@ defmodule Windowpane.Projects do
     |> join(:inner, [p], c in Windowpane.Creators.Creator, on: p.creator_id == c.id)
     |> select([p, c], %{
       id: p.id,
+      title: p.title,
       creator_name: c.name
     })
     |> order_by([p], desc: p.premiere_date)
@@ -880,12 +881,12 @@ defmodule Windowpane.Projects do
 
   @doc """
   Returns a list of minimal premiere data for landing page rows.
-  Only returns id, cover_url, creator name, and start_time for performance.
+  Only returns id, title, creator name, and start_time for performance.
 
   ## Examples
 
       iex> list_minimal_upcoming_premieres(6)
-      [%{id: 1, cover_url: "...", creator_name: "...", start_time: ~U[2024-03-20 10:00:00Z]}, ...]
+      [%{id: 1, title: "Film Title", creator_name: "...", start_time: ~U[2024-03-20 10:00:00Z]}, ...]
 
   """
   def list_minimal_upcoming_premieres(limit \\ 6) do
@@ -899,6 +900,7 @@ defmodule Windowpane.Projects do
     |> join(:inner, [p, proj], c in Windowpane.Creators.Creator, on: proj.creator_id == c.id)
     |> select([p, proj, c], %{
       id: proj.id,
+      title: proj.title,
       creator_name: c.name,
       start_time: p.start_time
     })
@@ -929,6 +931,7 @@ defmodule Windowpane.Projects do
     |> join(:inner, [p, proj], c in Windowpane.Creators.Creator, on: proj.creator_id == c.id)
     |> select([p, proj, c], %{
       id: proj.id,
+      title: proj.title,
       creator_name: c.name,
       start_time: p.start_time
     })

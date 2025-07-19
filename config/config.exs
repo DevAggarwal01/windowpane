@@ -86,7 +86,7 @@ config :ex_aws,
 config :ex_aws, :s3,
   scheme: "https://",
   host: "fly.storage.tigris.dev",
-  region: "us-east-1",
+  region: "auto",
   port: 443
 
 # Import environment specific config. This must remain at the bottom

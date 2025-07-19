@@ -39,3 +39,8 @@ config :phoenix, :plug_init_mode, :runtime
 # Enable helpful, but potentially expensive runtime checks
 config :phoenix_live_view,
   enable_expensive_runtime_checks: true
+
+# Configure Mux CORS origins for test environment
+config :windowpane, :cors_origin_urls,
+  main_app: "http://windowpane.tv:4000",
+  studio_app: "http://studio.windowpane.tv:4000"
