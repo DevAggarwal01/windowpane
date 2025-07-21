@@ -56,6 +56,12 @@ defmodule WindowpaneWeb.Router do
       live "/watch", WatchLive, :watch
     end
 
+    live_session :info_page,
+      layout: {WindowpaneWeb.Layouts, :browse},
+      on_mount: [{WindowpaneWeb.UserAuth, :mount_current_user}] do
+      live "/info", InfoLive, :info
+    end
+
     live_session :browse_page,
       layout: {WindowpaneWeb.Layouts, :browse},
       on_mount: [{WindowpaneWeb.UserAuth, :mount_current_user}] do

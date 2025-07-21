@@ -985,4 +985,25 @@ defmodule Windowpane.Projects do
         nil
     end
   end
+
+  @doc """
+  Returns a list of random project IDs where status is "published".
+
+  ## Examples
+
+      iex> get_random_published_project_ids(5)
+      [1, 3, 7, 12, 15]
+
+      iex> get_random_published_project_ids(10)
+      [2, 4, 6, 8, 10, 13, 16, 19, 22, 25]
+
+  """
+  def get_random_published_project_ids(limit) when is_integer(limit) and limit > 0 do
+    Project
+    |> where([p], p.status == "published")
+    |> select([p], p.id)
+    |> order_by(fragment("RANDOM()"))
+    |> limit(^limit)
+    |> Repo.all()
+  end
 end

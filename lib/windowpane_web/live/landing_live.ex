@@ -64,6 +64,22 @@ defmodule WindowpaneWeb.LandingLive do
     {:noreply, socket}
   end
 
+  def handle_event("fetch_project_ids", %{"keys" => keys}, socket) do
+    # Get 10 random published project IDs
+    IO.puts("DEBUG: fetch_project_ids event received with keys: #{inspect(keys)}")
+    project_ids = Projects.get_random_published_project_ids(length(keys))
+
+    project_ids =
+      if length(project_ids) < length(keys) do
+        Stream.cycle(project_ids) |> Enum.take(length(keys))
+      else
+        project_ids
+      end
+
+    # Push the project IDs to the client via a custom event
+    {:noreply, push_event(socket, "project_ids_fetched", %{project_ids: project_ids, keys: keys})}
+  end
+
   @impl true
   def handle_info(:close_film_modal, socket) do
     IO.puts("DEBUG: close_film_modal message received in LandingLive")
@@ -76,8 +92,8 @@ defmodule WindowpaneWeb.LandingLive do
     ~H"""
 
     <main class="h-screen bg-white overflow-hidden">
-      <div id="canvas-container" phx-hook="PixiCanvas" class="w-full h-full"></div>
-      
+      <div id="canvas-container" phx-hook="PixiCanvas" phx-update="ignore" data-logged-in={if @current_user, do: "true", else: "false"} class="w-full h-full"></div>
+
     </main>
     """
   end

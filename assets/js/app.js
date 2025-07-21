@@ -562,6 +562,9 @@ Hooks.PixiCanvas = {
   
   async mounted() {
     try {
+      console.log('User logged in:', this.el.dataset.loggedIn);
+      this.loggedIn = this.el.dataset.loggedIn === 'true';
+
       console.log('PixiCanvas mounted');
       
       // Wait a bit to ensure PIXI is loaded
@@ -597,33 +600,128 @@ Hooks.PixiCanvas = {
         ticker: pixiApp.ticker,
         interaction: pixiApp.renderer.events,
       });
-      const viewport = this.viewport
-
+      const viewport = this.viewport;
 
       pixiApp.stage.addChild(viewport);
-
       viewport.drag().decelerate();
+      
+      // Configuration
+      this.CELL_SIZE = 400;
+      this.RADIUS_IN_CELLS = 2; // adjustable, like 1.5 * viewport width in cells
+      this.BORDER_SIZE = 8;
 
+      // Performance optimization properties
+      this.renderedCells = this.renderedCells || new Map();
+      this.loadingQueue = new Map(); // cellKey -> { id, priority, gx, gy, container }
+      this.currentlyLoading = new Set(); // Track what's currently loading
+      this.MAX_CONCURRENT_LOADS = 3; // Limit concurrent image loads
+      this.textureCache = new Map(); // Cache loaded textures
+      this.abortControllers = new Map(); // Track loading requests
+      this.containerPool = []; // Object pool for containers
+      this.cleanupTimeout = null;
+      this.pendingIds = new Map(); // Store IDs for containers that don't exist yet
+      
+      // Calculate center cell coordinates properly
+      this.centerCellX = Math.floor(center / this.CELL_SIZE);
+      this.centerCellY = Math.floor(center / this.CELL_SIZE);
+      this.CENTER_CELL_KEY = `${this.centerCellX},${this.centerCellY}`;
+      
+      console.log('Center coordinates:', center, 'Center cell:', this.centerCellX, this.centerCellY, 'Center key:', this.CENTER_CELL_KEY);
+
+      // Move viewport to center BEFORE rendering cells
       viewport.moveCenter(center, center);
+      
+      // Wait for viewport to settle before initial render
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
+      // Initial render with explicit center coordinates
+      console.log('Initial viewport center:', viewport.center.x, viewport.center.y);
+      this.renderCellsAround(center, center);
 
-      this.CELL_SIZE = 400
-      this.RADIUS_IN_CELLS = 5 // adjustable, like 1.5 * viewport width in cells
-      this.BORDER_SIZE = 8
-
-      // Keep a global map of rendered cells
-      this.renderedCells = this.renderedCells || new Map()
-      this.CENTER_CELL_KEY = `${Math.floor(center / this.CELL_SIZE)},${Math.floor(center / this.CELL_SIZE)}`
-
-
-
-      this.renderCellsAround(viewport.center.x, viewport.center.y);
-
+      // Throttled viewport movement handling
+      let moveTimeout = null;
+      viewport.on('moved', () => {
+        if (moveTimeout) clearTimeout(moveTimeout);
+        moveTimeout = setTimeout(() => {
+          console.log('Viewport moved to:', viewport.center.x, viewport.center.y);
+          this.renderCellsAround(viewport.center.x, viewport.center.y);
+        }, 16); // ~60fps throttling
+      });
 
       viewport.on('moved-end', () => {
+        console.log('Viewport moved-end to:', viewport.center.x, viewport.center.y);
         this.renderCellsAround(viewport.center.x, viewport.center.y);
+        
+        // Throttled cleanup
+        if (!this.cleanupTimeout) {
+          this.cleanupTimeout = setTimeout(() => {
+            this.cleanupDistantTextures();
+            this.cleanupTimeout = null;
+          }, 2000);
+        }
       });
-      
 
+      // Enhanced project IDs handling with priority queue
+      this.handleEvent("project_ids_fetched", async ({ project_ids, keys }) => {
+        console.log("Got project IDs:", project_ids, "for keys:", keys);
+        console.log("# of project IDs:", project_ids.length);
+        console.log("# of keys:", keys.length);
+        const viewportCenter = this.viewport.center;
+        const CELL_SIZE = this.CELL_SIZE;
+        
+        // Calculate priorities and add to queue
+        for (let i = 0; i < project_ids.length; i++) {
+          const key = keys[i];
+          const id = project_ids[i];
+          
+          console.log(`Processing project ID ${id} for cell ${key}`);
+          
+          const container = this.renderedCells.get(key);
+          
+          // Skip center cell (title cell)
+          if (key === this.CENTER_CELL_KEY) {
+            console.log(`Skipping center cell ${key}`);
+            continue;
+          }
+          
+          if (!container) {
+            console.log(`No container found for key ${key}, will queue for later`);
+            // Store the ID mapping for when the container is created
+            if (!this.pendingIds) this.pendingIds = new Map();
+            this.pendingIds.set(key, id);
+            continue;
+          }
+          
+          if (!container.hasOwnProperty('isPlaceholder') || !container.isPlaceholder) {
+            console.log(`Container for key ${key} is not a placeholder or already loaded`);
+            continue;
+          }
+          
+          // Parse cell coordinates from key
+          const [gx, gy] = key.split(',').map(Number);
+          
+          // Calculate distance from viewport center
+          const cellCenterX = (gx + 0.5) * CELL_SIZE;
+          const cellCenterY = (gy + 0.5) * CELL_SIZE;
+          const distance = Math.sqrt(
+            Math.pow(cellCenterX - viewportCenter.x, 2) + 
+            Math.pow(cellCenterY - viewportCenter.y, 2)
+          );
+          
+          console.log(`Adding ${key} to loading queue with distance ${distance}`);
+          
+          this.loadingQueue.set(key, {
+            id,
+            priority: -distance, // Negative so closer = higher priority
+            gx,
+            gy,
+            container
+          });
+        }
+        
+        // Process the queue
+        this.processLoadingQueue();
+      });
       
       console.log('PixiCanvas initialized successfully');
     } catch (error) {
@@ -631,128 +729,542 @@ Hooks.PixiCanvas = {
     }
   },
 
+  // Process loading queue by priority
+  processLoadingQueue() {
+    const available = this.MAX_CONCURRENT_LOADS - this.currentlyLoading.size;
+    if (available <= 0 || this.loadingQueue.size === 0) return;
+    
+    // Sort by priority (higher = more important)
+    const sortedItems = Array.from(this.loadingQueue.entries())
+      .sort(([,a], [,b]) => b.priority - a.priority)
+      .slice(0, available);
+    
+    for (const [key, item] of sortedItems) {
+      this.loadingQueue.delete(key);
+      this.currentlyLoading.add(key);
+      
+      this.convertToImageSprite(item.container, item.id)
+        .finally(() => {
+          this.currentlyLoading.delete(key);
+          // Process more items from queue
+          setTimeout(() => this.processLoadingQueue(), 10);
+        });
+    }
+  },
+
+  // Optimized cell rendering with better culling
   renderCellsAround(x, y) {
-    console.log("renderCellsAround", x, y)
-    const CELL_SIZE = this.CELL_SIZE
-    const RADIUS_IN_CELLS = this.RADIUS_IN_CELLS
-    const CENTER_CELL_KEY = this.CENTER_CELL_KEY
-    const viewport = this.viewport
+    console.log("renderCellsAround", x, y);
+    
+    const CELL_SIZE = this.CELL_SIZE;
+    const RADIUS_IN_CELLS = this.RADIUS_IN_CELLS;
+    const CENTER_CELL_KEY = this.CENTER_CELL_KEY;
+    const viewport = this.viewport;
 
-    const cellX = Math.floor(x / CELL_SIZE)
-    const cellY = Math.floor(y / CELL_SIZE)
+    const cellX = Math.floor(x / CELL_SIZE);
+    const cellY = Math.floor(y / CELL_SIZE);
+    
+    console.log(`Rendering around cell coordinates: ${cellX}, ${cellY}`);
 
-    const newVisibleCells = new Set()
+    // Use Sets for better performance on large datasets
+    const visibleCells = new Set();
+    const newCellsSet = new Set();
+    const newCellKeys = [];
 
+    // Calculate visible cells in a single pass
     for (let dx = -RADIUS_IN_CELLS; dx <= RADIUS_IN_CELLS; dx++) {
       for (let dy = -RADIUS_IN_CELLS; dy <= RADIUS_IN_CELLS; dy++) {
         const gx = cellX + dx;
         const gy = cellY + dy;
-        const cellKey = `${gx},${gy}`
-        newVisibleCells.add(cellKey);
+        const cellKey = `${gx},${gy}`;
+        
+        visibleCells.add(cellKey);
 
-        // if the cell is not in the renderedCells map, add it
-        if (!this.renderedCells.has(cellKey)) { 
-          let sprite;
-          console.log("cellKey", cellKey)
-          if(cellKey == CENTER_CELL_KEY) {
-            console.log("Creating title sprite for cell", cellKey)
-            sprite = this.createTitleSprite();
-          } else {
-            sprite = this.createImageSprite();
-          }
-
-          sprite.x = gx * CELL_SIZE;
-          sprite.y = gy * CELL_SIZE;
-          viewport.addChild(sprite);
-          this.renderedCells.set(cellKey, sprite);
+        if (!this.renderedCells.has(cellKey)) {
+          newCellsSet.add(cellKey);
+          newCellKeys.push({ cellKey, gx, gy });
+          console.log(`New cell to render: ${cellKey} at world coords (${gx * CELL_SIZE}, ${gy * CELL_SIZE})`);
         }
       }
     }
 
-    for (const [key, sprite] of this.renderedCells.entries()) {
-      if (!newVisibleCells.has(key)) {
-        viewport.removeChild(sprite)
-        sprite.destroy()
-        this.renderedCells.delete(key)
+    console.log(`Total visible cells: ${visibleCells.size}, new cells: ${newCellKeys.length}`);
+
+    // Cancel any loading requests for cells that are no longer visible
+    for (const [key] of this.renderedCells.entries()) {
+      if (!visibleCells.has(key)) {
+        // Cancel loading if in progress
+        const abortController = this.abortControllers.get(key);
+        if (abortController) {
+          abortController.abort();
+        }
+        // Remove from loading queue
+        this.loadingQueue.delete(key);
       }
     }
-  },
-  createTitleSprite() {
-    const CELL_SIZE = this.CELL_SIZE
-    const BORDER_SIZE = this.BORDER_SIZE
 
-    const container = new PIXI.Container();
+    // Batch fetch project IDs for new cells
+    if (newCellKeys.length > 0) {
+      console.log(`Fetching project IDs for keys: ${Array.from(newCellsSet)}`);
+      this.pushEvent("fetch_project_ids", {
+        keys: Array.from(newCellsSet)
+      });
+    }
+
+    // Create containers for new cells
+    for (const { cellKey, gx, gy } of newCellKeys) {
+      let container;
+      
+      if (cellKey === CENTER_CELL_KEY) {
+        console.log(`Creating title sprite for center cell: ${cellKey}`);
+        container = this.createTitleSprite();
+      } else {
+        console.log(`Creating image sprite for cell: ${cellKey}`);
+        container = this.createImageSprite();
+        
+        // Check if we have a pending ID for this cell
+        if (this.pendingIds && this.pendingIds.has(cellKey)) {
+          const id = this.pendingIds.get(cellKey);
+          this.pendingIds.delete(cellKey);
+          
+          console.log(`Found pending ID ${id} for newly created container ${cellKey}`);
+          
+          // Calculate distance for priority
+          const viewportCenter = this.viewport.center;
+          const cellCenterX = (gx + 0.5) * CELL_SIZE;
+          const cellCenterY = (gy + 0.5) * CELL_SIZE;
+          const distance = Math.sqrt(
+            Math.pow(cellCenterX - viewportCenter.x, 2) + 
+            Math.pow(cellCenterY - viewportCenter.y, 2)
+          );
+          
+          // Add to loading queue immediately
+          this.loadingQueue.set(cellKey, {
+            id,
+            priority: -distance,
+            gx,
+            gy,
+            container
+          });
+        }
+      }
+
+      // Position container at correct world coordinates
+      const worldX = gx * CELL_SIZE;
+      const worldY = gy * CELL_SIZE;
+      container.x = worldX;
+      container.y = worldY;
+      
+      console.log(`Positioning container ${cellKey} at world coords (${worldX}, ${worldY})`);
+      
+      viewport.addChild(container);
+      this.renderedCells.set(cellKey, container);
+    }
+    
+    // Process any newly queued items
+    if (newCellKeys.length > 0) {
+      setTimeout(() => this.processLoadingQueue(), 10);
+    }
+
+    // Clean up invisible cells - batch operations for better performance
+    const cellsToRemove = [];
+    for (const [key, container] of this.renderedCells.entries()) {
+      if (!visibleCells.has(key)) {
+        cellsToRemove.push([key, container]);
+      }
+    }
+
+    // Remove cells in a single pass
+    for (const [key, container] of cellsToRemove) {
+      console.log(`Removing cell: ${key}`);
+      viewport.removeChild(container);
+      
+      // Properly destroy container and its contents
+      if (container.sprite && container.sprite.texture) {
+        // Don't destroy cached textures, just the sprite
+        container.sprite.destroy({ texture: false, baseTexture: false });
+      }
+      container.destroy({ children: true });
+      
+      this.renderedCells.delete(key);
+    }
+    
+    console.log(`Render complete. Total rendered cells: ${this.renderedCells.size}`);
+  },
+
+  // Object pooling for containers
+  getPooledContainer() {
+    const container = this.containerPool.pop() || new PIXI.Container();
+    container.removeChildren();
+    return container;
+  },
+
+  returnToPool(container) {
+    container.removeChildren();
+    container.isPlaceholder = true;
+    container.id = null;
+    container.interactive = false;
+    container.buttonMode = false;
+    container.sprite = null;
+    this.containerPool.push(container);
+  },
+
+  createTitleSprite() {
+    const CELL_SIZE = this.CELL_SIZE;
+    const BORDER_SIZE = this.BORDER_SIZE;
+
+    const container = this.getPooledContainer();
 
     const titleText = new PIXI.Text('Windowpane', {
       fontSize: 48,
       fill: 0xffffff,
       align: 'center'
-    })
-    titleText.anchor.set(0.5)
-    titleText.x = CELL_SIZE / 2
-    titleText.y = CELL_SIZE / 2 - 60
+    });
+    titleText.anchor.set(0.5);
+    titleText.x = CELL_SIZE / 2;
+    titleText.y = CELL_SIZE / 2 - 60;
 
-    container.addChild(titleText)
+    container.addChild(titleText);
 
     const buttons = [
-      { label: 'Login', url: '/users/log_in' },
-      { label: 'Signup', url: '/users/register' },
-      { label: 'Browse', url: '/browse' }
+      { label: 'Login', url: '/users/log_in', visible: !this.loggedIn },
+      { label: 'Signup', url: '/users/register', visible: !this.loggedIn },
+      { label: 'Logout', url: '/users/log_out', visible: this.loggedIn },
+      { label: 'Browse', url: '/browse', visible: true }
     ];
 
     // Render each as a PIXI.Text link
-  buttons.forEach((btn, index) => {
-    const textBtn = new PIXI.Text(btn.label, {
-      fontSize: 24,
-      fill: 0x00ccff, // light blue for links
-      align: 'center'
-    });
-    textBtn.anchor.set(0.5);
-    textBtn.x = CELL_SIZE / 2;
-    textBtn.y = CELL_SIZE / 2 + index * 35; // vertical spacing
-    textBtn.interactive = true;
-    textBtn.buttonMode = true;
+    let visibleIndex = 0;
+    buttons.forEach((btn) => {
+      if (!btn.visible) return;
+      
+      const textBtn = new PIXI.Text(btn.label, {
+        fontSize: 24,
+        fill: 0x00ccff, // light blue for links
+        align: 'center'
+      });
+      textBtn.anchor.set(0.5);
+      textBtn.x = CELL_SIZE / 2;
+      textBtn.y = CELL_SIZE / 2 + visibleIndex * 35; // vertical spacing
+      textBtn.interactive = true;
+      textBtn.buttonMode = true;
 
-    textBtn.on('pointertap', () => {
-      window.location.href = btn.url;
+      textBtn.on('pointertap', () => {
+        window.location.href = btn.url;
+      });
+
+      // Hover effect
+      textBtn.on('pointerover', () => {
+        textBtn.style.fill = 0xffffff;
+        textBtn.style.fontWeight = 'bold';
+      });
+      textBtn.on('pointerout', () => {
+        textBtn.style.fill = 0x00ccff;
+        textBtn.style.fontWeight = 'normal';
+      });
+
+      container.addChild(textBtn);
+      visibleIndex++;
     });
 
-    // Optional hover effect
-    textBtn.on('pointerover', () => {
-      textBtn.style.fill = 0xffffff;
-      textBtn.style.fontWeight = 'bold';
-    });
-    textBtn.on('pointerout', () => {
-      textBtn.style.fill = 0x00ccff;
-      textBtn.style.fontWeight = 'normal';
-    });
-
-    container.addChild(textBtn);
-  });
-
-    return container
+    return container;
   },
   
+  // Create placeholder image sprite
   createImageSprite() {
-    const CELL_SIZE = this.CELL_SIZE
-    const BORDER_SIZE = this.BORDER_SIZE
+    const CELL_SIZE = this.CELL_SIZE;
+    const BORDER_SIZE = this.BORDER_SIZE;
 
-    const texture = PIXI.Texture.from('https://windowpane-images-v2.t3.storage.dev/1/cover')
-    const sprite = new PIXI.Sprite(texture)
-    sprite.x = BORDER_SIZE
-    sprite.y = BORDER_SIZE
-    sprite.width = CELL_SIZE - BORDER_SIZE * 2
-    sprite.height = CELL_SIZE - BORDER_SIZE * 2
+    const container = this.getPooledContainer();
+    container.id = null; // Will be set when we get the real ID
 
-    return sprite
+    // Create a placeholder graphic instead of sprite
+    const placeholder = new PIXI.Graphics();
+    placeholder.beginFill(0xD3D3D3); // Light gray
+    placeholder.drawRect(BORDER_SIZE, BORDER_SIZE, CELL_SIZE - BORDER_SIZE * 2, CELL_SIZE - BORDER_SIZE * 2);
+    placeholder.endFill();
+    
+    // Add loading text
+    const loadingText = new PIXI.Text('Loading...', {
+      fontSize: 24,
+      fill: 0x666666,
+      align: 'center'
+    });
+    loadingText.anchor.set(0.5);
+    loadingText.x = CELL_SIZE / 2;
+    loadingText.y = CELL_SIZE / 2;
+    
+    container.addChild(placeholder);
+    container.addChild(loadingText);
+    
+    // Mark as placeholder
+    container.isPlaceholder = true;
+    
+    return container;
+  },
+
+  // Optimized image sprite conversion with caching
+  async convertToImageSprite(container, id) {
+    const CELL_SIZE = this.CELL_SIZE;
+    const BORDER_SIZE = this.BORDER_SIZE;
+    
+    try {
+      // Check cache first
+      let texture = this.textureCache.get(id);
+      
+      if (!texture) {
+        // Create abort controller for this request
+        const abortController = new AbortController();
+        this.abortControllers.set(id, abortController);
+        
+        const textureUrl = `https://windowpane-images-v2.t3.storage.dev/${id}/cover?t=${Date.now()}`;
+        
+        try {
+          // Use fetch with abort signal for better control
+          const response = await fetch(textureUrl, {
+            signal: abortController.signal
+          });
+          
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          
+          const blob = await response.blob();
+          const imageUrl = URL.createObjectURL(blob);
+          
+          texture = await PIXI.Texture.fromURL(imageUrl);
+          
+          // Cache the texture
+          this.textureCache.set(id, texture);
+          
+          // Clean up blob URL after a delay to ensure texture is loaded
+          setTimeout(() => URL.revokeObjectURL(imageUrl), 1000);
+          
+        } finally {
+          this.abortControllers.delete(id);
+        }
+      }
+      
+      // Check if container still exists (user might have scrolled away)
+      if (!container.parent) {
+        return;
+      }
+      
+      // Clear placeholder content
+      container.removeChildren();
+      
+      // Create sprite with cached texture
+      const sprite = new PIXI.Sprite(texture);
+      sprite.x = BORDER_SIZE;
+      sprite.y = BORDER_SIZE;
+      sprite.width = CELL_SIZE - BORDER_SIZE * 2;
+      sprite.height = CELL_SIZE - BORDER_SIZE * 2;
+      container.addChild(sprite);
+      container.sprite = sprite;
+      
+      // Set up the rest of the container (borders, interactivity)
+      this.setupImageContainer(container, id);
+      
+      console.log("Successfully loaded image for ID:", id);
+      
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        console.log("Image loading aborted for ID:", id);
+        return;
+      }
+      
+      console.error("Failed to load image for ID:", id, error);
+      this.showErrorState(container, id);
+    }
+  },
+
+  // Set up border and interaction for image containers
+  setupImageContainer(container, id) {
+    const CELL_SIZE = this.CELL_SIZE;
+    
+    // Add border graphics
+    const borderGraphic = new PIXI.Graphics();
+    container.addChild(borderGraphic);
+    
+    // Set up interactivity
+    container.interactive = true;
+    container.buttonMode = true;
+    container.id = id;
+    container.isPlaceholder = false;
+    
+    let animationFrame = null;
+    let startTime = null;
+
+    const drawBorderProgress = (elapsedRatio) => {
+      const w = CELL_SIZE;
+      const h = CELL_SIZE;
+      const totalLength = 2 * (w + h);
+      const drawLength = elapsedRatio * totalLength;
+
+      borderGraphic.clear();
+      borderGraphic.lineStyle(4, 0xF5F5DC, 1);
+
+      let remaining = drawLength;
+
+      // Top
+      const topLen = w;
+      borderGraphic.moveTo(0, 0);
+      if (remaining <= topLen) {
+        borderGraphic.lineTo(remaining, 0);
+        return;
+      } else {
+        borderGraphic.lineTo(w, 0);
+        remaining -= topLen;
+      }
+
+      // Right
+      const rightLen = h;
+      borderGraphic.moveTo(w, 0);
+      if (remaining <= rightLen) {
+        borderGraphic.lineTo(w, remaining);
+        return;
+      } else {
+        borderGraphic.lineTo(w, h);
+        remaining -= rightLen;
+      }
+
+      // Bottom
+      const bottomLen = w;
+      borderGraphic.moveTo(w, h);
+      if (remaining <= bottomLen) {
+        borderGraphic.lineTo(w - remaining, h);
+        return;
+      } else {
+        borderGraphic.lineTo(0, h);
+        remaining -= bottomLen;
+      }
+
+      // Left
+      const leftLen = h;
+      borderGraphic.moveTo(0, h);
+      if (remaining <= leftLen) {
+        borderGraphic.lineTo(0, h - remaining);
+      } else {
+        borderGraphic.lineTo(0, 0);
+      }
+    };
+
+    const animate = (timestamp) => {
+      if (!startTime) startTime = timestamp;
+      const elapsed = timestamp - startTime;
+      const duration = 4000;
+      const ratio = Math.min(elapsed / duration, 1);
+      drawBorderProgress(ratio);
+
+      if (ratio < 1) {
+        animationFrame = requestAnimationFrame(animate);
+      } else {
+        window.location.href = `/info?trailer_id=${container.id}`;
+      }
+    };
+
+    container.on('pointerover', () => {
+      if (animationFrame) cancelAnimationFrame(animationFrame);
+      startTime = null;
+      animationFrame = requestAnimationFrame(animate);
+    });
+
+    container.on('pointerout', () => {
+      if (animationFrame) cancelAnimationFrame(animationFrame);
+      animationFrame = null;
+      startTime = null;
+      borderGraphic.clear();
+    });
+  },
+
+  // Display error state for failed loads
+  showErrorState(container, id) {
+    const CELL_SIZE = this.CELL_SIZE;
+    const BORDER_SIZE = this.BORDER_SIZE;
+    
+    container.removeChildren();
+    const errorGraphic = new PIXI.Graphics();
+    errorGraphic.beginFill(0xFF6B6B);
+    errorGraphic.drawRect(BORDER_SIZE, BORDER_SIZE, CELL_SIZE - BORDER_SIZE * 2, CELL_SIZE - BORDER_SIZE * 2);
+    errorGraphic.endFill();
+    
+    const errorText = new PIXI.Text('Error loading image', {
+      fontSize: 16,
+      fill: 0xFFFFFF,
+      align: 'center',
+      wordWrap: true,
+      wordWrapWidth: CELL_SIZE - BORDER_SIZE * 4
+    });
+    errorText.anchor.set(0.5);
+    errorText.x = CELL_SIZE / 2;
+    errorText.y = CELL_SIZE / 2;
+    
+    container.addChild(errorGraphic);
+    container.addChild(errorText);
+    container.isPlaceholder = false;
+  },
+
+  // Clean up distant textures to manage memory
+  cleanupDistantTextures() {
+    // If cache gets too large, remove textures for distant cells
+    if (this.textureCache.size > 50) { // Adjust threshold as needed
+      const textureIdsToRemove = [];
+      
+      // Simple LRU approach - remove oldest entries
+      const cacheEntries = Array.from(this.textureCache.entries());
+      const entriesToRemove = cacheEntries.slice(0, Math.floor(cacheEntries.length / 3));
+      
+      for (const [id, texture] of entriesToRemove) {
+        texture.destroy(true);
+        this.textureCache.delete(id);
+      }
+      
+      console.log(`Cleaned up ${entriesToRemove.length} textures from cache`);
+    }
   },
   
   destroyed() {
-    // Clean up PIXI application when hook is destroyed
+    // Clean up all resources when hook is destroyed
+    console.log('Cleaning up PixiCanvas resources...');
+    
+    // Cancel all pending requests
+    for (const abortController of this.abortControllers.values()) {
+      abortController.abort();
+    }
+    this.abortControllers.clear();
+    
+    // Clear timeouts
+    if (this.cleanupTimeout) {
+      clearTimeout(this.cleanupTimeout);
+    }
+    
+    // Destroy all cached textures
+    for (const texture of this.textureCache.values()) {
+      texture.destroy(true);
+    }
+    this.textureCache.clear();
+    
+    // Clean up containers
+    for (const container of this.renderedCells.values()) {
+      if (container.sprite && container.sprite.texture) {
+        container.sprite.destroy({ texture: false, baseTexture: false });
+      }
+      container.destroy({ children: true });
+    }
+    this.renderedCells.clear();
+    
+    // Clear other maps
+    if (this.pendingIds) {
+      this.pendingIds.clear();
+    }
+    this.loadingQueue.clear();
+    this.currentlyLoading.clear();
+    
+    // Clean up PIXI application
     if (pixiApp) {
       pixiApp.destroy(true);
       pixiApp = null;
     }
+    
+    console.log('PixiCanvas cleanup complete');
   }
 };
 
