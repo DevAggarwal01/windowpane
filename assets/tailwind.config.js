@@ -17,6 +17,12 @@ module.exports = {
   ],
   theme: {
     extend: {
+      borderWidth: {
+      '3': '3px',
+      '6': '6px',
+      '8': '8px',
+      '12': '12px',
+      },
       colors: {
         brand: "#0F172A",
         accent: "#2563EB",

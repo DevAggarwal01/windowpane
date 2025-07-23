@@ -89,13 +89,18 @@ defmodule WindowpaneWeb.BrowseLive do
         />
       <% end %>
 
-      <!-- Filter Buttons -->
+      <!-- Filter Buttons (commented out) -->
+
       <div class="flex justify-center gap-4 mb-8">
         <button class="px-6 py-2 border-2 border-white bg-black text-white font-bold uppercase tracking-wider text-sm rounded-none transition-transform duration-150 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-accent" style="letter-spacing: 0.08em;">All</button>
+        <%#
         <button class="px-6 py-2 border-2 border-white bg-black text-white font-bold uppercase tracking-wider text-sm rounded-none transition-transform duration-150 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-accent" style="letter-spacing: 0.08em;">Films</button>
         <button class="px-6 py-2 border-2 border-white bg-black text-white font-bold uppercase tracking-wider text-sm rounded-none transition-transform duration-150 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-accent" style="letter-spacing: 0.08em;">Livestreams</button>
+        %>
       </div>
-      <!-- Search Bar -->
+
+      <!-- Search Bar (commented out) -->
+      <%#
       <div class="flex justify-center w-full mt-2 mb-10">
         <div class="relative w-full max-w-lg">
           <input
@@ -116,6 +121,7 @@ defmodule WindowpaneWeb.BrowseLive do
           </button>
         </div>
       </div>
+      %>
       <!-- Films Grid -->
       <%= if @films == [] do %>
         <!-- Empty State -->

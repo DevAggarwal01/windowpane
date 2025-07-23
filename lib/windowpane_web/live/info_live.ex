@@ -3,10 +3,20 @@ defmodule WindowpaneWeb.InfoLive do
   require Logger
 
   alias Windowpane.Projects
+  alias Windowpane.{Repo, Ownership, Accounts, MuxToken, Creators, PricingCalculator}
 
   @impl true
   def mount(_params, _session, socket) do
-    {:ok, assign(socket, project: nil, playback_id: nil, content_type: nil, ownership_record: nil)}
+    {:ok, assign(socket,
+      project: nil,
+      playback_id: nil,
+      content_type: nil,
+      ownership_record: nil,
+      show_login_message: false,
+      show_rent_confirmation: false,
+      show_insufficient_funds: false,
+      show_rental_success: false
+    )}
   end
 
   @impl true
@@ -52,6 +62,108 @@ defmodule WindowpaneWeb.InfoLive do
     {:noreply, push_navigate(socket, to: ~p"/")}
   end
 
+  @impl true
+  def handle_event("rent_film", _params, socket) do
+    if socket.assigns[:current_user] do
+      {:noreply, assign(socket, show_rent_confirmation: true)}
+    else
+      {:noreply, assign(socket, show_login_message: true)}
+    end
+  end
+
+  @impl true
+  def handle_event("close_login_message", _params, socket) do
+    {:noreply, assign(socket, show_login_message: false)}
+  end
+
+  @impl true
+  def handle_event("confirm_rent", _params, socket) do
+    user = socket.assigns.current_user
+    project = socket.assigns.project
+    price = project.rental_price
+    price_cents = if price, do: Decimal.to_integer(Decimal.mult(price, 100)), else: 0
+
+    if user.wallet_balance >= price_cents do
+      case process_rental(user, project, price_cents) do
+        {:ok, _ownership_record} ->
+          updated_user = Accounts.get_user!(user.id)
+          {:noreply,
+            socket
+            |> assign(show_rent_confirmation: false, show_rental_success: true)
+            |> assign(current_user: updated_user)
+            |> put_flash(:info, "Rental successful! You now have access to \"#{project.title}\" for 48 hours.")
+          }
+        {:error, reason} ->
+          {:noreply,
+            socket
+            |> assign(show_rent_confirmation: false)
+            |> put_flash(:error, "Rental failed: #{reason}. Please try again.")
+          }
+      end
+    else
+      {:noreply, assign(socket, show_rent_confirmation: false, show_insufficient_funds: true)}
+    end
+  end
+
+  defp process_rental(user, project, price_cents) do
+    Repo.transaction(fn ->
+      playback_id = project.film && project.film.film_playback_id
+      expires_at = DateTime.utc_now() |> DateTime.add(48 * 3600, :second) |> DateTime.truncate(:second)
+      seconds_until_expiration = DateTime.diff(expires_at, DateTime.utc_now())
+      jwt_token = if playback_id, do: MuxToken.generate_playback_token(playback_id, seconds_until_expiration), else: nil
+
+      case Ownership.create_rental(user.id, project.id, jwt_token, expires_at) do
+        {:ok, ownership_record} ->
+          case Accounts.deduct_wallet_funds(user.id, price_cents) do
+            {:ok, _updated_user} ->
+              creator_cut = project.rental_creator_cut || Decimal.new("0")
+              creator_cut_cents = Decimal.to_integer(Decimal.mult(creator_cut, 100))
+              Creators.add_wallet_funds(project.creator_id, creator_cut_cents)
+              ownership_record
+            {:error, reason} ->
+              Repo.rollback("Failed to deduct wallet funds: #{reason}")
+          end
+        {:error, :already_owns} ->
+          Repo.rollback("You already have an active rental for this film")
+        {:error, changeset} ->
+          Repo.rollback("Failed to create rental record: #{inspect(changeset.errors)}")
+      end
+    end)
+  end
+
+  @impl true
+  def handle_event("cancel_rent", _params, socket) do
+    {:noreply, assign(socket, show_rent_confirmation: false)}
+  end
+
+  @impl true
+  def handle_event("close_insufficient_funds", _params, socket) do
+    {:noreply, assign(socket, show_insufficient_funds: false)}
+  end
+
+  @impl true
+  def handle_event("go_to_shop", _params, socket) do
+    {:noreply,
+      socket
+      |> assign(show_insufficient_funds: false)
+      |> push_navigate(to: ~p"/shop")
+    }
+  end
+
+  @impl true
+  def handle_event("close_success", _params, socket) do
+    {:noreply, assign(socket, show_rental_success: false)}
+  end
+
+  @impl true
+  def handle_event("go_to_library", _params, socket) do
+    {:noreply,
+      socket
+      |> assign(show_rental_success: false)
+      |> push_navigate(to: ~p"/library")
+    }
+  end
+
   # Helper function to redirect to home page
   defp redirect_to_home(socket) do
     Logger.info("InfoLive: Redirecting to home page")
@@ -81,7 +193,7 @@ defmodule WindowpaneWeb.InfoLive do
     <%= cond do %>
       <% @project && @project.film && @project.film.trailer_playback_id && !@playback_token -> %>
         <!-- Trailer Info Container -->
-        <div class="min-h-screen bg-gray-50">
+        <div class="min-h-screen bg-black">
           <!-- Main Content -->
           <div class="flex pl-8">
             <!-- Left Side - Video Player (maintain exact current size) -->
@@ -97,7 +209,7 @@ defmodule WindowpaneWeb.InfoLive do
 
               <!-- Creator Info Below Video -->
               <div class="mt-4">
-                <p class="text-gray-900 text-lg font-medium">
+                <p class="text-white font-bold text-lg">
                   CREATOR INFO HERE - <%= @project.creator.name %>
                 </p>
               </div>
@@ -105,9 +217,9 @@ defmodule WindowpaneWeb.InfoLive do
 
             <!-- Right Side - Film Details Card -->
             <div class="flex-1 p-4">
-              <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden max-w-sm">
+              <div style="border: 4px solid #ffffff;">
                 <!-- Film Cover -->
-                <div class="aspect-[3/4] bg-gray-100 relative">
+                <div class="aspect-[3/4] bg-gray-900 relative">
                   <%= if Windowpane.Uploaders.CoverUploader.cover_exists?(@project) do %>
                     <img
                       src={Windowpane.Uploaders.CoverUploader.cover_url(@project)}
@@ -116,7 +228,7 @@ defmodule WindowpaneWeb.InfoLive do
                     />
                   <% else %>
                     <div class="flex items-center justify-center w-full h-full">
-                      <div class="text-center text-gray-400">
+                      <div class="text-center text-gray-700">
                         <span class="text-6xl mb-2 block">🎬</span>
                         <span class="text-sm font-medium">No Cover</span>
                       </div>
@@ -126,12 +238,11 @@ defmodule WindowpaneWeb.InfoLive do
 
                 <!-- Film Details -->
                 <div class="p-4">
-                  <h1 class="text-xl font-bold text-gray-900 mb-2"><%= @project.title %></h1>
-                  <p class="text-gray-600 mb-3">By <%= @project.creator.name %></p>
+                  <h1 class="text-xl font-bold text-white mb-2"><%= @project.title %></h1>
 
                   <!-- Status Badge -->
                   <div class="flex items-center gap-2 mb-4">
-                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-bold bg-blue-900 text-white">
                       🎬 TRAILER
                     </span>
                   </div>
@@ -140,29 +251,29 @@ defmodule WindowpaneWeb.InfoLive do
                   <div class="space-y-2 text-sm">
                     <%= if @project.description && String.trim(@project.description) != "" do %>
                       <div>
-                        <p class="text-gray-700 leading-relaxed">
+                        <p class="text-white font-bold leading-relaxed">
                           <%= @project.description %>
                         </p>
                       </div>
                     <% end %>
 
-                    <div class="pt-2 border-t border-gray-100">
+                    <div class="pt-2 border-t border-gray-800">
                       <div class="space-y-1">
                         <div class="flex justify-between">
-                          <span class="text-gray-500">Type:</span>
-                          <span class="text-gray-800 capitalize"><%= @project.type %></span>
+                          <span class="text-white font-bold">Type:</span>
+                          <span class="text-white font-bold capitalize"><%= @project.type %></span>
                         </div>
                         <%= if @project.premiere_date do %>
                           <div class="flex justify-between">
-                            <span class="text-gray-500">Premiered:</span>
-                            <span class="text-gray-800">
+                            <span class="text-white font-bold">Premiered:</span>
+                            <span class="text-white font-bold">
                               <%= Calendar.strftime(@project.premiere_date, "%B %Y") %>
                             </span>
                           </div>
                         <% end %>
                         <div class="flex justify-between">
-                          <span class="text-gray-500">Status:</span>
-                          <span class="text-blue-600 font-medium">
+                          <span class="text-white font-bold">Status:</span>
+                          <span class="text-white font-bold">
                             Trailer Preview
                           </span>
                         </div>
@@ -171,21 +282,31 @@ defmodule WindowpaneWeb.InfoLive do
                   </div>
                 </div>
               </div>
+              <!-- Rent Button Below Film Card -->
+              <div class="flex items-center justify-center gap-6 mt-6" style="border: 4px solid #ffffff;">
+                <button
+                  class="text-white font-bold px-8 py-3 bg-black border-8 border-white border-solid text-xl"
+                  style="outline: none;"
+                  phx-click="rent_film"
+                >
+                  RENT <%= Decimal.to_string(@project.rental_price, :normal) %>
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
       <% true -> %>
         <!-- Error State -->
-        <div class="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div class="min-h-screen bg-black flex items-center justify-center">
           <div class="text-center max-w-md mx-auto p-6">
-            <div class="w-16 h-16 mx-auto mb-4 text-gray-400">
+            <div class="w-16 h-16 mx-auto mb-4 text-gray-700">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" class="w-full h-full">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.232 15.5c-.77.833.192 2.5 1.732 2.5z" />
               </svg>
             </div>
-            <h3 class="text-lg font-medium text-gray-900 mb-2">Invalid URL</h3>
-            <p class="text-gray-600 mb-6">The requested content could not be found or you don't have access to it.</p>
+            <h3 class="text-lg font-medium text-white mb-2">Invalid URL</h3>
+            <p class="text-gray-400 mb-6">The requested content could not be found or you don't have access to it.</p>
             <.link
               navigate={~p"/"}
               class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 transition-colors"
@@ -197,6 +318,151 @@ defmodule WindowpaneWeb.InfoLive do
             </.link>
           </div>
         </div>
+    <% end %>
+    <!-- Login Message Modal -->
+    <%= if @show_login_message do %>
+      <div class="fixed inset-0 z-60 overflow-y-auto">
+        <div class="fixed inset-0 bg-black bg-opacity-50"></div>
+        <div class="flex min-h-full items-center justify-center p-4">
+          <div class="relative bg-white rounded-lg p-6 max-w-md w-full">
+            <div class="text-center">
+              <h3 class="text-lg font-medium text-gray-900 mb-4">Uh oh, please log in or sign up</h3>
+              <p class="text-gray-600 mb-6">You need to be logged in to rent films.</p>
+              <div class="flex space-x-3 justify-center">
+                <.link
+                  href={~p"/users/log_in?redirect=#{URI.encode("/info?trailer_id=#{@project.id}")}"}
+                  class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium"
+                >
+                  Log in
+                </.link>
+                <.link
+                  href={~p"/users/register?redirect=#{URI.encode("/info?trailer_id=#{@project.id}")}"}
+                  class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-medium"
+                >
+                  Sign up
+                </.link>
+              </div>
+              <button
+                type="button"
+                class="mt-4 text-gray-500 hover:text-gray-700"
+                phx-click="close_login_message"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    <% end %>
+    <!-- Rent Confirmation Modal -->
+    <%= if @show_rent_confirmation do %>
+      <div class="fixed inset-0 z-60 overflow-y-auto">
+        <div class="fixed inset-0 bg-black bg-opacity-50"></div>
+        <div class="flex min-h-full items-center justify-center p-4">
+          <div class="relative bg-white rounded-lg p-6 max-w-md w-full">
+            <div class="text-center">
+              <h3 class="text-lg font-medium text-gray-900 mb-4">Are you sure?</h3>
+              <p class="text-gray-600 mb-6">
+                Do you want to rent "<%= @project.title %>" for $<%= Decimal.to_string(@project.rental_price, :normal) %>?
+              </p>
+              <div class="flex space-x-3 justify-center">
+                <button
+                  type="button"
+                  class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 font-medium"
+                  phx-click="confirm_rent"
+                >
+                  Yes, rent it
+                </button>
+                <button
+                  type="button"
+                  class="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 font-medium"
+                  phx-click="cancel_rent"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    <% end %>
+    <!-- Insufficient Funds Modal -->
+    <%= if @show_insufficient_funds do %>
+      <div class="fixed inset-0 z-60 overflow-y-auto">
+        <div class="fixed inset-0 bg-black bg-opacity-50"></div>
+        <div class="flex min-h-full items-center justify-center p-4">
+          <div class="relative bg-white rounded-lg p-6 max-w-md w-full">
+            <div class="text-center">
+              <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+                <svg class="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.232 15.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+              </div>
+              <h3 class="text-lg font-medium text-gray-900 mb-4">Insufficient Funds</h3>
+              <p class="text-gray-600 mb-6">
+                You don't have enough funds in your wallet to rent "<%= @project.title %>" for $<%= Decimal.to_string(@project.rental_price, :normal) %>.
+                <br><br>
+                Would you like to add funds to your wallet?
+              </p>
+              <div class="flex space-x-3 justify-center">
+                <button
+                  type="button"
+                  class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-medium"
+                  phx-click="go_to_shop"
+                >
+                  Add Funds
+                </button>
+                <button
+                  type="button"
+                  class="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 font-medium"
+                  phx-click="close_insufficient_funds"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    <% end %>
+    <!-- Rental Success Modal -->
+    <%= if @show_rental_success do %>
+      <div class="fixed inset-0 z-60 overflow-y-auto">
+        <div class="fixed inset-0 bg-black bg-opacity-50"></div>
+        <div class="flex min-h-full items-center justify-center p-4">
+          <div class="relative bg-white rounded-lg p-6 max-w-md w-full transform transition-all duration-300 ease-in-out scale-100">
+            <div class="text-center">
+              <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4 animate-pulse">
+                <svg class="h-8 w-8 text-green-600 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <h3 class="text-xl font-bold text-gray-900 mb-2">🎉 Rental Successful!</h3>
+              <p class="text-gray-600 mb-6">
+                You now have access to "<span class="font-semibold"><%= @project.title %></span>" for 48 hours.
+                <br><br>
+                Ready to start watching? Your film is waiting in your personal library!
+              </p>
+              <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 justify-center">
+                <button
+                  type="button"
+                  class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105"
+                  phx-click="go_to_library"
+                >
+                  📚 Go to My Library
+                </button>
+                <button
+                  type="button"
+                  class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium"
+                  phx-click="close_success"
+                >
+                  Continue Browsing
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     <% end %>
     """
   end
