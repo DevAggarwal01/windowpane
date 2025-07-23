@@ -38,3 +38,5 @@ npm-debug.log
 /mux.pem/
 
 /.env/
+
+/.envrc/
