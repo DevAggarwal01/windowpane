@@ -15,7 +15,7 @@
   <body class="h-full bg-gray-900">
     <div class="min-h-screen">
       <!-- Twitch-style Header -->
-      <nav class="bg-white px-4 py-2 border-b border-gray-200">
+      <nav class="bg-zinc-900 px-4 py-2 border-b border-gray-200">
         <div class="max-w-full mx-auto flex items-center justify-between">
           <!-- Left: Logo and Browse -->
           <div class="flex items-center space-x-6">
@@ -25,102 +25,55 @@
               </.link>
             </div>
             <.link navigate={~p"/browse"}>
-              <h1 class="text-lg font-semibold text-gray-900 hover:text-accent transition-colors cursor-pointer">Browse</h1>
+              <h1 class="text-lg font-semibold   text-white cursor-pointer transition-transform duration-150 hover:scale-110">[browse]</h1>
             </.link>
-          </div>
-
-          <!-- Center: Search Bar -->
-          <div class="flex-1 max-w-lg mx-8">
-            <div class="relative">
-              <input 
-                type="text" 
-                placeholder="Search..." 
-                class="w-full pl-10 pr-10 py-1.5 bg-gray-100 border-0 rounded text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-accent text-sm"
-              />
-              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <svg class="h-4 w-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </div>
-              <button class="absolute inset-y-0 right-0 pr-3 flex items-center">
-                <svg class="h-4 w-4 text-gray-500 hover:text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </button>
-            </div>
           </div>
 
           <!-- Right: Auth Buttons or User Menu -->
           <div class="flex items-center space-x-2">
             <%= if assigns[:current_user] do %>
-              <!-- Wallet Balance Display -->
-              <%= if @current_user.wallet_balance do %>
-                <div class="relative group">
-                  <button class="flex items-center px-3 py-1.5 text-gray-700 font-medium rounded text-sm hover:bg-gray-100 transition-colors">
-                    <svg class="h-5 w-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
-                  </button>
-                  <!-- Tooltip bubble -->
-                  <div class="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
-                    <div class="font-medium">
-                      $<%= (@current_user.wallet_balance / 100) |> :erlang.float_to_binary([{:decimals, 2}]) %>
-                    </div>
-                    <!-- Arrow pointing up -->
-                    <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent border-b-gray-900"></div>
-                  </div>
-                </div>
-              <% end %>
-              
               <!-- Authenticated User Menu -->
               <.link
                 navigate={~p"/library"}
-                class="flex items-center px-3 py-1.5 text-gray-700 font-medium rounded text-sm hover:bg-gray-100 transition-colors"
+                class="px-4 py-1.5 text-white font-medium rounded text-sm transition-transform duration-150 hover:scale-110 bg-transparent"
                 title="Library"
               >
-                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                </svg>
+                [library]
               </.link>
               <.link
-                navigate={~p"/shop"}
-                class="flex items-center px-3 py-1.5 text-gray-700 font-medium rounded text-sm hover:bg-gray-100 transition-colors"
+                navigate={~p"/wallet"}
+                class="px-4 py-1.5 text-white font-medium rounded text-sm transition-transform duration-150 hover:scale-110 bg-transparent"
                 title="Shop"
               >
-                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.293 2.293A1 1 0 004 16h16M7 13v4a1 1 0 001 1h8a1 1 0 001-1v-4m-5 4v2m0-6V9a3 3 0 00-3-3v0a3 3 0 00-3 3v6.1" />
-                </svg>
+                [wallet]
               </.link>
               <.link
                 navigate={~p"/users/settings"}
-                class="flex items-center px-3 py-1.5 text-gray-700 font-medium rounded text-sm hover:bg-gray-100 transition-colors"
+                class="px-4 py-1.5 text-white font-medium rounded text-sm transition-transform duration-150 hover:scale-110 bg-transparent"
                 title="Settings"
               >
-                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
+                [settings]
               </.link>
               <.link
                 href={~p"/users/log_out"}
                 method="delete"
-                class="px-4 py-1.5 text-gray-700 font-medium rounded text-sm hover:bg-gray-100 transition-colors"
+                class="px-4 py-1.5 text-white font-medium rounded text-sm transition-transform duration-150 hover:scale-110"
               >
-                Log Out
+                [log out]
               </.link>
             <% else %>
               <!-- Unauthenticated User Buttons -->
               <.link
                 href={~p"/users/log_in"}
-                class="px-4 py-1.5 text-gray-700 font-medium rounded text-sm hover:bg-gray-100 transition-colors"
+                class="px-4 py-1.5 text-white font-medium rounded text-sm transition-transform duration-150 hover:scale-110 bg-transparent"
               >
-                Log In
+                [log in]
               </.link>
               <.link
                 href={~p"/users/register"}
-                class="px-4 py-1.5 bg-accent text-white font-medium rounded text-sm hover:bg-highlight transition-colors"
+                class="px-4 py-1.5 text-white font-medium rounded text-sm transition-transform duration-150 hover:scale-110 bg-transparent"
               >
-                Sign Up
+                [sign up]
               </.link>
             <% end %>
           </div>

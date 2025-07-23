@@ -77,7 +77,7 @@ if config_env() == :prod do
   # Configure Waffle to use Tigris for file uploads
   config :waffle,
     storage: Waffle.Storage.S3,
-    asset_host: fn bucket, _version -> "https://#{bucket}.fly.storage.tigris.dev" end,
+    asset_host: fn bucket, _version -> "https://#{bucket}.t3.storage.dev" end,
     bucket: System.get_env("TIGRIS_BUCKET")
 
   # Configure ExAws to use Tigris credentials explicitly in production
@@ -87,7 +87,7 @@ if config_env() == :prod do
 
   config :ex_aws, :s3,
     scheme: "https://",
-    host: "fly.storage.tigris.dev",
+    host: "t3.storage.dev",
     region: "auto",
     port: 443
 

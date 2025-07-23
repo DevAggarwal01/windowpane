@@ -91,9 +91,8 @@ defmodule WindowpaneWeb.Router do
       layout: {WindowpaneWeb.Layouts, :browse},
       on_mount: [{WindowpaneWeb.UserAuth, :ensure_authenticated}] do
       live "/library", LibraryLive, :index
-      live "/shop", ShopLive, :index
+      live "/wallet", ShopLive, :index
       live "/social", SocialLive, :index
-      live "/wallet", WalletLive, :index
       live "/users/settings", UserSettingsLive, :edit
       live "/users/settings/confirm_email/:token", UserSettingsLive, :confirm_email
     end

@@ -74,7 +74,7 @@ defmodule WindowpaneWeb.BrowseLive do
   def render(assigns) do
     ~H"""
     <!-- Main Content -->
-    <main class="max-w-7xl mx-auto px-4 py-6">
+    <main class="min-h-screen w-full px-4 py-6" style="background-color: #000000;">
       <!-- Film Modal Component -->
       <%= if @selected_film do %>
         <.live_component
@@ -89,12 +89,33 @@ defmodule WindowpaneWeb.BrowseLive do
         />
       <% end %>
 
-      <!-- Page Header -->
-      <div class="mb-8">
-        <h1 class="text-3xl font-bold text-black">Browse Films</h1>
-        <p class="text-gray-600 mt-2">Discover amazing independent films from creators around the world</p>
+      <!-- Filter Buttons -->
+      <div class="flex justify-center gap-4 mb-8">
+        <button class="px-6 py-2 border-2 border-white bg-black text-white font-bold uppercase tracking-wider text-sm rounded-none transition-transform duration-150 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-accent" style="letter-spacing: 0.08em;">All</button>
+        <button class="px-6 py-2 border-2 border-white bg-black text-white font-bold uppercase tracking-wider text-sm rounded-none transition-transform duration-150 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-accent" style="letter-spacing: 0.08em;">Films</button>
+        <button class="px-6 py-2 border-2 border-white bg-black text-white font-bold uppercase tracking-wider text-sm rounded-none transition-transform duration-150 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-accent" style="letter-spacing: 0.08em;">Livestreams</button>
       </div>
-
+      <!-- Search Bar -->
+      <div class="flex justify-center w-full mt-2 mb-10">
+        <div class="relative w-full max-w-lg">
+          <input
+            type="text"
+            placeholder="SEARCH"
+            class="w-full pl-10 pr-10 py-2 bg-white border border-accent rounded-none text-gray-900 placeholder-gray-700 shadow-lg focus:outline-none focus:ring-2 focus:ring-accent text-base font-bold uppercase tracking-wider font-mono"
+            style="letter-spacing: 0.08em; border-width: 2px;"
+          />
+          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <svg class="h-5 w-5 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="border-radius:0;">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+          <button class="absolute inset-y-0 right-0 pr-3 flex items-center" style="border-radius:0;">
+            <svg class="h-5 w-5 text-accent hover:text-accent-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="border-radius:0;">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </button>
+        </div>
+      </div>
       <!-- Films Grid -->
       <%= if @films == [] do %>
         <!-- Empty State -->
@@ -104,62 +125,119 @@ defmodule WindowpaneWeb.BrowseLive do
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4V2a1 1 0 011-1h8a1 1 0 011 1v2h4a1 1 0 110 2h-1v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6H3a1 1 0 110-2h4z"></path>
             </svg>
           </div>
-          <h3 class="text-lg font-medium text-gray-900 mb-2">No films available yet</h3>
-          <p class="text-gray-500">Check back soon for new content!</p>
         </div>
       <% else %>
-        <!-- Films Grid -->
-        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
-          <%= for film <- @films do %>
-            <.link patch={~p"/browse?id=#{film.id}"} class="group">
-              <div class="bg-gray-800 rounded-lg overflow-hidden transition-transform hover:scale-105 shadow-lg">
+        <!-- Films Grid with White Grid Lines -->
+        <div class="p-8 bg-black">
+          <style>
+            .films-grid {
+              display: grid;
+              grid-template-columns: repeat(2, 1fr);
+              background-color: black;
+              border-top: 2px solid white;
+            }
+
+            @media (min-width: 640px) {
+              .films-grid {
+                grid-template-columns: repeat(3, 1fr);
+              }
+            }
+
+            @media (min-width: 768px) {
+              .films-grid {
+                grid-template-columns: repeat(4, 1fr);
+              }
+            }
+
+            @media (min-width: 1024px) {
+              .films-grid {
+                grid-template-columns: repeat(5, 1fr);
+              }
+            }
+
+            @media (min-width: 1280px) {
+              .films-grid {
+                grid-template-columns: repeat(6, 1fr);
+              }
+            }
+
+            .film-item {
+              background-color: black;
+              transition: all 0.15s ease-in-out;
+              border-right: 2px solid white;
+              border-bottom: 2px solid white;
+            }
+
+            .film-item:hover {
+              transform: scale(1.05);
+              border: 2px solid white;
+              z-index: 10;
+              position: relative;
+            }
+
+            /* Remove right border from last column items */
+            .film-item:nth-child(2n) {
+              border-right: none;
+            }
+
+            @media (min-width: 640px) {
+              .film-item:nth-child(2n) {
+                border-right: 2px solid white;
+              }
+              .film-item:nth-child(3n) {
+                border-right: none;
+              }
+            }
+
+            @media (min-width: 768px) {
+              .film-item:nth-child(3n) {
+                border-right: 2px solid white;
+              }
+              .film-item:nth-child(4n) {
+                border-right: none;
+              }
+            }
+
+            @media (min-width: 1024px) {
+              .film-item:nth-child(4n) {
+                border-right: 2px solid white;
+              }
+              .film-item:nth-child(5n) {
+                border-right: none;
+              }
+            }
+
+            @media (min-width: 1280px) {
+              .film-item:nth-child(5n) {
+                border-right: 2px solid white;
+              }
+              .film-item:nth-child(6n) {
+                border-right: none;
+              }
+            }
+          </style>
+
+          <div class="films-grid">
+            <%= for film <- @films do %>
+              <.link patch={~p"/info?trailer_id=#{film.id}"} class="group film-item">
                 <!-- Cover -->
-                <div class="aspect-[3/4] relative overflow-hidden bg-gray-700">
+                <div class="aspect-square relative overflow-hidden bg-black">
                   <%= if CoverUploader.cover_exists?(%{id: film.id}) do %>
                     <img
                       src={CoverUploader.cover_url(%{id: film.id})}
-                      alt={film.title || "Film cover"}
+                      alt="Film cover"
                       class="w-full h-full object-cover"
                       loading="lazy"
                     />
                   <% else %>
                     <div class="flex items-center justify-center w-full h-full">
-                      <div class="text-center">
-                        <span class="text-4xl mb-2 block">🎬</span>
-                        <span class="text-xs text-gray-400 font-medium">No Cover</span>
-                      </div>
+                      <span class="text-4xl">🎬</span>
                     </div>
                   <% end %>
-
-                  <!-- Hover overlay with play icon -->
-                  <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all duration-300 flex items-center justify-center">
-                    <div class="opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                      <div class="w-12 h-12 bg-white bg-opacity-90 rounded-full flex items-center justify-center">
-                        <svg class="w-6 h-6 text-gray-900 ml-1" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M8 5v10l8-5-8-5z"/>
-                        </svg>
-                      </div>
-                    </div>
-                  </div>
                 </div>
-
-                <!-- Film Info -->
-                <div class="p-3">
-                  <h3 class="text-white text-sm font-medium truncate mb-1">
-                    <%= film.title || "Untitled" %>
-                  </h3>
-                  <p class="text-gray-400 text-xs truncate">
-                    <%= film.creator.name %>
-                  </p>
-                  <%= if film.premiere_date do %>
-                    <p class="text-accent text-xs mt-1">
-                      <%= Calendar.strftime(film.premiere_date, "%B %d, %Y") %>
-                    </p>
-                  <% end %>
-                </div>
-              </div>
-            </.link>
-          <% end %>
+              </.link>
+            <% end %>
+          </div>
         </div>
       <% end %>
     </main>

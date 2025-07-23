@@ -55,7 +55,7 @@ defmodule Windowpane.Uploaders.BannerUploader do
     bucket = System.get_env("TIGRIS_BUCKET")
     object_key = "#{project.id}/banner"
 
-    "https://#{bucket}.fly.storage.tigris.dev/#{object_key}"
+    "https://#{bucket}.t3.storage.dev/#{object_key}"
   end
 
   @doc """
@@ -65,7 +65,7 @@ defmodule Windowpane.Uploaders.BannerUploader do
     bucket = System.get_env("TIGRIS_BUCKET")
     object_key = "#{project_id}/banner"
     # Generate the URL that would be accessed
-    url = "https://#{bucket}.fly.storage.tigris.dev/#{object_key}"
+    url = "https://#{bucket}.t3.storage.dev/#{object_key}"
 
     IO.puts("=== BANNER EXISTS DEBUG (TIGRIS) ===")
     IO.puts("Project ID: #{project_id}")

@@ -930,7 +930,10 @@ Hooks.PixiCanvas = {
       { label: 'Login', url: '/users/log_in', visible: !this.loggedIn },
       { label: 'Signup', url: '/users/register', visible: !this.loggedIn },
       { label: 'Logout', url: '/users/log_out', visible: this.loggedIn },
-      { label: 'Browse', url: '/browse', visible: true }
+      { label: 'Browse', url: '/browse', visible: true },
+      // { label: 'Library', url: '/library', visible: this.loggedIn },
+      // { label: 'Wallet', url: '/wallet', visible: this.loggedIn },
+      // { label: 'Settings', url: '/users/settings', visible: this.loggedIn }
     ];
 
     // Render each as a PIXI.Text link
@@ -1150,7 +1153,7 @@ Hooks.PixiCanvas = {
     const animate = (timestamp) => {
       if (!startTime) startTime = timestamp;
       const elapsed = timestamp - startTime;
-      const duration = 4000;
+      const duration = 3000;
       const ratio = Math.min(elapsed / duration, 1);
       drawBorderProgress(ratio);
 

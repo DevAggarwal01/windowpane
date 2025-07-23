@@ -122,6 +122,15 @@ defmodule WindowpaneWeb.ShopLive do
     ~H"""
     <div class="min-h-screen bg-gray-100">
       <div class="max-w-4xl mx-auto px-4 py-8">
+        <!-- Wallet Balance -->
+        <%= if @current_user do %>
+          <div class="mb-6 flex justify-end">
+            <div class="inline-block bg-white rounded-lg px-4 py-2 shadow text-gray-800 font-semibold text-lg">
+              Wallet Balance: $
+              <%= Decimal.new(@current_user.wallet_balance || 0) |> Decimal.div(100) |> Decimal.round(2) |> Decimal.to_string(:normal) %>
+            </div>
+          </div>
+        <% end %>
         <!-- Header -->
         <div class="mb-8">
           <h1 class="text-3xl font-bold text-gray-800 mb-4">ADD FUNDS TO YOUR WINDOWPANE WALLET</h1>
