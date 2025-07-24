@@ -17,6 +17,7 @@ defmodule WindowpaneWeb.BrowseLive do
       |> assign(:page_title, "Browse Films")
       |> assign(:films, films)
       |> assign(:selected_film, nil)
+      |> assign(:show_login_modal, false)
 
     {:ok, socket}
   end
@@ -68,6 +69,21 @@ defmodule WindowpaneWeb.BrowseLive do
   def handle_info(:close_film_modal, socket) do
     # Close the modal by removing the id parameter from the URL
     {:noreply, push_patch(socket, to: ~p"/browse")}
+  end
+
+  @impl true
+  def handle_event("show_login_modal", _params, socket) do
+    {:noreply, assign(socket, show_login_modal: true)}
+  end
+
+  @impl true
+  def handle_info(:close_login_modal, socket) do
+    {:noreply, assign(socket, show_login_modal: false)}
+  end
+
+  @impl true
+  def handle_info({:login_success, _user, _token}, socket) do
+    {:noreply, redirect(socket, to: "/")}
   end
 
   @impl true

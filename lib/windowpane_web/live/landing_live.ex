@@ -13,6 +13,7 @@ defmodule WindowpaneWeb.LandingLive do
       |> assign(:page_title, "Discover Amazing Content")
       |> assign(:selected_film, nil)
       |> assign(:is_premiere, false)
+      |> assign(:show_login_modal, false)
 
     {:ok, socket}
   end
@@ -85,6 +86,22 @@ defmodule WindowpaneWeb.LandingLive do
     IO.puts("DEBUG: close_film_modal message received in LandingLive")
     # Close the modal by removing the id parameter from the URL
     {:noreply, push_patch(socket, to: ~p"/")}
+  end
+
+  @impl true
+  def handle_event("show_login_modal", _params, socket) do
+    {:noreply, assign(socket, show_login_modal: true)}
+  end
+
+  @impl true
+  def handle_info(:close_login_modal, socket) do
+    {:noreply, assign(socket, show_login_modal: false)}
+  end
+
+  @impl true
+  def handle_info({:login_success, user, token}, socket) do
+    # TODO: Set session cookie if needed
+    {:noreply, socket |> assign(current_user: user, show_login_modal: false)}
   end
 
   @impl true

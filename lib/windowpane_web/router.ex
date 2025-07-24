@@ -45,7 +45,7 @@ defmodule WindowpaneWeb.Router do
     pipe_through [:browser]
 
     live_session :home_page,
-      layout: {WindowpaneWeb.Layouts, :browse},
+      layout: {WindowpaneWeb.Layouts, :live_browse},
       on_mount: [{WindowpaneWeb.UserAuth, :mount_current_user}] do
       live "/", LandingLive, :home
     end
@@ -57,13 +57,13 @@ defmodule WindowpaneWeb.Router do
     end
 
     live_session :info_page,
-      layout: {WindowpaneWeb.Layouts, :browse},
+      layout: {WindowpaneWeb.Layouts, :live_browse},
       on_mount: [{WindowpaneWeb.UserAuth, :mount_current_user}] do
       live "/info", InfoLive, :info
     end
 
     live_session :browse_page,
-      layout: {WindowpaneWeb.Layouts, :browse},
+      layout: {WindowpaneWeb.Layouts, :live_browse},
       on_mount: [{WindowpaneWeb.UserAuth, :mount_current_user}] do
       live "/browse", BrowseLive, :index
     end

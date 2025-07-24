@@ -12,10 +12,10 @@ defmodule WindowpaneWeb.InfoLive do
       playback_id: nil,
       content_type: nil,
       ownership_record: nil,
-      show_login_message: false,
       show_rent_confirmation: false,
       show_insufficient_funds: false,
-      show_rental_success: false
+      show_rental_success: false,
+      show_login_modal: false
     )}
   end
 
@@ -67,13 +67,8 @@ defmodule WindowpaneWeb.InfoLive do
     if socket.assigns[:current_user] do
       {:noreply, assign(socket, show_rent_confirmation: true)}
     else
-      {:noreply, assign(socket, show_login_message: true)}
+      {:noreply, assign(socket, show_login_modal: true)}
     end
-  end
-
-  @impl true
-  def handle_event("close_login_message", _params, socket) do
-    {:noreply, assign(socket, show_login_message: false)}
   end
 
   @impl true
@@ -146,7 +141,7 @@ defmodule WindowpaneWeb.InfoLive do
     {:noreply,
       socket
       |> assign(show_insufficient_funds: false)
-      |> push_navigate(to: ~p"/shop")
+      |> push_navigate(to: ~p"/wallet")
     }
   end
 
@@ -164,6 +159,22 @@ defmodule WindowpaneWeb.InfoLive do
     }
   end
 
+  @impl true
+  def handle_event("show_login_modal", _params, socket) do
+    {:noreply, assign(socket, show_login_modal: true)}
+  end
+
+  @impl true
+  def handle_info(:close_login_modal, socket) do
+    {:noreply, assign(socket, show_login_modal: false)}
+  end
+
+  @impl true
+  def handle_info({:login_success, user, token}, socket) do
+    # TODO: Set session cookie if needed
+    {:noreply, socket |> assign(current_user: user, show_login_modal: false)}
+  end
+
   # Helper function to redirect to home page
   defp redirect_to_home(socket) do
     Logger.info("InfoLive: Redirecting to home page")
@@ -174,6 +185,18 @@ defmodule WindowpaneWeb.InfoLive do
   defp setup_info_page(socket, project) do
     Logger.info("InfoLive: Setting up info page for project '#{project.title}' (trailer_playback_id=#{project.film.trailer_playback_id})")
 
+    # Check for ownership if user is logged in
+    current_user = socket.assigns[:current_user]
+    {user_owns_film, ownership_id} =
+      if current_user do
+        case Ownership.get_active_ownership_record(current_user.id, project.id) do
+          nil -> {false, nil}
+          record -> {true, record.id}
+        end
+      else
+        {false, nil}
+      end
+
     socket =
       socket
       |> assign(:project, project)
@@ -183,6 +206,8 @@ defmodule WindowpaneWeb.InfoLive do
       |> assign(:ownership_record, nil)
       |> assign(:page_title, project.title)
       |> assign(:invalid_type, false)
+      |> assign(:user_owns_film, user_owns_film)
+      |> assign(:ownership_id, ownership_id)
 
     {:noreply, socket}
   end
@@ -190,195 +215,153 @@ defmodule WindowpaneWeb.InfoLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <%= cond do %>
-      <% @project && @project.film && @project.film.trailer_playback_id && !@playback_token -> %>
-        <!-- Trailer Info Container -->
-        <div class="min-h-screen bg-black">
-          <!-- Main Content -->
-          <div class="flex pl-8">
-            <!-- Left Side - Video Player (maintain exact current size) -->
-            <div class="w-4/5 pr-4 pb-12 flex-shrink-0">
-              <!-- Player Container -->
-              <div class="aspect-video bg-black">
-                <mux-player
-                  playback-id={@project.film.trailer_playback_id}
-                  stream-type="on-demand"
-                  class="w-full h-full"
-                ></mux-player>
-              </div>
+    <div class="min-h-screen bg-black">
+      <!-- Main Content -->
+      <div class="flex pl-8">
+        <!-- Left Side - Video Player (maintain exact current size) -->
+        <div class="w-4/5 pr-4 pb-12 flex-shrink-0">
+          <!-- Player Container -->
+          <div class="aspect-video bg-black">
+            <mux-player
+              playback-id={@project.film.trailer_playback_id}
+              stream-type="on-demand"
+              class="w-full h-full"
+            ></mux-player>
+          </div>
 
-              <!-- Creator Info Below Video -->
-              <div class="mt-4">
-                <p class="text-white font-bold text-lg">
-                  CREATOR INFO HERE - <%= @project.creator.name %>
-                </p>
-              </div>
+          <!-- Creator Info Below Video -->
+          <div class="mt-4">
+            <p class="text-white font-bold text-lg">
+              CREATOR INFO HERE - <%= @project.creator.name %>
+            </p>
+          </div>
+        </div>
+
+        <!-- Right Side - Film Details Card -->
+        <div class="flex-1 p-4">
+          <div style="border: 4px solid #ffffff;" class="relative">
+            <!-- Film Cover -->
+            <div class="aspect-[3/4] bg-gray-900 relative">
+              <%= if Windowpane.Uploaders.CoverUploader.cover_exists?(@project) do %>
+                <img
+                  src={Windowpane.Uploaders.CoverUploader.cover_url(@project)}
+                  alt={"Cover for #{@project.title}"}
+                  class="w-full h-full object-cover"
+                />
+              <% else %>
+                <div class="flex items-center justify-center w-full h-full">
+                  <div class="text-center text-gray-700">
+                    <span class="text-6xl mb-2 block">🎬</span>
+                    <span class="text-sm font-medium">No Cover</span>
+                  </div>
+                </div>
+              <% end %>
             </div>
 
-            <!-- Right Side - Film Details Card -->
-            <div class="flex-1 p-4">
-              <div style="border: 4px solid #ffffff;">
-                <!-- Film Cover -->
-                <div class="aspect-[3/4] bg-gray-900 relative">
-                  <%= if Windowpane.Uploaders.CoverUploader.cover_exists?(@project) do %>
-                    <img
-                      src={Windowpane.Uploaders.CoverUploader.cover_url(@project)}
-                      alt={"Cover for #{@project.title}"}
-                      class="w-full h-full object-cover"
-                    />
-                  <% else %>
-                    <div class="flex items-center justify-center w-full h-full">
-                      <div class="text-center text-gray-700">
-                        <span class="text-6xl mb-2 block">🎬</span>
-                        <span class="text-sm font-medium">No Cover</span>
-                      </div>
-                    </div>
-                  <% end %>
-                </div>
+            <!-- Film Details -->
+            <div class="p-4">
+              <h1 class="text-xl font-bold text-white mb-2"><%= @project.title %></h1>
 
-                <!-- Film Details -->
-                <div class="p-4">
-                  <h1 class="text-xl font-bold text-white mb-2"><%= @project.title %></h1>
+              <!-- Status Badge -->
+              <div class="flex items-center gap-2 mb-4">
+                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-bold bg-blue-900 text-white">
+                  🎬 TRAILER
+                </span>
+              </div>
 
-                  <!-- Status Badge -->
-                  <div class="flex items-center gap-2 mb-4">
-                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-bold bg-blue-900 text-white">
-                      🎬 TRAILER
-                    </span>
+              <!-- Film Info -->
+              <div class="space-y-2 text-sm">
+                <%= if @project.description && String.trim(@project.description) != "" do %>
+                  <div>
+                    <p class="text-white font-bold leading-relaxed">
+                      <%= @project.description %>
+                    </p>
                   </div>
+                <% end %>
 
-                  <!-- Film Info -->
-                  <div class="space-y-2 text-sm">
-                    <%= if @project.description && String.trim(@project.description) != "" do %>
-                      <div>
-                        <p class="text-white font-bold leading-relaxed">
-                          <%= @project.description %>
-                        </p>
+                <div class="pt-2 border-t border-gray-800">
+                  <div class="space-y-1">
+                    <div class="flex justify-between">
+                      <span class="text-white font-bold">Type:</span>
+                      <span class="text-white font-bold capitalize"><%= @project.type %></span>
+                    </div>
+                    <%= if @project.premiere_date do %>
+                      <div class="flex justify-between">
+                        <span class="text-white font-bold">Premiered:</span>
+                        <span class="text-white font-bold">
+                          <%= Calendar.strftime(@project.premiere_date, "%B %Y") %>
+                        </span>
                       </div>
                     <% end %>
-
-                    <div class="pt-2 border-t border-gray-800">
-                      <div class="space-y-1">
-                        <div class="flex justify-between">
-                          <span class="text-white font-bold">Type:</span>
-                          <span class="text-white font-bold capitalize"><%= @project.type %></span>
-                        </div>
-                        <%= if @project.premiere_date do %>
-                          <div class="flex justify-between">
-                            <span class="text-white font-bold">Premiered:</span>
-                            <span class="text-white font-bold">
-                              <%= Calendar.strftime(@project.premiere_date, "%B %Y") %>
-                            </span>
-                          </div>
-                        <% end %>
-                        <div class="flex justify-between">
-                          <span class="text-white font-bold">Status:</span>
-                          <span class="text-white font-bold">
-                            Trailer Preview
-                          </span>
-                        </div>
-                      </div>
+                    <div class="flex justify-between">
+                      <span class="text-white font-bold">Status:</span>
+                      <span class="text-white font-bold">
+                        Trailer Preview
+                      </span>
                     </div>
                   </div>
                 </div>
               </div>
-              <!-- Rent Button Below Film Card -->
-              <div class="flex items-center justify-center gap-6 mt-6" style="border: 4px solid #ffffff;">
+            </div>
+          </div>
+          <!-- Rent/Watch Button Below Film Card -->
+          <div class="flex items-center justify-center gap-6 mt-6" style="border: 4px solid #ffffff;">
+            <%= if @user_owns_film && @ownership_id do %>
+              <.link
+                navigate={~p"/watch?id=#{@ownership_id}"}
+                class="text-white font-bold px-8 py-3 bg-black border-8 border-white border-solid text-xl"
+                style="outline: none;"
+              >
+                ▶️ Watch Now
+              </.link>
+            <% else %>
+              <div class="flex flex-col items-end w-full">
                 <button
-                  class="text-white font-bold px-8 py-3 bg-black border-8 border-white border-solid text-xl"
+                  class="block w-full text-white font-bold px-8 py-3 bg-black border-8 border-white border-solid text-xl transition-colors duration-150 hover:bg-white hover:text-black focus:bg-white focus:text-black active:bg-white active:text-black ring-0 mb-2"
                   style="outline: none;"
                   phx-click="rent_film"
                 >
-                  RENT <%= Decimal.to_string(@project.rental_price, :normal) %>
+                  RENT $<%= Decimal.to_string(@project.rental_price, :normal) %>
                 </button>
               </div>
-            </div>
+            <% end %>
           </div>
-        </div>
-
-      <% true -> %>
-        <!-- Error State -->
-        <div class="min-h-screen bg-black flex items-center justify-center">
-          <div class="text-center max-w-md mx-auto p-6">
-            <div class="w-16 h-16 mx-auto mb-4 text-gray-700">
-              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" class="w-full h-full">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.232 15.5c-.77.833.192 2.5 1.732 2.5z" />
-              </svg>
+          <%= !if @user_owns_film || !@ownership_id do %>
+            <div class="flex justify-end w-full mt-2">
+              <span class="text-white text-xs opacity-80 pr-2">Rental lasts for 48 hours.</span>
             </div>
-            <h3 class="text-lg font-medium text-white mb-2">Invalid URL</h3>
-            <p class="text-gray-400 mb-6">The requested content could not be found or you don't have access to it.</p>
-            <.link
-              navigate={~p"/"}
-              class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 transition-colors"
-            >
-              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-              </svg>
-              Back to Browse
-            </.link>
-          </div>
-        </div>
-    <% end %>
-    <!-- Login Message Modal -->
-    <%= if @show_login_message do %>
-      <div class="fixed inset-0 z-60 overflow-y-auto">
-        <div class="fixed inset-0 bg-black bg-opacity-50"></div>
-        <div class="flex min-h-full items-center justify-center p-4">
-          <div class="relative bg-white rounded-lg p-6 max-w-md w-full">
-            <div class="text-center">
-              <h3 class="text-lg font-medium text-gray-900 mb-4">Uh oh, please log in or sign up</h3>
-              <p class="text-gray-600 mb-6">You need to be logged in to rent films.</p>
-              <div class="flex space-x-3 justify-center">
-                <.link
-                  href={~p"/users/log_in?redirect=#{URI.encode("/info?trailer_id=#{@project.id}")}"}
-                  class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium"
-                >
-                  Log in
-                </.link>
-                <.link
-                  href={~p"/users/register?redirect=#{URI.encode("/info?trailer_id=#{@project.id}")}"}
-                  class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-medium"
-                >
-                  Sign up
-                </.link>
-              </div>
-              <button
-                type="button"
-                class="mt-4 text-gray-500 hover:text-gray-700"
-                phx-click="close_login_message"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
+          <% end %>
         </div>
       </div>
-    <% end %>
+    </div>
+
     <!-- Rent Confirmation Modal -->
     <%= if @show_rent_confirmation do %>
       <div class="fixed inset-0 z-60 overflow-y-auto">
         <div class="fixed inset-0 bg-black bg-opacity-50"></div>
         <div class="flex min-h-full items-center justify-center p-4">
-          <div class="relative bg-white rounded-lg p-6 max-w-md w-full">
+          <div class="relative bg-black p-6 max-w-md w-full" style="border: 8px solid #ffffff;">
             <div class="text-center">
-              <h3 class="text-lg font-medium text-gray-900 mb-4">Are you sure?</h3>
-              <p class="text-gray-600 mb-6">
+              <h3 class="text-lg font-medium text-white mb-4">Are you sure?</h3>
+              <p class="text-white mb-6">
                 Do you want to rent "<%= @project.title %>" for $<%= Decimal.to_string(@project.rental_price, :normal) %>?
               </p>
-              <div class="flex space-x-3 justify-center">
+              <div class="flex space-x-6 justify-center">
                 <button
                   type="button"
-                  class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 font-medium"
+                  class="text-white font-bold text-lg transition-transform duration-150 hover:scale-110 focus:scale-110 outline-none"
+                  style="background: none; border: none; padding: 0;"
                   phx-click="confirm_rent"
                 >
-                  Yes, rent it
+                  [yes, rent it]
                 </button>
                 <button
                   type="button"
-                  class="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 font-medium"
+                  class="text-white font-bold text-lg transition-transform duration-150 hover:scale-110 focus:scale-110 outline-none"
+                  style="background: none; border: none; padding: 0;"
                   phx-click="cancel_rent"
                 >
-                  Cancel
+                  [cancel]
                 </button>
               </div>
             </div>
@@ -391,33 +374,30 @@ defmodule WindowpaneWeb.InfoLive do
       <div class="fixed inset-0 z-60 overflow-y-auto">
         <div class="fixed inset-0 bg-black bg-opacity-50"></div>
         <div class="flex min-h-full items-center justify-center p-4">
-          <div class="relative bg-white rounded-lg p-6 max-w-md w-full">
+          <div class="relative bg-black p-6 max-w-md w-full" style="border: 8px solid #ffffff;">
             <div class="text-center">
-              <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
-                <svg class="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.232 15.5c-.77.833.192 2.5 1.732 2.5z" />
-                </svg>
-              </div>
-              <h3 class="text-lg font-medium text-gray-900 mb-4">Insufficient Funds</h3>
-              <p class="text-gray-600 mb-6">
+              <h3 class="text-lg font-medium text-white mb-4">Insufficient Funds</h3>
+              <p class="text-white mb-6">
                 You don't have enough funds in your wallet to rent "<%= @project.title %>" for $<%= Decimal.to_string(@project.rental_price, :normal) %>.
                 <br><br>
                 Would you like to add funds to your wallet?
               </p>
-              <div class="flex space-x-3 justify-center">
+              <div class="flex space-x-6 justify-center">
                 <button
                   type="button"
-                  class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-medium"
+                  class="text-white font-bold text-lg transition-transform duration-150 hover:scale-110 focus:scale-110 outline-none"
+                  style="background: none; border: none; padding: 0;"
                   phx-click="go_to_shop"
                 >
-                  Add Funds
+                  [add funds]
                 </button>
                 <button
                   type="button"
-                  class="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 font-medium"
+                  class="text-white font-bold text-lg transition-transform duration-150 hover:scale-110 focus:scale-110 outline-none"
+                  style="background: none; border: none; padding: 0;"
                   phx-click="close_insufficient_funds"
                 >
-                  Cancel
+                  [cancel]
                 </button>
               </div>
             </div>

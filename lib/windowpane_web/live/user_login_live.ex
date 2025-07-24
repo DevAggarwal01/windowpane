@@ -17,7 +17,7 @@ defmodule WindowpaneWeb.UserLoginLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="min-h-screen bg-[#0073b1]">
+    <div class="min-h-screen bg-black">
       <div class="flex flex-col items-center pt-10 px-4">
         <div class="mb-6">
           <img src={~p"/images/logo-white.png"} alt="Windowpane" class="h-8" />

@@ -1271,6 +1271,12 @@ Hooks.PixiCanvas = {
   }
 };
 
+Hooks.RegistrationSuccess = {
+  mounted() {
+    window.location.reload();
+  }
+}
+
 // Remove the default export and keep Hooks as a regular object
 // export default Hooks;
 
