@@ -927,8 +927,6 @@ Hooks.PixiCanvas = {
     container.addChild(titleText);
 
     const buttons = [
-      { label: 'Login', url: '/users/log_in', visible: !this.loggedIn },
-      { label: 'Signup', url: '/users/register', visible: !this.loggedIn },
       { label: 'Logout', url: '/users/log_out', visible: this.loggedIn },
       { label: 'Browse', url: '/browse', visible: true },
       // { label: 'Library', url: '/library', visible: this.loggedIn },

@@ -1006,4 +1006,22 @@ defmodule Windowpane.Projects do
     |> limit(^limit)
     |> Repo.all()
   end
+
+  @doc """
+  Returns a list of published project IDs from the given list of project IDs.
+  Does not preload any associations - just filters for published projects.
+
+  ## Examples
+
+      iex> get_published_project_ids([1, 2, 3, 4])
+      [1, 3, 4]
+
+  """
+  def get_published_project_ids(project_ids) when is_list(project_ids) do
+    Project
+    |> where([p], p.id in ^project_ids and p.status == "published")
+    |> select([p], p.id)
+    |> Repo.all()
+  end
+  def get_published_project_ids([]), do: []
 end
