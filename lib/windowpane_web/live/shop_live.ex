@@ -120,7 +120,7 @@ defmodule WindowpaneWeb.ShopLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="min-h-screen bg-gray-100">
+    <div class="min-h-screen bg-black">
       <div class="max-w-4xl mx-auto px-4 py-8">
         <!-- Wallet Balance -->
         <%= if @current_user do %>
@@ -133,8 +133,8 @@ defmodule WindowpaneWeb.ShopLive do
         <% end %>
         <!-- Header -->
         <div class="mb-8">
-          <h1 class="text-3xl font-bold text-gray-800 mb-4">ADD FUNDS TO YOUR WINDOWPANE WALLET</h1>
-          <div class="text-gray-600 space-y-2">
+          <h1 class="text-3xl font-bold text-white mb-4">ADD FUNDS TO YOUR WINDOWPANE WALLET</h1>
+          <div class="text-white space-y-2">
             <p>Funds in your Windowpane Wallet may be used for the rental of any content on Windowpane or within content that supports Windowpane transactions.</p>
             <p>You'll have a chance to review your order before it's placed.</p>
           </div>
@@ -143,10 +143,10 @@ defmodule WindowpaneWeb.ShopLive do
         <!-- Wallet Fund Options -->
         <div class="space-y-4">
           <%= for plan <- @wallet_plans do %>
-            <div class="bg-gray-200 rounded-lg p-6 flex items-center justify-between hover:bg-gray-250 transition-colors">
+            <div style="border: 2px solid #ffffff;" class="bg-gray-900 border-4 border-white p-6 flex items-center justify-between hover:bg-gray-900 transition-colors">
               <div>
-                <h3 class="text-xl font-medium text-gray-800"><%= plan.label %></h3>
-                <p class="text-sm text-gray-600">
+                <h3 class="text-xl font-bold text-white"><%= plan.label %></h3>
+                <p class="text-sm text-white">
                   <%= if plan[:minimum] do %>
                     Minimum fund level
                   <% end %>
@@ -154,19 +154,19 @@ defmodule WindowpaneWeb.ShopLive do
               </div>
               <div class="flex items-center space-x-4">
                 <div class="text-right">
-                  <div class="text-lg font-medium text-gray-800">
-                    <%= plan.display %> <span class="text-sm font-normal text-gray-600">to wallet</span>
+                  <div class="text-lg font-bold text-white">
+                    <%= plan.display %> <span class="text-sm font-normal text-white">to wallet</span>
                   </div>
-                  <div class="text-sm text-gray-500">
+                  <div class="text-sm text-white">
                     <%= plan.estimated_total %>
                   </div>
                 </div>
                 <button
                   phx-click="add_funds"
                   phx-value-amount={plan.amount}
-                  class="px-6 py-2 bg-green-600 text-white font-medium rounded hover:bg-green-700 transition-colors"
+                  class="px-6 py-2 bg-gray-900 text-white border-4 border-white font-bold hover:bg-white hover:text-black transition-all duration-150 hover:scale-110"
                 >
-                  Add funds
+                  [add-funds]
                 </button>
               </div>
             </div>

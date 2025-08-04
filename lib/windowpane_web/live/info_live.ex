@@ -160,6 +160,15 @@ defmodule WindowpaneWeb.InfoLive do
   end
 
   @impl true
+  def handle_event("browse_more", _params, socket) do
+    {:noreply,
+      socket
+      |> assign(show_rental_success: false)
+      |> push_navigate(to: ~p"/browse")
+    }
+  end
+
+  @impl true
   def handle_event("show_login_modal", _params, socket) do
     {:noreply, assign(socket, show_login_modal: true)}
   end
@@ -232,7 +241,7 @@ defmodule WindowpaneWeb.InfoLive do
           <!-- Creator Info Below Video -->
           <div class="mt-4">
             <p class="text-white font-bold text-lg">
-              CREATOR INFO HERE - <%= @project.creator.name %>
+              <%= @project.creator.name %>
             </p>
           </div>
         </div>
@@ -317,7 +326,7 @@ defmodule WindowpaneWeb.InfoLive do
             <% else %>
               <div class="flex flex-col items-end w-full">
                 <button
-                  class="block w-full text-white font-bold px-8 py-3 bg-black border-8 border-white border-solid text-xl transition-colors duration-150 hover:bg-white hover:text-black focus:bg-white focus:text-black active:bg-white active:text-black ring-0 mb-2"
+                  class="block w-full text-white font-bold px-8 py-3 bg-black border-4 border-white border-solid text-xl transition-colors duration-150 hover:bg-white hover:text-black focus:bg-white focus:text-black active:bg-white active:text-black ring-0 mb-2"
                   style="outline: none;"
                   phx-click="rent_film"
                 >
@@ -410,33 +419,35 @@ defmodule WindowpaneWeb.InfoLive do
       <div class="fixed inset-0 z-60 overflow-y-auto">
         <div class="fixed inset-0 bg-black bg-opacity-50"></div>
         <div class="flex min-h-full items-center justify-center p-4">
-          <div class="relative bg-white rounded-lg p-6 max-w-md w-full transform transition-all duration-300 ease-in-out scale-100">
+          <div class="relative bg-black p-6 max-w-md w-full" style="border: 8px solid #ffffff;">
             <div class="text-center">
-              <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4 animate-pulse">
-                <svg class="h-8 w-8 text-green-600 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-600 mb-4 animate-pulse">
+                <svg class="h-8 w-8 text-white animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <h3 class="text-xl font-bold text-gray-900 mb-2">🎉 Rental Successful!</h3>
-              <p class="text-gray-600 mb-6">
+              <h3 class="text-xl font-bold text-white mb-2">🎉 Rental Successful!</h3>
+              <p class="text-white mb-6">
                 You now have access to "<span class="font-semibold"><%= @project.title %></span>" for 48 hours.
                 <br><br>
                 Ready to start watching? Your film is waiting in your personal library!
               </p>
-              <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 justify-center">
+              <div class="flex space-x-6 justify-center">
                 <button
                   type="button"
-                  class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105"
+                  class="text-white font-bold text-lg transition-transform duration-150 hover:scale-110 focus:scale-110 outline-none"
+                  style="background: none; border: none; padding: 0;"
                   phx-click="go_to_library"
                 >
-                  📚 Go to My Library
+                  [go to library]
                 </button>
                 <button
                   type="button"
-                  class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium"
-                  phx-click="close_success"
+                  class="text-white font-bold text-lg transition-transform duration-150 hover:scale-110 focus:scale-110 outline-none"
+                  style="background: none; border: none; padding: 0;"
+                  phx-click="browse_more"
                 >
-                  Continue Browsing
+                  [browse more]
                 </button>
               </div>
             </div>

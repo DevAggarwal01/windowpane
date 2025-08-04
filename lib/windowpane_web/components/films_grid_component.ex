@@ -188,7 +188,8 @@ defmodule WindowpaneWeb.FilmsGridComponent do
           <div class="films-grid">
             <%= for project_id <- @published_project_ids do %>
               <% ownership_id = Map.get(@ownership_map, project_id) %>
-              <% link_path = if ownership_id, do: ~p"/library?id=#{ownership_id}", else: ~p"/info?trailer_id=#{project_id}" %>
+              <% is_expired = Map.get(@expired_map, project_id, false) %>
+              <% link_path = if !ownership_id || is_expired, do: ~p"/info?trailer_id=#{project_id}", else: ~p"/watch?id=#{ownership_id}" %>
 
               <.link patch={link_path} class="group film-item">
                 <!-- Cover -->

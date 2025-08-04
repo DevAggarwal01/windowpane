@@ -5,70 +5,119 @@ defmodule WindowpaneWeb.UserSettingsLive do
 
   def render(assigns) do
     ~H"""
-    <div class="container mx-auto px-4 py-8">
-      <.header class="text-center">
-        Account Settings
-        <:subtitle>Manage your account email address and password settings</:subtitle>
-      </.header>
-
-      <div class="space-y-12 divide-y max-w-2xl mx-auto">
-        <div>
-          <.simple_form
-            for={@email_form}
-            id="email_form"
-            phx-submit="update_email"
-            phx-change="validate_email"
-          >
-            <.input field={@email_form[:email]} type="email" label="Email" required />
-            <.input
-              field={@email_form[:current_password]}
-              name="current_password"
-              id="current_password_for_email"
-              type="password"
-              label="Current password"
-              value={@email_form_current_password}
-              required
-            />
-            <:actions>
-              <.button phx-disable-with="Changing...">Change Email</.button>
-            </:actions>
-          </.simple_form>
+    <style>
+      /* Force all form elements and their containers to have black background */
+      form, form *, .simple-form, .simple-form *,
+      [data-phx-component], [data-phx-component] *,
+      .form-group, .form-group *, .field, .field *,
+      input[type="email"] + *, input[type="password"] + *,
+      input[type="email"]:after, input[type="password"]:after {
+        background: black !important;
+        background-color: black !important;
+      }
+    </style>
+    <div class="min-h-screen bg-black" style="background: black !important; background-color: black !important;">
+      <div class="container mx-auto px-4 py-8" style="background: black !important; background-color: black !important;">
+        <div class="text-center mb-8" style="background: black !important; background-color: black !important;">
+          <h1 class="text-3xl font-bold text-white mb-4">Account Settings</h1>
+          <p class="text-white">Manage your account email address and password settings</p>
         </div>
-        <div>
-          <.simple_form
-            for={@password_form}
-            id="password_form"
-            action={~p"/users/log_in?_action=password_updated"}
-            method="post"
-            phx-change="validate_password"
-            phx-submit="update_password"
-            phx-trigger-action={@trigger_submit}
-          >
-            <input
-              name={@password_form[:email].name}
-              type="hidden"
-              id="hidden_user_email"
-              value={@current_email}
-            />
-            <.input field={@password_form[:password]} type="password" label="New password" required />
-            <.input
-              field={@password_form[:password_confirmation]}
-              type="password"
-              label="Confirm new password"
-            />
-            <.input
-              field={@password_form[:current_password]}
-              name="current_password"
-              type="password"
-              label="Current password"
-              id="current_password_for_password"
-              value={@current_password}
-              required
-            />
-            <:actions>
-              <.button phx-disable-with="Changing...">Change Password</.button>
-            </:actions>
-          </.simple_form>
+
+        <div class="space-y-12 divide-y divide-gray-800 max-w-2xl mx-auto" style="background: black !important; background-color: black !important;">
+          <!-- Email Form -->
+          <div class="pt-8" style="background: black !important; background-color: black !important;">
+            <form phx-submit="update_email" phx-change="validate_email" style="background: black !important; background-color: black !important;">
+              <div class="space-y-4" style="background: black !important; background-color: black !important;">
+                <div style="background: black !important; background-color: black !important;">
+                  <label style="display: block; color: white !important; font-weight: bold; margin-bottom: 0.5rem; background: black !important; background-color: black !important;">Email</label>
+                  <input
+                    type="email"
+                    name="user[email]"
+                    value={@email_form[:email].value}
+                    required
+                    class="w-full bg-gray-900 border border-white/80 rounded-none px-4 py-2 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white text-base"
+                    style="font-family: inherit; letter-spacing: 0.01em; background: rgb(17 24 39) !important;"
+                  />
+                </div>
+                <div style="background: black !important; background-color: black !important;">
+                  <label style="display: block; color: white !important; font-weight: bold; margin-bottom: 0.5rem; background: black !important; background-color: black !important;">Current password</label>
+                  <input
+                    name="current_password"
+                    id="current_password_for_email"
+                    type="password"
+                    value={@email_form_current_password}
+                    required
+                    class="w-full bg-gray-900 border border-white/80 rounded-none px-4 py-2 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white text-base"
+                    style="font-family: inherit; letter-spacing: 0.01em; background: rgb(17 24 39) !important;"
+                  />
+                </div>
+              </div>
+              <div class="mt-6" style="background: black !important; background-color: black !important;">
+                <button type="submit" class="w-full text-lg border border-white rounded-none py-2 hover:bg-white/10 transition text-white font-bold">
+                  Change Email
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <!-- Password Form -->
+          <div class="pt-8" style="background: black !important; background-color: black !important;">
+            <form
+              action={~p"/users/log_in?_action=password_updated"}
+              method="post"
+              phx-change="validate_password"
+              phx-submit="update_password"
+              phx-trigger-action={@trigger_submit}
+              style="background: black !important; background-color: black !important;"
+            >
+              <input
+                name={@password_form[:email].name}
+                type="hidden"
+                id="hidden_user_email"
+                value={@current_email}
+              />
+              <div class="space-y-4" style="background: black !important; background-color: black !important;">
+                <div style="background: black !important; background-color: black !important;">
+                  <label style="display: block; color: white !important; font-weight: bold; margin-bottom: 0.5rem; background: black !important; background-color: black !important;">New password</label>
+                  <input
+                    type="password"
+                    name="user[password]"
+                    value={@password_form[:password].value}
+                    required
+                    class="w-full bg-gray-900 border border-white/80 rounded-none px-4 py-2 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white text-base"
+                    style="font-family: inherit; letter-spacing: 0.01em; background: rgb(17 24 39) !important;"
+                  />
+                </div>
+                <div style="background: black !important; background-color: black !important;">
+                  <label style="display: block; color: white !important; font-weight: bold; margin-bottom: 0.5rem; background: black !important; background-color: black !important;">Confirm new password</label>
+                  <input
+                    type="password"
+                    name="user[password_confirmation]"
+                    value={@password_form[:password_confirmation].value}
+                    class="w-full bg-gray-900 border border-white/80 rounded-none px-4 py-2 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white text-base"
+                    style="font-family: inherit; letter-spacing: 0.01em; background: rgb(17 24 39) !important;"
+                  />
+                </div>
+                <div style="background: black !important; background-color: black !important;">
+                  <label style="display: block; color: white !important; font-weight: bold; margin-bottom: 0.5rem; background: black !important; background-color: black !important;">Current password</label>
+                  <input
+                    name="current_password"
+                    type="password"
+                    value={@current_password}
+                    id="current_password_for_password"
+                    required
+                    class="w-full bg-gray-900 border border-white/80 rounded-none px-4 py-2 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white text-base"
+                    style="font-family: inherit; letter-spacing: 0.01em; background: rgb(17 24 39) !important;"
+                  />
+                </div>
+              </div>
+              <div class="mt-6" style="background: black !important; background-color: black !important;">
+                <button type="submit" class="w-full text-lg border border-white rounded-none py-2 hover:bg-white/10 transition text-white font-bold">
+                  Change Password
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       </div>
     </div>

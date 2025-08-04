@@ -134,8 +134,6 @@ defmodule WindowpaneWeb.WatchLive do
           {nil, "unavailable"}
       end
 
-    Logger.info("WatchLive: Final setup - content_type=#{content_type}, playback_id=#{playback_id}, jwt_token=#{ownership_record.jwt_token}")
-
     socket =
       socket
       |> assign(:project, project)
@@ -155,7 +153,7 @@ defmodule WindowpaneWeb.WatchLive do
     <%= cond do %>
       <% @project && @playback_id && @playback_token -> %>
         <!-- Main Watch Container -->
-        <div class="min-h-screen bg-gray-50">
+        <div class="min-h-screen bg-black">
           <!-- Main Content -->
           <div class="flex pl-8">
             <!-- Left Side - Video Player (maintain exact current size) -->
@@ -172,17 +170,17 @@ defmodule WindowpaneWeb.WatchLive do
 
               <!-- Creator Info Below Video -->
               <div class="mt-4">
-                <p class="text-gray-900 text-lg font-medium">
-                  CREATOR INFO HERE - <%= @project.creator.name %>
+                <p class="text-white font-bold text-lg">
+                  <%= @project.creator.name %>
                 </p>
               </div>
             </div>
 
             <!-- Right Side - Film Details Card -->
             <div class="flex-1 p-4">
-              <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden max-w-sm">
+              <div style="border: 4px solid #ffffff;" class="relative">
                 <!-- Film Cover -->
-                <div class="aspect-[3/4] bg-gray-100 relative">
+                <div class="aspect-[3/4] bg-gray-900 relative">
                   <%= if Windowpane.Uploaders.CoverUploader.cover_exists?(@project) do %>
                     <img
                       src={Windowpane.Uploaders.CoverUploader.cover_url(@project)}
@@ -191,7 +189,7 @@ defmodule WindowpaneWeb.WatchLive do
                     />
                   <% else %>
                     <div class="flex items-center justify-center w-full h-full">
-                      <div class="text-center text-gray-400">
+                      <div class="text-center text-gray-700">
                         <span class="text-6xl mb-2 block">🎬</span>
                         <span class="text-sm font-medium">No Cover</span>
                       </div>
@@ -201,12 +199,12 @@ defmodule WindowpaneWeb.WatchLive do
 
                 <!-- Film Details -->
                 <div class="p-4">
-                  <h1 class="text-xl font-bold text-gray-900 mb-2"><%= @project.title %></h1>
-                  <p class="text-gray-600 mb-3">By <%= @project.creator.name %></p>
+                  <h1 class="text-xl font-bold text-white mb-2"><%= @project.title %></h1>
+                  <p class="text-white font-bold mb-3">By <%= @project.creator.name %></p>
 
                   <!-- Status Badge -->
                   <div class="flex items-center gap-2 mb-4">
-                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-bold bg-blue-900 text-white">
                       ✓ <%= String.upcase(@project.type) %>
                     </span>
                   </div>
@@ -215,30 +213,30 @@ defmodule WindowpaneWeb.WatchLive do
                   <div class="space-y-2 text-sm">
                     <%= if @project.description && String.trim(@project.description) != "" do %>
                       <div>
-                        <p class="text-gray-700 leading-relaxed">
+                        <p class="text-white font-bold leading-relaxed">
                           <%= @project.description %>
                         </p>
                       </div>
                     <% end %>
 
-                    <div class="pt-2 border-t border-gray-100">
+                    <div class="pt-2 border-t border-gray-800">
                       <div class="space-y-1">
                         <div class="flex justify-between">
-                          <span class="text-gray-500">Type:</span>
-                          <span class="text-gray-800 capitalize"><%= @project.type %></span>
+                          <span class="text-white font-bold">Type:</span>
+                          <span class="text-white font-bold capitalize"><%= @project.type %></span>
                         </div>
                         <%= if @project.premiere_date do %>
                           <div class="flex justify-between">
-                            <span class="text-gray-500">Premiered:</span>
-                            <span class="text-gray-800">
+                            <span class="text-white font-bold">Premiered:</span>
+                            <span class="text-white font-bold">
                               <%= Calendar.strftime(@project.premiere_date, "%B %Y") %>
                             </span>
                           </div>
                         <% end %>
                         <%= if @content_type == "film" do %>
                           <div class="flex justify-between">
-                            <span class="text-gray-500">Status:</span>
-                            <span class="text-green-600 font-medium">
+                            <span class="text-white font-bold">Status:</span>
+                            <span class="text-green-400 font-bold">
                               <%= if is_expired?(@ownership_record) do %>
                                 Expired
                               <% else %>
@@ -249,8 +247,8 @@ defmodule WindowpaneWeb.WatchLive do
                         <% end %>
                         <%= if @content_type == "live_event" do %>
                           <div class="flex justify-between">
-                            <span class="text-gray-500">Status:</span>
-                            <span class="text-blue-600 font-medium">
+                            <span class="text-white font-bold">Status:</span>
+                            <span class="text-blue-400 font-bold">
                               Live Event
                             </span>
                           </div>
@@ -266,18 +264,18 @@ defmodule WindowpaneWeb.WatchLive do
 
       <% @content_type == "unavailable" -> %>
         <!-- Content Unavailable -->
-        <div class="min-h-screen bg-gray-50 flex items-center justify-center">
-          <div class="text-center max-w-md mx-auto p-6">
-            <div class="w-16 h-16 mx-auto mb-4 text-gray-400">
+        <div class="min-h-screen bg-black flex items-center justify-center">
+          <div class="text-center max-w-md mx-auto p-6" style="border: 4px solid #ffffff;">
+            <div class="w-16 h-16 mx-auto mb-4 text-white">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" class="w-full h-full">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
               </svg>
             </div>
-            <h3 class="text-lg font-medium text-gray-900 mb-2">Content not available</h3>
-            <p class="text-gray-600 mb-6">The video content for this film is not yet available for streaming.</p>
+            <h3 class="text-lg font-bold text-white mb-2">Content not available</h3>
+            <p class="text-white mb-6">The video content for this film is not yet available for streaming.</p>
             <.link
               navigate={~p"/library"}
-              class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 transition-colors"
+              class="inline-flex items-center px-4 py-2 bg-black text-white border-4 border-white font-bold hover:bg-white hover:text-black transition-colors"
             >
               <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
@@ -289,18 +287,18 @@ defmodule WindowpaneWeb.WatchLive do
 
       <% true -> %>
         <!-- Error State -->
-        <div class="min-h-screen bg-gray-50 flex items-center justify-center">
-          <div class="text-center max-w-md mx-auto p-6">
-            <div class="w-16 h-16 mx-auto mb-4 text-gray-400">
+        <div class="min-h-screen bg-black flex items-center justify-center">
+          <div class="text-center max-w-md mx-auto p-6" style="border: 4px solid #ffffff;">
+            <div class="w-16 h-16 mx-auto mb-4 text-white">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" class="w-full h-full">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.232 15.5c-.77.833.192 2.5 1.732 2.5z" />
               </svg>
             </div>
-            <h3 class="text-lg font-medium text-gray-900 mb-2">Invalid URL</h3>
-            <p class="text-gray-600 mb-6">The requested content could not be found or you don't have access to it.</p>
+            <h3 class="text-lg font-bold text-white mb-2">Invalid URL</h3>
+            <p class="text-white mb-6">The requested content could not be found or you don't have access to it.</p>
             <.link
               navigate={~p"/"}
-              class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 transition-colors"
+              class="inline-flex items-center px-4 py-2 bg-black text-white border-4 border-white font-bold hover:bg-white hover:text-black transition-colors"
             >
               <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />

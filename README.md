@@ -6,6 +6,7 @@
 4. Need to change the creator cut algorithm to be affected by duration
 5. need an How-to guide for streamers
 6. i think steam cash formula for estimating tax + fees might be incorrect
+7. fix the CDN links to a particular version to avoid major changes
 7. FUTURE - setting up a staging environment (2 separate fly.tomls for 2 separate apps. codebases for prod and stage running separately but 1 instance is enough for stage app since not meant to have traffic)
 
 

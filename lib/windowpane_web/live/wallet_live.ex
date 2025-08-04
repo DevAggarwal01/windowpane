@@ -55,9 +55,9 @@ defmodule WindowpaneWeb.WalletLive do
 
           stripe_account_id ->
             case Stripe.LoginLink.create(stripe_account_id) do
-              {:ok, %Stripe.LoginLink{url: url}} ->
+              {:ok, login_link} ->
                 {:noreply, socket
-                |> push_event("open_external_url", %{url: url})}
+                |> push_event("open_external_url", %{url: login_link.url})}
 
               {:error, _error} ->
                 {:noreply, socket

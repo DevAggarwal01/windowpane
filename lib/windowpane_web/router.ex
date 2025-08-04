@@ -131,7 +131,7 @@ defmodule WindowpaneWeb.Router do
     end
 
     post "/creators/log_in", CreatorSessionController, :create
-    get "/", PageController, :home
+    live "/", PageLive, :index
   end
 
   scope "/", WindowpaneWeb, host: "studio.windowpane.tv" do
