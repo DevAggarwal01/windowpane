@@ -4,6 +4,7 @@ defmodule WindowpaneWeb.HomeLive do
   import WindowpaneWeb.NavComponents
 
   alias Windowpane.PricingCalculator
+  alias Windowpane.Uploaders.CoverUploader
 
   @impl true
   def mount(_params, _session, socket) do
@@ -264,7 +265,7 @@ defmodule WindowpaneWeb.HomeLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="min-h-screen bg-gray-50">
+    <div class="min-h-screen bg-black">
       <.main_header current_path={@current_path} is_creator={@is_creator} />
 
       <%= if @error_message do %>
@@ -281,18 +282,6 @@ defmodule WindowpaneWeb.HomeLive do
           <div class="fixed inset-0 z-50 overflow-y-auto">
             <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
               <div class="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6">
-                <div class="absolute right-0 top-0 pr-4 pt-4">
-                  <button
-                    phx-click="close_film_modal"
-                    type="button"
-                    class="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none"
-                  >
-                    <span class="sr-only">Close</span>
-                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
                 <div>
                   <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
                     <span class="text-2xl">🎞️</span>
@@ -524,47 +513,22 @@ defmodule WindowpaneWeb.HomeLive do
       <!-- Main Content -->
       <main class="container mx-auto px-4 py-8">
         <%= if @is_creator do %>
-          <h1 class="text-3xl font-bold mb-8">Studio Homepage</h1>
-
-          <!-- Stats Grid -->
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div class="bg-white rounded-lg shadow p-6">
-              <h3 class="text-lg font-medium text-gray-900 mb-2">Total Revenue</h3>
-              <p class="text-4xl font-bold"><%= @stats.total_revenue %></p>
-            </div>
-
-            <div class="bg-white rounded-lg shadow p-6">
-              <h3 class="text-lg font-medium text-gray-900 mb-2">Content Performance</h3>
-              <p class="text-4xl font-bold"><%= @stats.content_performance %></p>
-            </div>
-
-            <div class="bg-white rounded-lg shadow p-6">
-              <h3 class="text-lg font-medium text-gray-900 mb-2">Viewer Feedback</h3>
-              <p class="text-4xl font-bold"><%= @stats.viewer_feedback %></p>
-            </div>
-          </div>
-
           <!-- Projects Section -->
           <div class="mb-8">
-            <h2 class="text-2xl font-bold mb-4">My Projects</h2>
-            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              <!-- Create New Project Card -->
+            <div class="flex items-center gap-3 mb-4">
+              <h2 class="text-xl font-semibold text-white">My Projects</h2>
               <div class="relative" phx-click-away="close_dropdown">
                 <button
                   phx-click="toggle_project_dropdown"
-                  class="w-full flex flex-col items-center justify-center p-6 bg-white rounded-lg shadow-sm border-2 border-dashed border-gray-300 hover:border-gray-400 hover:bg-gray-50 transition-all duration-200"
+                  class="w-10 h-10 bg-white rounded-full shadow-sm hover:shadow-md transition-all duration-200 hover:scale-105 flex items-center justify-center"
                 >
-                  <div class="w-16 h-16 flex items-center justify-center rounded-full bg-gray-100 mb-4">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                    </svg>
-                  </div>
-                  <h3 class="text-lg font-medium text-gray-900">Create New Project</h3>
-                  <p class="mt-1 text-sm text-gray-500">Start a new creative project</p>
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                  </svg>
                 </button>
 
                 <%= if @show_project_dropdown do %>
-                  <div class="absolute left-full ml-2 top-0 z-10 w-64 bg-white rounded-lg shadow-xl border border-gray-200 transform transition-all duration-200 ease-out">
+                  <div class="absolute right-0 top-full mt-2 z-10 w-64 bg-white rounded-lg shadow-xl border border-gray-200 transform transition-all duration-200 ease-out">
                     <div class="p-2 space-y-1">
                       <div class="px-3 py-2 text-sm font-medium text-gray-500 border-b border-gray-100">
                         Select Project Type
@@ -613,44 +577,42 @@ defmodule WindowpaneWeb.HomeLive do
                   </div>
                 <% end %>
               </div>
-
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
               <!-- Project Cards -->
               <%= for project <- @projects do %>
-                <.link navigate={~p"/#{project.id}"} class="block">
-                  <div class="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow">
-                    <div class="aspect-w-16 aspect-h-9 bg-gray-200 rounded-lg mb-4">
-                      <%= case project.type do %>
-                        <% "film" -> %>
-                          <div class="flex items-center justify-center">
-                            <span class="text-4xl">🎞️</span>
-                          </div>
-                        <% "tv_show" -> %>
-                          <div class="flex items-center justify-center">
-                            <span class="text-4xl">🎬</span>
-                          </div>
-                        <% "live_event" -> %>
-                          <div class="flex items-center justify-center">
-                            <span class="text-4xl">🎤</span>
-                          </div>
-                        <% "book" -> %>
-                          <div class="flex items-center justify-center">
-                            <span class="text-4xl">📚</span>
-                          </div>
-                        <% "music" -> %>
-                          <div class="flex items-center justify-center">
-                            <span class="text-4xl">🎶</span>
-                          </div>
+                <.link navigate={~p"/#{project.id}"} class="block group">
+                  <div class="bg-white rounded-lg shadow-sm hover:shadow-md transition-all duration-200 hover:scale-105 overflow-hidden">
+                    <div class="aspect-square relative overflow-hidden bg-gray-200">
+                      <%= if CoverUploader.cover_exists?(project) do %>
+                        <img src={CoverUploader.cover_url(project)} alt={project.title} class="w-full h-full object-cover" />
+                      <% else %>
+                        <div class="flex items-center justify-center w-full h-full">
+                          <span class="text-gray-500 text-sm">No cover</span>
+                        </div>
                       <% end %>
+
+                      <!-- Type overlay icon in top right corner -->
+                      <div class="absolute top-2 right-2 w-8 h-8 bg-black bg-opacity-60 rounded-full flex items-center justify-center">
+                        <%= case project.type do %>
+                          <% "film" -> %>
+                            <span class="text-white text-sm">🎞️</span>
+                          <% "tv_show" -> %>
+                            <span class="text-white text-sm">🎬</span>
+                          <% "live_event" -> %>
+                            <span class="text-white text-sm">🎤</span>
+                          <% "book" -> %>
+                            <span class="text-white text-sm">📚</span>
+                          <% "music" -> %>
+                            <span class="text-white text-sm">🎶</span>
+                        <% end %>
+                      </div>
+
+                      <!-- Title overlay on hover -->
+                      <div class="absolute inset-0 bg-black bg-opacity-75 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                        <h3 class="text-lg font-medium text-white text-center px-4"><%= project.title %></h3>
+                      </div>
                     </div>
-                    <h3 class="text-lg font-medium text-gray-900"><%= project.title %></h3>
-                    <div class="mt-2 flex items-center text-sm text-gray-500">
-                      <span class="capitalize"><%= project.type %></span>
-                      <span class="mx-2">•</span>
-                      <span class="capitalize"><%= project.status %></span>
-                    </div>
-                    <p class="text-sm text-gray-500">
-                      Last updated: <%= Calendar.strftime(project.updated_at, "%B %d, %Y") %>
-                    </p>
                   </div>
                 </.link>
               <% end %>

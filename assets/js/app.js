@@ -50,26 +50,6 @@ Hooks.UpdatePrice = {
   }
 }
 
-Hooks.UpdateRentalPrice = {
-  mounted() {
-    this.el.addEventListener('click', (e) => {
-      e.preventDefault();
-      const rentalPriceInput = document.getElementById('rental-price-input');
-      if (rentalPriceInput) {
-        const price = rentalPriceInput.value;
-        console.log('Sending rental price update with value:', price);
-        // Use pushEventTo to target the component that has the phx-target
-        const target = this.el.getAttribute('phx-target');
-        if (target) {
-          this.pushEventTo(target, 'update_rental_price', { price: price });
-        } else {
-          this.pushEvent('update_rental_price', { price: price });
-        }
-      }
-    });
-  }
-}
-
 Hooks.CoverUpload = {
   mounted() {
     this.fileInput = null;
@@ -236,6 +216,145 @@ Hooks.CoverUpload = {
   resetFileInput() {
     if (this.fileInput) {
       this.fileInput.value = '';
+    }
+  }
+};
+
+// CoverUploadSquare Hook - For FilmSetupComponentV2 (1:1 aspect ratio)
+Hooks.CoverUploadSquare = {
+  mounted() {
+    this.setupFileInput();
+    
+    // Listen for custom events to trigger file selection
+    document.addEventListener('cover-upload-square:choose-file', () => {
+      document.getElementById('cover-file-input-square').click();
+    });
+  },
+
+  destroyed() {
+    document.removeEventListener('cover-upload-square:choose-file', this.chooseFileHandler);
+  },
+
+  setupFileInput() {
+    const fileInput = document.getElementById('cover-file-input-square');
+    if (fileInput) {
+      fileInput.addEventListener('change', this.handleFileSelect.bind(this));
+    }
+  },
+  
+  handleFileSelect(event) {
+    const file = event.target.files[0];
+    if (!file || !file.type.startsWith('image/')) {
+      this.showError('Please select a valid image file.');
+      return;
+    }
+    
+    // Create an image element to check dimensions
+    const img = new Image();
+    img.onload = () => {
+      const aspectRatio = img.width / img.height;
+      const targetRatio = 1 / 1; // 1:1 aspect ratio (square)
+      const tolerance = 0.01; // Allow small tolerance for floating point comparison
+      
+      console.log(`Image dimensions: ${img.width}x${img.height}`);
+      console.log(`Aspect ratio: ${aspectRatio.toFixed(3)}, Target: ${targetRatio.toFixed(3)}`);
+      
+      if (Math.abs(aspectRatio - targetRatio) > tolerance) {
+        const errorMessage = `Image must have a 1:1 aspect ratio (square). Your image is ${img.width}×${img.height} pixels (ratio: ${aspectRatio.toFixed(3)}). Please use an image with the correct proportions or adjust it using the aspect ratio tool.`;
+        this.showError(errorMessage);
+        this.resetFileInput();
+        return;
+      }
+      
+      // Aspect ratio is correct, proceed with upload using LiveView upload system
+      this.uploadImage(file);
+    };
+    
+    img.onerror = () => {
+      this.showError('Could not load the selected image file. Please try a different image.');
+      this.resetFileInput();
+    };
+    
+    // Create a URL for the image to load it
+    img.src = URL.createObjectURL(file);
+  },
+  
+  uploadImage(file) {
+    // Show uploading state
+    this.setUploading(true);
+    
+    // Create form data
+    const formData = new FormData();
+    formData.append('cover', file);
+    formData.append('project_id', this.el.dataset.projectId);
+    
+    // Use the same upload endpoint as the original CoverUpload hook
+    fetch(`/api/projects/${this.el.dataset.projectId}/cover`, {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content
+      }
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    })
+    .then(data => {
+      if (data.success) {
+        this.uploadSuccess();
+      } else {
+        this.showError(data.error || 'Upload failed');
+      }
+    })
+    .catch(error => {
+      console.error('Upload error:', error);
+      this.showError('Upload failed. Please try again.');
+    })
+    .finally(() => {
+      this.setUploading(false);
+      this.resetFileInput();
+    });
+  },
+  
+  setUploading(uploading) {
+    // Use try-catch to handle LiveView connection issues
+    try {
+      this.pushEventTo(this.el, "set_uploading", { uploading: uploading });
+    } catch (error) {
+      console.warn('Failed to push uploading state:', error);
+    }
+  },
+  
+  uploadSuccess() {
+    try {
+      this.pushEventTo(this.el, "upload_success", {});
+    } catch (error) {
+      console.warn('Failed to push upload success:', error);
+      // Force reload the page if LiveView connection is broken
+      window.location.reload();
+    }
+  },
+  
+  showError(message) {
+    // Show immediate visual feedback
+    console.error('Cover Upload Error:', message);
+    
+    try {
+      this.pushEventTo(this.el, "upload_error", { error: message });
+    } catch (error) {
+      console.warn('Failed to push error via LiveView:', error);
+      // Fallback to browser alert if LiveView is not connected
+      alert(message);
+    }
+  },
+  
+  resetFileInput() {
+    const fileInput = document.getElementById('cover-file-input-square');
+    if (fileInput) {
+      fileInput.value = '';
     }
   }
 };
@@ -1274,9 +1393,6 @@ Hooks.RegistrationSuccess = {
     window.location.reload();
   }
 }
-
-// Remove the default export and keep Hooks as a regular object
-// export default Hooks;
 
 let csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 console.log("Hooks", Hooks);

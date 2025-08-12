@@ -45,6 +45,28 @@ defmodule WindowpaneWeb.MuxWebhookController do
     end
   end
 
+  defp handle_event("video.upload.asset_created", %{"data" => %{"asset_id" => asset_id}} = params) do
+    Logger.info("Upload completed, asset created: #{asset_id}")
+
+    # Extract project_id and type from passthrough if available
+    passthrough = get_in(params, ["data", "passthrough"])
+
+    if is_binary(passthrough) do
+      case parse_passthrough(passthrough) do
+        {:ok, %{"project_id" => project_id, "type" => type}} ->
+          Logger.info("Upload asset created for project #{project_id} with type #{type}")
+          # Store the asset_id in the film record
+          handle_upload_asset_created(asset_id, project_id, type)
+        {:error, reason} ->
+          Logger.error("Failed to parse passthrough in upload asset created: #{inspect(reason)}")
+          :ok
+      end
+    else
+      Logger.warning("Upload asset created event missing passthrough: #{asset_id}")
+      :ok
+    end
+  end
+
   defp handle_event("video.asset.errored", %{"data" => %{"id" => asset_id, "errors" => %{"messages" => messages}}} = params) do
     Logger.error("Asset errored: #{asset_id}, messages: #{inspect(messages)}")
 
@@ -323,6 +345,40 @@ defmodule WindowpaneWeb.MuxWebhookController do
       e ->
         Logger.error("Error updating film duration: #{inspect(e)}")
         {:error, :unexpected_error}
+    end
+  end
+
+  defp handle_upload_asset_created(asset_id, project_id, type) do
+    try do
+      with project when not is_nil(project) <- Projects.get_project_with_film!(project_id),
+           film <- project.film || Projects.get_or_create_film(project),
+           update when update != %{} <- get_asset_update_by_type(type, asset_id),
+           {:ok, _updated_film} <- Projects.update_film(film, update) do
+        Logger.info("Successfully stored asset_id #{asset_id} for project #{project_id}")
+        :ok
+      else
+        nil ->
+          Logger.error("No project found for project_id: #{project_id}")
+          {:error, :project_not_found}
+        %{} ->
+          Logger.error("Invalid type #{type} for asset update")
+          {:error, :invalid_type}
+        {:error, reason} ->
+          Logger.error("Failed to update film with asset_id: #{inspect(reason)}")
+          {:error, reason}
+      end
+    rescue
+      e ->
+        Logger.error("Error processing upload asset created: #{inspect(e)}")
+        {:error, :unexpected_error}
+    end
+  end
+
+  defp get_asset_update_by_type(type, asset_id) do
+    case type do
+      "trailer" -> %{trailer_asset_id: asset_id}
+      "film" -> %{film_asset_id: asset_id}
+      _ -> %{}
     end
   end
 end

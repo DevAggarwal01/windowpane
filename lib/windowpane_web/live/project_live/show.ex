@@ -2,7 +2,8 @@ defmodule WindowpaneWeb.ProjectLive.Show do
   use WindowpaneWeb, :live_view
 
   alias Windowpane.Projects
-  alias WindowpaneWeb.FilmSetupComponent
+  # alias WindowpaneWeb.FilmSetupComponent
+  alias WindowpaneWeb.FilmSetupComponentV2
   alias WindowpaneWeb.LiveStreamSetupComponent
   alias WindowpaneWeb.LiveStreamInfoComponent
   alias WindowpaneWeb.FilmModalComponent
@@ -112,6 +113,7 @@ defmodule WindowpaneWeb.ProjectLive.Show do
 
     <!-- Film Modal Component -->
     <%= if @show_film_modal do %>
+    <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity z-50">
       <.live_component
         module={FilmModalComponent}
         id="film-modal"
@@ -120,6 +122,7 @@ defmodule WindowpaneWeb.ProjectLive.Show do
         current_user={assigns[:current_user]}
         edit={@modal_edit}
       />
+      </div>
     <% end %>
 
     <!-- Enhanced Header Section -->
@@ -166,7 +169,7 @@ defmodule WindowpaneWeb.ProjectLive.Show do
       <%= case @project.type do %>
         <% "film" -> %>
           <.live_component
-            module={FilmSetupComponent}
+            module={FilmSetupComponentV2}
             id="film-setup"
             project={@project}
             editing={@editing}

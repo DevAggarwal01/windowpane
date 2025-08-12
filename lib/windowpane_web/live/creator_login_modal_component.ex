@@ -111,7 +111,14 @@ defmodule WindowpaneWeb.CreatorLoginModalComponent do
             <%= if @error_message do %>
               <div class="text-red-400 mb-4 text-sm text-center"><%= @error_message %></div>
             <% end %>
-            <form method="post" action="/creators/log_in" autocomplete="off" class="space-y-3">
+            <.form
+              for={%{}}
+              as={:creator}
+              action="/creators/log_in"
+              method="post"
+              autocomplete="off"
+              class="space-y-3"
+            >
               <input
                 name="creator[email]"
                 type="email"
@@ -134,7 +141,7 @@ defmodule WindowpaneWeb.CreatorLoginModalComponent do
               <button type="submit" class="w-full text-lg border border-white rounded-none py-2 mt-2 hover:bg-white/10 transition">
                 [login]
               </button>
-            </form>
+            </.form>
           <% end %>
           <p class="mt-8 text-center text-xs text-white/70">
             By continuing, you agree to the <a href="/rules" class="underline">rules</a>.

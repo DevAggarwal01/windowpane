@@ -11,61 +11,34 @@ defmodule WindowpaneWeb.NavComponents do
 
   def main_header(assigns) do
     ~H"""
-    <header class={["bg-gray-800 text-white", @class]}>
+    <header class={["bg-black text-white", @class]}>
       <div class="container mx-auto px-4">
         <div class="flex items-center justify-between h-16">
           <div class="flex items-center">
-            <div class="text-xl font-semibold">
-              <%= if @is_creator do %>
-                Windowpane Studio
-              <% else %>
-                Windowpane
-              <% end %>
-            </div>
-            <nav class="ml-10 flex space-x-8">
-              <%= if @is_creator do %>
-                <.nav_link navigate={~p"/dashboard"} active={@current_path == :show}>
-                  Dashboard
-                </.nav_link>
-              <% end %>
-              <.nav_link navigate={~p"/wallet"} active={@current_path == :wallet}>
-                Wallet
-              </.nav_link>
-              <.nav_link navigate={~p"/social"} active={@current_path == :social}>
-                Social
-              </.nav_link>
-            </nav>
+            <.link navigate={~p"/dashboard"} class="text-2xl font-semibold text-white cursor-pointer transition-transform duration-150 hover:scale-110">
+              Windowpane Studio
+            </.link>
           </div>
-          <div class="flex items-center space-x-4">
-            <%= if @is_creator do %>
-              <.link
-                navigate={~p"/creators/settings"}
-                class="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
-              >
-                Settings
-              </.link>
-              <.link
-                href={~p"/creators/log_out"}
-                method="delete"
-                class="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
-              >
-                Log out
-              </.link>
-            <% else %>
-              <.link
-                navigate={~p"/users/settings"}
-                class="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
-              >
-                Settings
-              </.link>
-              <.link
-                href={~p"/users/log_out"}
-                method="delete"
-                class="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
-              >
-                Log out
-              </.link>
-            <% end %>
+          <div class="flex items-center space-x-8">
+            <.link navigate={~p"/wallet"} class="text-sm font-medium text-white cursor-pointer transition-transform duration-150 hover:scale-110">
+              [wallet]
+            </.link>
+            <.link navigate={~p"/social"} class="text-sm font-medium text-white cursor-pointer transition-transform duration-150 hover:scale-110">
+              [social]
+            </.link>
+            <.link
+              navigate={~p"/creators/settings"}
+              class="text-sm font-medium text-white cursor-pointer transition-transform duration-150 hover:scale-110"
+            >
+              [settings]
+            </.link>
+            <.link
+              href={~p"/creators/log_out"}
+              method="delete"
+              class="text-sm font-medium text-white cursor-pointer transition-transform duration-150 hover:scale-110"
+            >
+              [log out]
+            </.link>
           </div>
         </div>
       </div>
